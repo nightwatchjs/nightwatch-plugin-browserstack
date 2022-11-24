@@ -1,0 +1,23 @@
+{
+  "name": "nightwatch-plugin-browserstack",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "browserstack-local": "^1.5.1"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nightwatchjs/nightwatch-plugin-browserstack.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nightwatchjs/nightwatch-plugin-browserstack/issues"
+  },
+  "homepage": "https://github.com/nightwatchjs/nightwatch-plugin-browserstack#readme"
+}
