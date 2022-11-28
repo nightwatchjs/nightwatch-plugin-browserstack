@@ -3,16 +3,19 @@ const LocalTunnel = require('../src/local-tunnel');
 const localTunnel = new LocalTunnel();
 
 module.exports = {
+  beforeEach(settings) {
+    console.log(settings.hello, 'hello')
+  },
   async before(settings) {
-    process.env.BROWSERSTACK_LOCAL_TOGGLE = "false";
-    process.env.BROWSERSTACK_LOCAL_IDENTIFIER = "";
     localTunnel.configure(settings);
     await localTunnel.start();
     if (localTunnel._localStarted) {
+      settings.desiredCapabilities['bstack:options'].local = true;
       // Adding envs to be updated during selenium start.
-      process.env.BROWSERSTACK_LOCAL_TOGGLE = true;
+      process.env.BROWSERSTACK_LOCAL_ENABLED = true;
       if (localTunnel._localOpts.localIdentifier) {
         process.env.BROWSERSTACK_LOCAL_IDENTIFIER = localTunnel._localOpts.localIdentifier;
+        settings.desiredCapabilities['bstack:options'].local = localTunnel._localOpts.localIdentifier;
       }
     }
   },
@@ -20,5 +23,12 @@ module.exports = {
   async after() {
     console.log('Stopping local');
     localTunnel.stop();
-  }
+  },
+
+  beforeParallel(settings) {
+    process.env.BROWSERSTACK_LOCAL_ENABLED == "true" && 
+    (settings.desiredCapabilities['bstack:options'].local = true);
+    process.env.BROWSERSTACK_LOCAL_IDENTIFIER &&
+    (settings.desiredCapabilities['bstack:options'].localIdentifier = process.env.BROWSERSTACK_LOCAL_IDENTIFIER);
+  },
 };
