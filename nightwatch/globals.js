@@ -15,7 +15,7 @@ module.exports = {
       process.env.BROWSERSTACK_LOCAL_ENABLED = true;
       if (localTunnel._localOpts.localIdentifier) {
         process.env.BROWSERSTACK_LOCAL_IDENTIFIER = localTunnel._localOpts.localIdentifier;
-        settings.desiredCapabilities['bstack:options'].local = localTunnel._localOpts.localIdentifier;
+        settings.desiredCapabilities['bstack:options'].localIdentifier = localTunnel._localOpts.localIdentifier;
       }
     }
   },
@@ -25,9 +25,9 @@ module.exports = {
     localTunnel.stop();
   },
 
-  beforeParallel(settings) {
+  beforeChildProcess(settings) {
     process.env.BROWSERSTACK_LOCAL_ENABLED == "true" && 
-    (settings.desiredCapabilities['bstack:options'].local = true);
+    (settings.desiredCapabilities['bstack:options'].local = process.env.BROWSERSTACK_LOCAL_ENABLED);
     process.env.BROWSERSTACK_LOCAL_IDENTIFIER &&
     (settings.desiredCapabilities['bstack:options'].localIdentifier = process.env.BROWSERSTACK_LOCAL_IDENTIFIER);
   },
