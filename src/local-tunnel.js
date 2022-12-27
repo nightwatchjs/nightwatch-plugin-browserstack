@@ -19,15 +19,15 @@ class LocalTunnel {
   async start() {
     if (this._localTunnel) {
       if (helper.isUndefined(this._key)) {
-        console.log('key not defined, skipping local initialisation');
+        console.log('key not defined, skipping Browserstack Local initialisation');
         return;
       }
       try {
         await util.promisify(this._localTunnel.start.bind(this._localTunnel))({ key: this._key, ...this._localOpts });
         this._localStarted = true;
-        console.log('Local started successfully');
+        console.log('Browserstack Local started successfully');
       } catch (err) {
-        console.log('Local failed with error: ', err);
+        console.log('Browserstack Local failed with error: ', err);
       }
     }
   }

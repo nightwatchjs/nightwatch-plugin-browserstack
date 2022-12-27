@@ -3,9 +3,6 @@ const LocalTunnel = require('../src/local-tunnel');
 const localTunnel = new LocalTunnel();
 
 module.exports = {
-  beforeEach(settings) {
-    console.log(settings.hello, 'hello')
-  },
   async before(settings) {
     localTunnel.configure(settings);
     await localTunnel.start();
@@ -21,7 +18,7 @@ module.exports = {
   },
 
   async after() {
-    console.log('Stopping local');
+    console.log('Stopping Browserstack Local');
     localTunnel.stop();
   },
 
