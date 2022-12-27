@@ -8,7 +8,7 @@ module.exports = {
     await localTunnel.start();
     if (localTunnel._localStarted) {
       settings.desiredCapabilities['bstack:options'].local = true;
-      // Adding envs to be updated during selenium start.
+      // Adding envs to be updated at beforeChildProcess.
       process.env.BROWSERSTACK_LOCAL_ENABLED = true;
       if (localTunnel._localOpts.localIdentifier) {
         process.env.BROWSERSTACK_LOCAL_IDENTIFIER = localTunnel._localOpts.localIdentifier;
@@ -18,7 +18,6 @@ module.exports = {
   },
 
   async after() {
-    console.log('Stopping Browserstack Local');
     localTunnel.stop();
   },
 

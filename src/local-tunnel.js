@@ -19,23 +19,35 @@ class LocalTunnel {
   async start() {
     if (this._localTunnel) {
       if (helper.isUndefined(this._key)) {
-        console.log('key not defined, skipping Browserstack Local initialisation');
+        console.log('key not defined, skipping BrowserStack Local initialisation');
         return;
       }
       try {
         await util.promisify(this._localTunnel.start.bind(this._localTunnel))({ key: this._key, ...this._localOpts });
         this._localStarted = true;
-        console.log('Browserstack Local started successfully');
+ 
+        // handlers for abrup close
+        const handler = async () => {
+          await this.stop();
+          process.exit();
+        }
+        process.on('SIGINT', handler);
+        process.on('SIGTERM', handler);
+        console.log('BrowserStack Local started successfully');
       } catch (err) {
-        console.log('Browserstack Local failed with error: ', err);
+        console.log('BrowserStack Local start failed with error: ', err);
       }
     }
   }
 
   async stop() {
     try {
-      this._localStarted && await util.promisify(this._localTunnel.stop.bind(this._localTunnel))();
+      if (this._localStarted) {
+        await util.promisify(this._localTunnel.stop.bind(this._localTunnel))();
+        console.log('BrowserStack Local stopped successfully');
+      }
     } catch (err) {
+      console.log('BrowserStack Local stop failed with error: ', err);
     }
   }
 };
