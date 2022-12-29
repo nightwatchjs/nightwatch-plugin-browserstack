@@ -23,7 +23,7 @@ class LocalTunnel {
   async start() {
     if (this._localTunnel) {
       if (helper.isUndefined(this._key)) {
-        console.log('key not defined, skipping BrowserStack Local initialisation');
+        console.log('Unable to detect accessKey, skipping BrowserStack Local.');
         return;
       }
       try {
