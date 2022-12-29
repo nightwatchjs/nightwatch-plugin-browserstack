@@ -7,12 +7,16 @@ class LocalTunnel {
 
   configure(settings = {}) {
     this._settings = settings.browserstackPluginOptions || {};
-    this._localOpts = this._settings.localOptions ? this._settings.localOptions : {};
+    this._localOpts = this._settings.localOptions || this._settings.browserstackLocalOptions;
+    if (helper.isUndefined(this._localOpts)) {
+      this._localOpts = {};
+    }
+
     if (helper.isUndefined(this._localOpts.localIdentifier)) {
       this._localOpts.localIdentifier = helper.generateLocalIdentifier();
     }
     this._key = helper.getAccessKey(settings);
-    if(this._settings.local)
+    if(this._settings.local || this._settings.browserstackLocal)
       this._localTunnel = new BStackLocal();
   }
 
@@ -23,6 +27,7 @@ class LocalTunnel {
         return;
       }
       try {
+        console.log('Starting BrowserStack Local');
         await util.promisify(this._localTunnel.start.bind(this._localTunnel))({ key: this._key, ...this._localOpts });
         this._localStarted = true;
  
