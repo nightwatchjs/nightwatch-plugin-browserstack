@@ -16,8 +16,9 @@ class LocalTunnel {
       this._localOpts.localIdentifier = helper.generateLocalIdentifier();
     }
     this._key = helper.getAccessKey(settings);
-    if(this._settings.local || this._settings.browserstackLocal)
+    if(this._settings.local || this._settings.browserstackLocal) {
       this._localTunnel = new BStackLocal();
+    }
   }
 
   async start() {

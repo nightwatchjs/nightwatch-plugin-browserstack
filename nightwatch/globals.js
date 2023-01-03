@@ -22,9 +22,12 @@ module.exports = {
   },
 
   beforeChildProcess(settings) {
-    process.env.BROWSERSTACK_LOCAL_ENABLED == "true" && 
-    (settings.desiredCapabilities['bstack:options'].local = process.env.BROWSERSTACK_LOCAL_ENABLED);
-    process.env.BROWSERSTACK_LOCAL_IDENTIFIER &&
-    (settings.desiredCapabilities['bstack:options'].localIdentifier = process.env.BROWSERSTACK_LOCAL_IDENTIFIER);
+    if (process.env.BROWSERSTACK_LOCAL_ENABLED == "true") {
+      settings.desiredCapabilities['bstack:options'].local = process.env.BROWSERSTACK_LOCAL_ENABLED;
+    }
+    
+    if (process.env.BROWSERSTACK_LOCAL_IDENTIFIER) {
+      settings.desiredCapabilities['bstack:options'].localIdentifier = process.env.BROWSERSTACK_LOCAL_IDENTIFIER;
+    }
   },
 };
