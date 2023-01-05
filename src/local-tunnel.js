@@ -24,15 +24,14 @@ class LocalTunnel {
   async start() {
     if (this._localTunnel) {
       if (helper.isUndefined(this._key)) {
-        console.log('Unable to detect accessKey, skipping BrowserStack Local.');
-        return;
+        throw new Error('Unable to detect accessKey, to start BrowserStack Local.');
       }
       try {
         console.log('Starting BrowserStack Local');
         await util.promisify(this._localTunnel.start.bind(this._localTunnel))({ key: this._key, ...this._localOpts });
         this._localStarted = true;
  
-        // handlers for abrup close
+        // handlers for abrupt close
         const handler = async () => {
           await this.stop();
           process.exit();
@@ -41,7 +40,7 @@ class LocalTunnel {
         process.on('SIGTERM', handler);
         console.log('BrowserStack Local started successfully');
       } catch (err) {
-        console.log('BrowserStack Local start failed with error: ', err);
+        throw new Error(`BrowserStack Local start failed with error: ${err}`);
       }
     }
   }
