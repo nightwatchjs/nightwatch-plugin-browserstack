@@ -29,7 +29,6 @@ class LocalTunnel {
       try {
         console.log('Starting BrowserStack Local');
         await util.promisify(this._localTunnel.start.bind(this._localTunnel))({ key: this._key, ...this._localOpts });
-        this._localStarted = true;
  
         // handlers for abrupt close
         const handler = async () => {
@@ -47,7 +46,7 @@ class LocalTunnel {
 
   async stop() {
     try {
-      if (this._localStarted) {
+      if (this._localTunnel && this._localTunnel.isRunning()) {
         await util.promisify(this._localTunnel.stop.bind(this._localTunnel))();
         console.log('BrowserStack Local stopped successfully');
       }
