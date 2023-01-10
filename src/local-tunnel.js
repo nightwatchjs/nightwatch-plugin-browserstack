@@ -16,7 +16,7 @@ class LocalTunnel {
       this._localOpts.localIdentifier = helper.generateLocalIdentifier();
     }
     this._key = helper.getAccessKey(settings);
-    if(this._settings.local || this._settings.browserstackLocal) {
+    if (this._settings.local || this._settings.browserstackLocal) {
       this._localTunnel = new BStackLocal();
     }
   }
@@ -28,13 +28,13 @@ class LocalTunnel {
       }
       try {
         console.log('Starting BrowserStack Local');
-        await util.promisify(this._localTunnel.start.bind(this._localTunnel))({ key: this._key, ...this._localOpts });
+        await util.promisify(this._localTunnel.start.bind(this._localTunnel))({key: this._key, ...this._localOpts});
  
         // handlers for abrupt close
         const handler = async () => {
           await this.stop();
           process.exit();
-        }
+        };
         process.on('SIGINT', handler);
         process.on('SIGTERM', handler);
         console.log('BrowserStack Local started successfully');

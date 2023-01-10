@@ -12,8 +12,9 @@ exports.generateLocalIdentifier = () => {
     .replace(':', '');
   const hostname = os.hostname();
   const randomChars = Math.random().toString(36).slice(2, 6);
+
   return `${formattedDate}_${hostname}_${randomChars}`;
-}
+};
 
 exports.isUndefined = value => (value === undefined || value === null);
 
@@ -23,10 +24,11 @@ exports.getAccessKey = (settings) => {
   let accessKey = null;
   if (this.isObject(settings.desiredCapabilities)) {
     if (settings.desiredCapabilities['browsersack.key']) {
-      accessKey = settings.desiredCapabilities['browsersack.key']
+      accessKey = settings.desiredCapabilities['browsersack.key'];
     } else if (this.isObject(settings.desiredCapabilities['bstack:options'])) {
       accessKey = settings.desiredCapabilities['bstack:options'].accessKey;
     }
   }
+
   return accessKey;
-}
+};

@@ -4,14 +4,35 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "eslint": "eslint index.js src nightwatch --quiet"
+  },
+  "eslintConfig": {
+    "extends": "eslint:recommended",
+    "env": {
+      "browser": false,
+      "node": true
+    },
+    "rules": {
+      "eqeqeq": "off",
+      "curly": [
+        "error",
+        "all"
+      ],
+      "quotes": [
+        "error",
+        "single"
+      ]
+    }
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "browserstack-local": "^1.5.1"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "eslint": "^8.31.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nightwatchjs/nightwatch-plugin-browserstack.git"

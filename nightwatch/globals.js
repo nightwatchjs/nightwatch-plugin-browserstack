@@ -24,12 +24,12 @@ module.exports = {
   },
 
   beforeChildProcess(settings) {
-    if (process.env.BROWSERSTACK_LOCAL_ENABLED == "true") {
+    if (process.env.BROWSERSTACK_LOCAL_ENABLED.toString() === 'true') {
       settings.desiredCapabilities['bstack:options'].local = process.env.BROWSERSTACK_LOCAL_ENABLED;
     }
 
     if (process.env.BROWSERSTACK_LOCAL_IDENTIFIER) {
       settings.desiredCapabilities['bstack:options'].localIdentifier = process.env.BROWSERSTACK_LOCAL_IDENTIFIER;
     }
-  },
+  }
 };
