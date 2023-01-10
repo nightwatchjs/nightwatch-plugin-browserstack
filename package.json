@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "eslint": "eslint index.js src nightwatch --quiet"
+    "test": "mocha test/* --recursive",
+    "eslint": "eslint index.js src nightwatch test --quiet"
   },
   "eslintConfig": {
     "extends": "eslint:recommended",
@@ -31,7 +31,10 @@
     "browserstack-local": "^1.5.1"
   },
   "devDependencies": {
-    "eslint": "^8.31.0"
+    "chai": "^4.3.7",
+    "eslint": "^8.31.0",
+    "mocha": "^10.2.0",
+    "mockery": "^2.1.0"
   },
   "repository": {
     "type": "git",

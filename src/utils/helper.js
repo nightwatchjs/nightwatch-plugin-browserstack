@@ -23,8 +23,8 @@ exports.isObject = value => (!this.isUndefined(value) && value.constructor === O
 exports.getAccessKey = (settings) => {
   let accessKey = null;
   if (this.isObject(settings.desiredCapabilities)) {
-    if (settings.desiredCapabilities['browsersack.key']) {
-      accessKey = settings.desiredCapabilities['browsersack.key'];
+    if (settings.desiredCapabilities['browserstack.key']) {
+      accessKey = settings.desiredCapabilities['browserstack.key'];
     } else if (this.isObject(settings.desiredCapabilities['bstack:options'])) {
       accessKey = settings.desiredCapabilities['bstack:options'].accessKey;
     }
