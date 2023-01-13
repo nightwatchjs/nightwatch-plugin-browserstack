@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha test/* --recursive",
+    "test": "mocha --recursive",
     "eslint": "eslint index.js src nightwatch test --quiet"
   },
   "eslintConfig": {
