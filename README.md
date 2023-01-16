@@ -6,7 +6,7 @@
 </p>
 
 
-Official Nightwatch plugin that manages local tunnel.
+Official Nightwatch plugin for integration with BrowserStack.
 
 ```
 npm i @nightwatch/browserstack --save-dev
@@ -22,7 +22,7 @@ module.exports = {
   
   // browserstack plugin settings...
   browserstackPluginOptions: {
-    browserstackLocal: true, // set true to manage local tunnel
+    browserstackLocal: true, // set true to manage browserstack local tunnel. Defaults to false.
     browserstackLocalOptions: {
       // other browserstack local options
     }
