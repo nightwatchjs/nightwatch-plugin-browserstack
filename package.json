@@ -1,10 +1,10 @@
 {
-  "name": "nightwatch-plugin-browserstack",
+  "name": "@nightwatch/browserstack",
   "version": "0.0.1",
-  "description": "",
+  "description": "Nightwatch plugin for integration with browserstack.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --recursive",
+    "test": "mocha --recursive --timeout 10000",
     "eslint": "eslint index.js src nightwatch test --quiet"
   },
   "eslintConfig": {
@@ -26,6 +26,13 @@
     }
   },
   "author": "",
+  "files": [
+    "src",
+    "nightwatch",
+    "index.js",
+    "LICENSE.md",
+    "README.md"
+  ],
   "license": "ISC",
   "dependencies": {
     "browserstack-local": "^1.5.1"
