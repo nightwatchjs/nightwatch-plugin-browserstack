@@ -18,7 +18,7 @@ Update your [Nightwatch configuration](https://nightwatchjs.org/guide/configurat
 
 ```js
 module.exports = {
-  plugins: ['@nightwatch/browserstack']
+  plugins: ['@nightwatch/browserstack'],
   
   // browserstack plugin settings...
   browserstackPluginOptions: {
