@@ -6,7 +6,7 @@ const helper = require('../src/utils/helper');
 class LocalTunnel {
 
   configure(settings = {}) {
-    this._settings = settings.browserstackPluginOptions || {};
+    this._settings = settings['@nightwatch/browserstack'] || {};
     this._localOpts = this._settings.localOptions || this._settings.browserstackLocalOptions;
     if (helper.isUndefined(this._localOpts)) {
       this._localOpts = {};

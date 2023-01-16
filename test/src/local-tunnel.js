@@ -4,7 +4,7 @@ describe('LocalTunnel', () => {
   let LocalTunnel;
   let localTunnel;
   let settings = {
-    browserstackPluginOptions: {
+    '@nightwatch/browserstack': {
       browserstackLocal: true,
       browserstackLocalOptions: {
         localIdentifier: 'hello123',
@@ -30,15 +30,15 @@ describe('LocalTunnel', () => {
   
     it('sets plugin options', () => {
       localTunnel.configure({...settings});
-      expect(localTunnel._settings).to.deep.eq({...settings.browserstackPluginOptions});
+      expect(localTunnel._settings).to.deep.eq({...settings['@nightwatch/browserstack']});
     });
   
     it('sets local options', () => {
       localTunnel.configure({...settings});
-      expect(localTunnel._localOpts).to.deep.eq({...settings.browserstackPluginOptions.browserstackLocalOptions});
+      expect(localTunnel._localOpts).to.deep.eq({...settings['@nightwatch/browserstack'].browserstackLocalOptions});
   
       const extraSettings = {...settings, ...{
-        browserstackPluginOptions: {
+        '@nightwatch/browserstack': {
           localOptions: {
             browserstackLocal: true,
             localIdentifier: '123'
@@ -46,7 +46,7 @@ describe('LocalTunnel', () => {
         }
       }};
       localTunnel.configure(extraSettings);
-      expect(localTunnel._localOpts).to.deep.eq({...extraSettings.browserstackPluginOptions.localOptions});
+      expect(localTunnel._localOpts).to.deep.eq({...extraSettings['@nightwatch/browserstack'].localOptions});
     });
   
     it('honors browserstackLocal: true', () => {
@@ -56,7 +56,7 @@ describe('LocalTunnel', () => {
   
     it('honors browserstackLocal: false', () => {
       const extraSettings = {...settings, ...{
-        browserstackPluginOptions: {
+        '@nightwatch/browserstack': {
           browserstackLocal: false
         }
       }};
@@ -66,7 +66,7 @@ describe('LocalTunnel', () => {
   
     it('honors browserstackLocal: false', () => {
       const extraSettings = {...settings, ...{
-        browserstackPluginOptions: {
+        '@nightwatch/browserstack': {
           browserstackLocal: false
         }
       }};
@@ -83,7 +83,7 @@ describe('LocalTunnel', () => {
   describe('start', () => {
     it('throws error when key not defined', async () => {
       settings = {
-        browserstackPluginOptions: {
+        '@nightwatch/browserstack': {
           browserstackLocal: true
         }
       };

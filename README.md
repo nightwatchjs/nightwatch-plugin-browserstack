@@ -21,7 +21,7 @@ module.exports = {
   plugins: ['@nightwatch/browserstack'],
   
   // browserstack plugin settings...
-  browserstackPluginOptions: {
+  '@nightwatch/browserstack': {
     browserstackLocal: true, // set true to manage browserstack local tunnel. Defaults to false.
     browserstackLocalOptions: {
       // other browserstack local options
