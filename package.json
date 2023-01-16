@@ -1,5 +1,5 @@
 {
-  "name": "nightwatch-plugin-browserstack",
+  "name": "@nightwatch/browserstack",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
