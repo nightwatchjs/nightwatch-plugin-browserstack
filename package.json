@@ -26,6 +26,13 @@
     }
   },
   "author": "",
+  "files": [
+    "src",
+    "nightwatch",
+    "index.js",
+    "LICENSE.md",
+    "README.md"
+  ],
   "license": "ISC",
   "dependencies": {
     "browserstack-local": "^1.5.1"
