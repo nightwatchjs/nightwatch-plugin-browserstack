@@ -30,5 +30,9 @@ exports.getAccessKey = (settings) => {
     }
   }
 
+  if (this.isUndefined(accessKey)) {
+    accessKey = process.env.BROWSERSTACK_ACCESS_KEY;
+  }
+
   return accessKey;
 };
