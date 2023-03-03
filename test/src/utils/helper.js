@@ -79,12 +79,12 @@ describe('getAccessKey', () => {
   });
 
   it('returns null for empty settings', async () => {
-    expect(getAccessKey(settings)).to.be.null;
+    expect(getAccessKey(settings)).to.be.oneOf([null, undefined]);
   });
 
   it('returns null for empty desireCapabilities', async () => {
     settings.desiredCapabilities = {};
-    expect(getAccessKey(settings)).to.be.null;
+    expect(getAccessKey(settings)).to.be.oneOf([null, undefined]);
   });
 
   it('returns key for non w3c', async () => {
@@ -107,6 +107,13 @@ describe('getAccessKey', () => {
     settings.desiredCapabilities = {
       'bstack:options': {}
     };
-    expect(getAccessKey(settings)).to.be.undefined;
+    expect(getAccessKey(settings)).to.be.oneOf([null, undefined]);
+  });
+
+  it('returs key from env for no key in settings', async () => {
+    process.env.BROWSERSTACK_ACCESS_KEY = 'ACCESS_KEY';
+    settings.desiredCapabilities = {};
+
+    expect(getAccessKey(settings)).to.eq('ACCESS_KEY');
   });
 });
