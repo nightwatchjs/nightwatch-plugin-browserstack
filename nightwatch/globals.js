@@ -1,4 +1,5 @@
 const LocalTunnel = require('../src/local-tunnel');
+const helper = require('../src/utils/helper');
 
 const localTunnel = new LocalTunnel();
 
@@ -33,7 +34,7 @@ module.exports = {
       settings.desiredCapabilities['bstack:options'] = {};
     }
 
-    if (process.env.BROWSERSTACK_LOCAL_ENABLED.toString() === 'true') {
+    if (!helper.isUndefined(process.env.BROWSERSTACK_LOCAL_ENABLED) && process.env.BROWSERSTACK_LOCAL_ENABLED.toString() === 'true') {
       settings.desiredCapabilities['bstack:options'].local = process.env.BROWSERSTACK_LOCAL_ENABLED;
     }
 
