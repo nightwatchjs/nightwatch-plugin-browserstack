@@ -1,9 +1,16 @@
 const LocalTunnel = require('../src/local-tunnel');
+const TestObservability = require('../src/testObservability');
 const helper = require('../src/utils/helper');
 
 const localTunnel = new LocalTunnel();
+const testObservability = new TestObservability();
 
 module.exports = {
+
+  reporter: function(results, done) {
+    done(results);
+  },
+
   async before(settings) {
     localTunnel.configure(settings);
     await localTunnel.start();
@@ -22,9 +29,16 @@ module.exports = {
         settings.desiredCapabilities['bstack:options'].localIdentifier = localTunnel._localOpts.localIdentifier;
       }
     }
+
+    testObservability.configure(settings);
+    if (testObservability._user && testObservability._key) {
+      await testObservability.launchTestSession(settings);
+    }
+
   },
 
   async after() {
+    // this.reporter();
     localTunnel.stop();
   },
 

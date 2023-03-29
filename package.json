@@ -38,7 +38,12 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "browserstack-local": "^1.5.1"
+    "browserstack-local": "^1.5.1",
+    "git-last-commit": "^1.0.1",
+    "git-repo-info": "^2.1.1",
+    "gitconfiglocal": "^2.1.0",
+    "got": "^12.6.0",
+    "request": "^2.88.2"
   },
   "devDependencies": {
     "chai": "^4.3.7",
