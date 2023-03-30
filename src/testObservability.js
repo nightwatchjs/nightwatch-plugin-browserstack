@@ -1,5 +1,6 @@
 const os = require('os');
 const helper = require('../src/utils/helper');
+const {API_URL} = require('./utils/constants');
 
 class TestObservability {
   configure(settings = {}) {
@@ -74,6 +75,53 @@ class TestObservability {
       }
       process.env.BS_TESTOPS_BUILD_COMPLETED = false;
 
+    }
+  }
+
+  async stopBuildUpstream () {
+    if (!process.env.BS_TESTOPS_BUILD_COMPLETED) {
+      return;
+    }
+    if (!process.env.BS_TESTOPS_JWT) {
+      console.log('[STOP_BUILD] Missing Authentication Token/ Build ID');
+
+      return {
+        status: 'error',
+        message: 'Token/buildID is undefined, build creation might have failed'
+      };
+    }
+    const data = {
+      'stop_time': (new Date()).toISOString()
+    };
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Content-Type': 'application/json',
+        'X-BSTACK-TESTOPS': 'true'
+      }
+    };
+
+    try {
+      const response = await helper.nodeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
+      if (response.data.error) {
+        throw ({message: response.data.error});
+      } else {
+        return {
+          status: 'success',
+          message: ''
+        };
+      }
+    } catch (error) {
+      if (error.response) {
+        console.log(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+      } else {
+        console.log(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+      }
+
+      return {
+        status: 'error',
+        message: error.message || error.response ? `${error.response.status}:${error.response.statusText}` : error
+      };
     }
   }
 }

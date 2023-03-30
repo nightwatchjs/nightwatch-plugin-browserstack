@@ -40,6 +40,7 @@ module.exports = {
   async after() {
     // this.reporter();
     localTunnel.stop();
+    await testObservability.stopBuildUpstream();
   },
 
   beforeChildProcess(settings) {
