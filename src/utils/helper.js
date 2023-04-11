@@ -463,7 +463,6 @@ exports.batchAndPostEvents = async (eventUrl, kind, data) => {
   };
 
   try {
-    console.log(JSON.stringify(data));
     const response = await this.nodeRequest('POST', eventUrl, data, config);
     if (response.data.error) {
       throw ({message: response.data.error});

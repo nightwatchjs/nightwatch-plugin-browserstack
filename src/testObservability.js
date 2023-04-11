@@ -141,7 +141,7 @@ class TestObservability {
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH');
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalBeforeEachHookId);
+              this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalBeforeEachHookId);
             }
           }
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH');
@@ -149,7 +149,7 @@ class TestObservability {
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', beforeHookId, 'BEFORE_ALL');
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId);
+              this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId);
             }
           }
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', beforeHookId, 'BEFORE_ALL');
@@ -157,7 +157,7 @@ class TestObservability {
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', afterHookId, 'AFTER_ALL');
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], afterHookId);
+              this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], afterHookId);
             }
           }
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', afterHookId, 'AFTER_ALL');
@@ -165,22 +165,29 @@ class TestObservability {
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalAfterEachHookId, 'GLOBAL_AFTER_EACH');
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalAfterEachHookId);
+              this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalAfterEachHookId);
             }
           }
           this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH');
         } else {
           const testUuid = uuidv4();
           const completedEventData = completed[sectionName];
-          eventData.time = completedEventData.timeMs;
+          eventData.timeMs = completedEventData.timeMs;
           eventData.startTimestamp = completedEventData.startTimestamp;
           eventData.endTimestamp = completedEventData.endTimestamp;
           eventData.lastError = completedEventData.lastError;
           this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], testUuid);
+              this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], testUuid);
             }
+          }
+          if (eventData.status === 'fail') {
+            eventData.commands.filter(command => {
+              return 'screenshot' in command;
+            }).forEach(command => {
+              this.createScreenshotLogEvent(testUuid, command.screenshot, command.startTime);
+            });
           }
           this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
         }
@@ -188,7 +195,22 @@ class TestObservability {
     }
   }
 
-  createLogEvent(httpRequest, httpResponse, test_run_uuid) {
+  createScreenshotLogEvent(testUuid, screenshot, timestamp) {
+    const eventData = {
+      event_type: 'LogCreated',
+      logs: [
+        {
+          test_run_uuid: testUuid,
+          kind: 'TEST_SCREENSHOT',
+          timestamp: new Date(timestamp).toISOString(),
+          message: screenshot
+        }
+      ]
+    };
+    helper.uploadEventData(eventData);
+  }
+
+  createHttpLogEvent(httpRequest, httpResponse, test_run_uuid) {
     const eventData = {
       event_type: 'LogCreated',
       logs: [
@@ -230,14 +252,14 @@ class TestObservability {
     if (eventType === 'HookRunFinished' || eventType === 'TestRunFinished') {
       testData.finished_at = new Date(eventData.endTimestamp).toISOString();
       testData.result = eventData.status === 'pass' ? 'passed' : 'failed';
-      testData.duration_in_ms = eventData.time;
+      testData.duration_in_ms = 'timeMs' in eventData ? eventData.timeMs : eventData.time;
       if (eventData.status === 'fail' && eventData.lastError) {
         testData.failure = [
           {
-            'backtrace': eventData.lastError.stack
+            'backtrace': [eventData.lastError.stack]
           }
         ];
-        testData.failure_reason = eventData.lastError.message;
+        testData.failure_reason = stripAnsi(eventData.lastError.message);
         testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
       }
     }
