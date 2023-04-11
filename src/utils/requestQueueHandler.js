@@ -1,5 +1,5 @@
-const { BATCH_SIZE, BATCH_INTERVAL } = require('./constants');
-// const { batchAndPostEvents } = require('./helper');
+const {BATCH_SIZE, BATCH_INTERVAL} = require('./constants');
+const {batchAndPostEvents} = require('./helper');
 
 class RequestQueueHandler {
   constructor() {
@@ -11,75 +11,79 @@ class RequestQueueHandler {
     this.pollEventBatchInterval = null;
   }
 
-  start = () => {
-    if(!this.started) {
+  start() {
+    if (!this.started) {
       this.started = true;
       this.startEventBatchPolling();
     }
   }
 
-  add = (event) => {
-    if(this.BATCH_EVENT_TYPES.includes(event.event_type)) {
-      if(event.logs && event.logs[0] && event.logs[0].kind === 'TEST_SCREENSHOT') {
+  add (event) {
+    if (this.BATCH_EVENT_TYPES.includes(event.event_type)) {
+      if (event.logs && event.logs[0] && event.logs[0].kind === 'TEST_SCREENSHOT') {
         return {
           shouldProceed: true,
           proceedWithData: [event],
           proceedWithUrl: this.screenshotEventUrl
-        }
+        };
       }
 
       this.queue.push(event);
-      let data = null, shouldProceed = this.shouldProceed();
-      if(shouldProceed) {
-        data = this.queue.slice(0,BATCH_SIZE);
-        this.queue.splice(0,BATCH_SIZE);
+      let data = null; const shouldProceed = this.shouldProceed();
+      if (shouldProceed) {
+        data = this.queue.slice(0, BATCH_SIZE);
+        this.queue.splice(0, BATCH_SIZE);
         this.resetEventBatchPolling();
       }
+
       return {
         shouldProceed: shouldProceed,
         proceedWithData: data,
         proceedWithUrl: this.eventUrl
-      }
-    } else {
-      return {
-        shouldProceed: true
-      }
+      };
+    }
+ 
+    return {
+      shouldProceed: true
+    };
+    
+  }
+
+  async shutdown () {
+    this.removeEventBatchPolling('REMOVING');
+    while (this.queue.length > 0) {
+      const data = this.queue.slice(0, BATCH_SIZE);
+      this.queue.splice(0, BATCH_SIZE);
+      await batchAndPostEvents(this.eventUrl, 'Shutdown-Queue', data);
     }
   }
 
-  // shutdown = async () => {
-  //   this.removeEventBatchPolling('REMOVING');
-  //   while(this.queue.length > 0) {
-  //     const data = this.queue.slice(0,BATCH_SIZE);
-  //     this.queue.splice(0,BATCH_SIZE);
-  //     // await batchAndPostEvents(this.eventUrl,'Shutdown-Queue',data);
-  //   }
-  // }
+  startEventBatchPolling () {
+    this.pollEventBatchInterval = setInterval(async () => {
+      if (this.queue.length > 0) {
+        const data = this.queue.slice(0, BATCH_SIZE);
+        this.queue.splice(0, BATCH_SIZE);
+        await batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
+      }
+    }, BATCH_INTERVAL);
+  }
 
-  // startEventBatchPolling = () => {
-  //   this.pollEventBatchInterval = setInterval(async () => {
-  //     if(this.queue.length > 0) {
-  //       const data = this.queue.slice(0,BATCH_SIZE);
-  //       this.queue.splice(0,BATCH_SIZE);
-  //       // await batchAndPostEvents(this.eventUrl,'Interval-Queue',data);
-  //     }
-  //   }, BATCH_INTERVAL);
-  // }
-
-  resetEventBatchPolling = () => {
+  resetEventBatchPolling () {
     this.removeEventBatchPolling('RESETTING');
     this.startEventBatchPolling();
   }
 
-  removeEventBatchPolling = (tag) => {
-    if(this.pollEventBatchInterval) {
+  removeEventBatchPolling (tag) {
+    if (this.pollEventBatchInterval) {
       clearInterval(this.pollEventBatchInterval);
       this.pollEventBatchInterval = null;
-      if(tag === 'REMOVING') this.started = false;
+      if (tag === 'REMOVING') {
+        this.started = false;
+      }
     }
   }
 
-  shouldProceed = () => {
+  shouldProceed () {
     return this.queue.length >= BATCH_SIZE;
   }
 }

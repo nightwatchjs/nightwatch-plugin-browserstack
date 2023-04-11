@@ -43,6 +43,9 @@ const httpsScreenshotsKeepAliveAgent = new https.Agent({
 const GLOBAL_MODULE_PATH = execSync('npm root -g').toString().trim();
 const RequestQueueHandler = require('./requestQueueHandler');
 exports.requestQueueHandler = new RequestQueueHandler();
+exports.pending_test_uploads = {
+  count: 0
+};
 
 exports.generateLocalIdentifier = () => {
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
@@ -65,18 +68,10 @@ exports.isUndefined = value => (value === undefined || value === null);
 exports.isObject = value => (!this.isUndefined(value) && value.constructor === Object);
 
 exports.getObservabilityUser = (config) => {
-  if (process.env.BROWSERSTACK_USERNAME) {
-    return process.env.BROWSERSTACK_USERNAME;
-  }
-
   return config.user;
 };
 
 exports.getObservabilityKey = (config) => {
-  if (process.env.BROWSERSTACK_ACCESS_KEY) {
-    return process.env.BROWSERSTACK_ACCESS_KEY;
-  }
-
   return config.key;
 };
 
@@ -208,6 +203,10 @@ exports.getCiInfo = () => {
 
   // if no matches, return null
   return null;
+};
+
+exports.vcFilePath = (filePath) => {
+  return findGitConfig(filePath);
 };
 
 const findGitConfig = (filePath) => {
@@ -361,6 +360,125 @@ exports.nodeRequest = (type, url, data, config) => {
       }
     });
   });
+};
+
+exports.pending_test_uploads = {
+  count: 0
+};
+
+exports.uploadEventData = async (eventData, run=0) => {
+  const log_tag = {
+    ['TestRunStarted']: 'Test_Start_Upload',
+    ['TestRunFinished']: 'Test_End_Upload',
+    ['TestRunSkipped']: 'Test_Skipped_Upload',
+    ['LogCreated']: 'Log_Upload',
+    ['HookRunStarted']: 'Hook_Start_Upload',
+    ['HookRunFinished']: 'Hook_End_Upload',
+    ['CBTSessionCreated']: 'CBT_Upload'
+  }[eventData.event_type];
+
+  if (run === 0 && process.env.BS_TESTOPS_JWT !== 'null') {exports.pending_test_uploads.count += 1}
+  
+  if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
+    if (process.env.BS_TESTOPS_JWT === 'null') {
+      console.log(`EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : missing authentication token`);
+      exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count-1);
+
+      return {
+        status: 'error',
+        message: 'Token/buildID is undefined, build creation might have failed'
+      };
+    } 
+    let data = eventData; 
+    let event_api_url = 'api/v1/event';
+      
+    exports.requestQueueHandler.start();
+    const {
+      shouldProceed,
+      proceedWithData,
+      proceedWithUrl
+    } = exports.requestQueueHandler.add(eventData);
+    if (!shouldProceed) {
+      return;
+    } else if (proceedWithData) {
+      data = proceedWithData;
+      event_api_url = proceedWithUrl;
+    }
+
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Content-Type': 'application/json',
+        'X-BSTACK-TESTOPS': 'true'
+      }
+    };
+  
+    try {
+      const response = await this.nodeRequest('POST', event_api_url, data, config);
+      if (response.data.error) {
+        throw ({message: response.data.error});
+      } else {
+        console.log(`${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch-Queue'}[${run}] event successfull!`);
+        exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - (event_api_url === 'api/v1/event' ? 1 : data.length));
+
+        return {
+          status: 'success',
+          message: ''
+        };
+      }
+    } catch (error) {
+      if (error.response) {
+        console.log(`EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch-Queue'} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+      } else {
+        console.log(`EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch-Queue'} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+      }
+      exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - (event_api_url === 'api/v1/event' ? 1 : data.length));
+
+      return {
+        status: 'error',
+        message: error.message || (error.response ? `${error.response.status}:${error.response.statusText}` : error)
+      };
+    }
+    
+  } else if (run >= 5) {
+    console.log(`EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : Build Start is not completed and ${log_tag} retry runs exceeded`);
+    if (process.env.BS_TESTOPS_JWT !== 'null') {exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count-1)}
+
+    return {
+      status: 'error',
+      message: 'Retry runs exceeded'
+    };
+  } else if (process.env.BS_TESTOPS_BUILD_COMPLETED !== 'false') {
+    setTimeout(function(){ exports.uploadEventData(eventData, run+1) }, 1000);
+  }
+};
+
+exports.batchAndPostEvents = async (eventUrl, kind, data) => {
+  const config = {
+    headers: {
+      'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+      'Content-Type': 'application/json',
+      'X-BSTACK-TESTOPS': 'true'
+    }
+  };
+
+  try {
+    console.log(JSON.stringify(data));
+    const response = await this.nodeRequest('POST', eventUrl, data, config);
+    if (response.data.error) {
+      throw ({message: response.data.error});
+    } else {
+      console.log(`${kind} event successfull!`);
+      exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - data.length);
+    }
+  } catch (error) {
+    if (error.response) {
+      console.log(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+    } else {
+      console.log(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+    }
+    exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - data.length);
+  }
 };
 
 exports.getAccessKey = (settings) => {

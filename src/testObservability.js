@@ -1,6 +1,7 @@
 const os = require('os');
-const helper = require('../src/utils/helper');
-const {API_URL} = require('./utils/constants');
+const stripAnsi = require('strip-ansi');
+const {v4: uuidv4} = require('uuid');
+const helper = require('./utils/helper');
 
 class TestObservability {
   configure(settings = {}) {
@@ -123,6 +124,144 @@ class TestObservability {
         message: error.message || error.response ? `${error.response.status}:${error.response.statusText}` : error
       };
     }
+  }
+
+  processTestFile(testFileReport) {
+    const completedSections = testFileReport['completedSections'];
+    const completed = testFileReport['completed'];
+    if (completedSections) {
+      const globalBeforeEachHookId = uuidv4();
+      const beforeHookId = uuidv4();
+      const afterHookId = uuidv4();
+      const globalAfterEachHookId = uuidv4();
+      const hookIds = [globalBeforeEachHookId, beforeHookId, afterHookId, globalAfterEachHookId];
+      for (const sectionName in completedSections) {
+        const eventData = completedSections[sectionName];
+        if (sectionName === '__global_beforeEach_hook') {
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH');
+          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+            for (let i=0; i<eventData.httpOutput.length; i+=2) {
+              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalBeforeEachHookId);
+            }
+          }
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH');
+        } else if (sectionName === '__before_hook') {
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', beforeHookId, 'BEFORE_ALL');
+          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+            for (let i=0; i<eventData.httpOutput.length; i+=2) {
+              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId);
+            }
+          }
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', beforeHookId, 'BEFORE_ALL');
+        } else if (sectionName === '__after_hook') {
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', afterHookId, 'AFTER_ALL');
+          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+            for (let i=0; i<eventData.httpOutput.length; i+=2) {
+              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], afterHookId);
+            }
+          }
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', afterHookId, 'AFTER_ALL');
+        } else if (sectionName === '__global_afterEach_hook') {
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalAfterEachHookId, 'GLOBAL_AFTER_EACH');
+          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+            for (let i=0; i<eventData.httpOutput.length; i+=2) {
+              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalAfterEachHookId);
+            }
+          }
+          this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH');
+        } else {
+          const testUuid = uuidv4();
+          const completedEventData = completed[sectionName];
+          eventData.time = completedEventData.timeMs;
+          eventData.startTimestamp = completedEventData.startTimestamp;
+          eventData.endTimestamp = completedEventData.endTimestamp;
+          eventData.lastError = completedEventData.lastError;
+          this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
+          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+            for (let i=0; i<eventData.httpOutput.length; i+=2) {
+              this.createLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], testUuid);
+            }
+          }
+          this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
+        }
+      }
+    }
+  }
+
+  createLogEvent(httpRequest, httpResponse, test_run_uuid) {
+    const eventData = {
+      event_type: 'LogCreated',
+      logs: [
+        {
+          test_run_uuid: test_run_uuid,
+          timestamp: httpResponse[0],
+          kind: 'HTTP',
+          http_response: {
+            path: stripAnsi(httpRequest[1] || '').replace(/&#39;/g, '\'').trim().split(' ')[2],
+            method: stripAnsi(httpRequest[1] || '').replace(/&#39;/g, '\'').trim().split(' ')[1],
+            body: stripAnsi(httpRequest[2] || '').replace(/&#39;/g, '\''),
+            response: stripAnsi(httpResponse[2] || '').replace(/&#39;/g, '\'')
+          }
+        }
+      ]
+    };
+    helper.uploadEventData(eventData);
+  }
+
+  sendTestRunEvent(eventData, testFileReport, eventType, uuid, hookType, sectionName, hooks) {
+    const testData = {
+      uuid: uuid,
+      type: 'hook',
+      name: eventType,
+      scope: `${testFileReport.name} - ${eventType}`,
+      scopes: [
+        testFileReport.name
+      ],
+      identifier: `${testFileReport.name} - ${eventType}`,
+      file_name: testFileReport.modulePath,
+      location: testFileReport.modulePath,
+      vc_filepath: helper.vcFilePath(process.cwd()),
+      started_at: new Date(eventData.startTimestamp).toISOString(),
+      result: 'pending',
+      framework: 'nightwatch',
+      hook_type: hookType
+    };
+
+    if (eventType === 'HookRunFinished' || eventType === 'TestRunFinished') {
+      testData.finished_at = new Date(eventData.endTimestamp).toISOString();
+      testData.result = eventData.status === 'pass' ? 'passed' : 'failed';
+      testData.duration_in_ms = eventData.time;
+      if (eventData.status === 'fail' && eventData.lastError) {
+        testData.failure = [
+          {
+            'backtrace': eventData.lastError.stack
+          }
+        ];
+        testData.failure_reason = eventData.lastError.message;
+        testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+      }
+    }
+
+    if (eventType === 'TestRunStarted' || eventType === 'TestRunFinished') {
+      testData.type = 'test';
+      testData.name = sectionName;
+      testData.scope = `${testFileReport.name} - ${sectionName}`;
+      testData.identifier = `${testFileReport.name} - ${sectionName}`;
+    }
+
+    if (eventType === 'TestRunFinished') {
+      testData.hooks = hooks;
+    }
+
+    const uploadData = {
+      event_type: eventType
+    };
+    if (eventType.match(/HookRun/)) {
+      uploadData['hook_run'] = testData;
+    } else {
+      uploadData['test_run'] = testData;
+    }
+    helper.uploadEventData(uploadData);
   }
 }
 

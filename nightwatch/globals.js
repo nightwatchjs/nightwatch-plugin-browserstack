@@ -8,6 +8,12 @@ const testObservability = new TestObservability();
 module.exports = {
 
   reporter: function(results, done) {
+    const modulesWithEnv = results['modulesWithEnv'];
+    for (const testSetting in modulesWithEnv) {
+      for (const testFile in modulesWithEnv[testSetting]) {
+        testObservability.processTestFile(modulesWithEnv[testSetting][testFile]);
+      }
+    }
     done(results);
   },
 
@@ -37,8 +43,10 @@ module.exports = {
 
   },
 
+  async beforeEach() {
+  },
+
   async after() {
-    // this.reporter();
     localTunnel.stop();
     await testObservability.stopBuildUpstream();
   },
