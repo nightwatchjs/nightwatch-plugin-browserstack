@@ -8,10 +8,16 @@ const testObservability = new TestObservability();
 module.exports = {
 
   reporter: function(results, done) {
-    const modulesWithEnv = results['modulesWithEnv'];
-    for (const testSetting in modulesWithEnv) {
-      for (const testFile in modulesWithEnv[testSetting]) {
-        testObservability.processTestFile(modulesWithEnv[testSetting][testFile]);
+    if (helper.isTestObservabilitySession()) {
+      try {
+        const modulesWithEnv = results['modulesWithEnv'];
+        for (const testSetting in modulesWithEnv) {
+          for (const testFile in modulesWithEnv[testSetting]) {
+            testObservability.processTestFile(modulesWithEnv[testSetting][testFile]);
+          }
+        }
+      } catch (error) {
+        console.log(`Something went wrong in processing report file for test observability - ${error}`);
       }
     }
     done(results);
@@ -36,19 +42,27 @@ module.exports = {
       }
     }
 
-    testObservability.configure(settings);
-    if (testObservability._user && testObservability._key) {
-      await testObservability.launchTestSession(settings);
+    try {
+      testObservability.configure(settings);
+      if (testObservability._user && testObservability._key) {
+        await testObservability.launchTestSession(settings);
+      } 
+    } catch (error) {
+      console.log(`Could not configure or launch test observability - ${error}`);
     }
 
   },
 
-  async beforeEach() {
-  },
-
   async after() {
     localTunnel.stop();
-    await testObservability.stopBuildUpstream();
+    if (helper.isTestObservabilitySession()) {
+      try {
+        await testObservability.stopBuildUpstream();
+      } catch (error) {
+        console.log(`Something went wrong in stopping build session for test observability - ${error}`);
+      }
+    }
+    
   },
 
   beforeChildProcess(settings) {

@@ -1,5 +1,5 @@
 const {BATCH_SIZE, BATCH_INTERVAL} = require('./constants');
-const {batchAndPostEvents} = require('./helper');
+const helper = require('./helper');
 
 class RequestQueueHandler {
   constructor() {
@@ -54,7 +54,7 @@ class RequestQueueHandler {
     while (this.queue.length > 0) {
       const data = this.queue.slice(0, BATCH_SIZE);
       this.queue.splice(0, BATCH_SIZE);
-      await batchAndPostEvents(this.eventUrl, 'Shutdown-Queue', data);
+      await helper.batchAndPostEvents(this.eventUrl, 'Shutdown-Queue', data);
     }
   }
 
@@ -63,7 +63,7 @@ class RequestQueueHandler {
       if (this.queue.length > 0) {
         const data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
-        await batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
+        await helper.batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
       }
     }, BATCH_INTERVAL);
   }

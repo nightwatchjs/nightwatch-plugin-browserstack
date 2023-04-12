@@ -9,6 +9,9 @@ class TestObservability {
     
     this._user = helper.getObservabilityUser(this._settings);
     this._key = helper.getObservabilityKey(this._settings);
+    if (this._settings && this._settings.testObservability) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.testObservability;
+    }
   }
 
   async launchTestSession() {
@@ -51,7 +54,7 @@ class TestObservability {
     };
 
     try {
-      const response = await helper.nodeRequest('POST', 'api/v1/builds', data, config);
+      const response = await helper.makeRequest('POST', 'api/v1/builds', data, config);
       console.log('Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
@@ -103,7 +106,7 @@ class TestObservability {
     };
 
     try {
-      const response = await helper.nodeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
+      const response = await helper.makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
       if (response.data.error) {
         throw ({message: response.data.error});
       } else {
@@ -182,11 +185,11 @@ class TestObservability {
               this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], testUuid);
             }
           }
-          if (eventData.status === 'fail') {
-            eventData.commands.filter(command => {
-              return 'screenshot' in command;
-            }).forEach(command => {
-              this.createScreenshotLogEvent(testUuid, command.screenshot, command.startTime);
+          if (process.env.BS_TESTOPS_ALLOW_SCREENSHOTS === 'true') {
+            eventData.commands.forEach(command => {
+              if (command.name === 'saveScreenshot') {
+                this.createScreenshotLogEvent(testUuid, command.args[0], command.startTime);
+              }
             });
           }
           this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
@@ -269,6 +272,12 @@ class TestObservability {
       testData.name = sectionName;
       testData.scope = `${testFileReport.name} - ${sectionName}`;
       testData.identifier = `${testFileReport.name} - ${sectionName}`;
+    }
+
+    if (eventType === 'TestRunStarted') {
+      testData.integrations = {};
+      const provider = helper.getCloudProvider(browser);
+      testData.integrations[provider] = helper.getIntegrationsObject(browser);
     }
 
     if (eventType === 'TestRunFinished') {

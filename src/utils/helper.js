@@ -67,6 +67,10 @@ exports.isUndefined = value => (value === undefined || value === null);
 
 exports.isObject = value => (!this.isUndefined(value) && value.constructor === Object);
 
+exports.isTestObservabilitySession = () => {
+  return process.env.BROWSERSTACK_TEST_OBSERVABILITY === 'true';
+};
+
 exports.getObservabilityUser = (config) => {
   return config.user;
 };
@@ -325,7 +329,7 @@ exports.getPackageVersion = (package_) => {
   return packages[package_] = this.requireModule(`${package_}/package.json`).version;
 };
 
-exports.nodeRequest = (type, url, data, config) => {
+exports.makeRequest = (type, url, data, config) => {
   return new Promise((resolve, reject) => {
     const options = {...config, ...{
       method: type,
@@ -414,7 +418,7 @@ exports.uploadEventData = async (eventData, run=0) => {
     };
   
     try {
-      const response = await this.nodeRequest('POST', event_api_url, data, config);
+      const response = await this.makeRequest('POST', event_api_url, data, config);
       if (response.data.error) {
         throw ({message: response.data.error});
       } else {
@@ -463,7 +467,7 @@ exports.batchAndPostEvents = async (eventUrl, kind, data) => {
   };
 
   try {
-    const response = await this.nodeRequest('POST', eventUrl, data, config);
+    const response = await this.makeRequest('POST', eventUrl, data, config);
     if (response.data.error) {
       throw ({message: response.data.error});
     } else {
@@ -495,4 +499,22 @@ exports.getAccessKey = (settings) => {
   }
 
   return accessKey;
+};
+
+exports.getCloudProvider = (browser) => {
+  if (browser.options && browser.options.hostname && browser.options.hostname.includes('browserstack')) {
+    return 'browserstack';
+  }
+
+  return 'unknown_grid';
+};
+
+exports.getIntegrationsObject = (browser) => {
+  return {
+    capabilities: browser.capabilities,
+    session_id: browser.sessionId,
+    browser: browser.capabilities.browserName,
+    browser_version: browser.capabilities.browserVersion,
+    platform: browser.capabilities.platformName
+  };
 };
