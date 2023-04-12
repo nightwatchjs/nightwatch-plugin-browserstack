@@ -7,7 +7,7 @@ class RequestQueueHandler {
     this.started = false;
     this.eventUrl = 'api/v1/batch';
     this.screenshotEventUrl = 'api/v1/screenshots';
-    this.BATCH_EVENT_TYPES = ['LogCreated', 'CBTSessionCreated', 'TestRunFinished', 'TestRunSkipped', 'HookRunFinished', 'TestRunStarted', 'HookRunStarted'];
+    this.BATCH_EVENT_TYPES = ['LogCreated', 'TestRunFinished', 'TestRunSkipped', 'HookRunFinished', 'TestRunStarted', 'HookRunStarted'];
     this.pollEventBatchInterval = null;
   }
 

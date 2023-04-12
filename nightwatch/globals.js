@@ -62,7 +62,6 @@ module.exports = {
         console.log(`Something went wrong in stopping build session for test observability - ${error}`);
       }
     }
-    
   },
 
   beforeChildProcess(settings) {
