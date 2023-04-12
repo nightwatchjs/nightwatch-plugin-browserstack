@@ -44,7 +44,7 @@ module.exports = {
 
     try {
       testObservability.configure(settings);
-      if (testObservability._user && testObservability._key) {
+      if (helper.isTestObservabilitySession() && testObservability._user && testObservability._key) {
         await testObservability.launchTestSession(settings);
       } 
     } catch (error) {

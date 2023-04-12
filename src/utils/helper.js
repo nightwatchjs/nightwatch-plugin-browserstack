@@ -72,11 +72,11 @@ exports.isTestObservabilitySession = () => {
 };
 
 exports.getObservabilityUser = (config) => {
-  return config.user;
+  return process.env.BROWSERSTACK_USERNAME || config.user;
 };
 
 exports.getObservabilityKey = (config) => {
-  return config.key;
+  return process.env.BROWSERSTACK_ACCESS_KEY || config.key;
 };
 
 exports.getObservabilityProject = (options) => {
