@@ -12,6 +12,9 @@ class TestObservability {
     if (this._settings && this._settings.testObservability) {
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.testObservability;
     }
+    if (process.argv.includes('--disable-test-observability')) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
+    }
   }
 
   async launchTestSession() {
