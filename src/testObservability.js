@@ -213,6 +213,9 @@ class TestObservability {
   }
 
   async createScreenshotLogEvent(testUuid, screenshot, timestamp) {
+    if (!fs.existsSync(screenshot)) {
+      return;
+    }
     const eventData = {
       event_type: 'LogCreated',
       logs: [

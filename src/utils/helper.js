@@ -473,6 +473,10 @@ exports.handleNightwatchRerun = (specs) => {
 };
 
 exports.deleteRerunFile = () => {
-  fs.unlinkSync(path.resolve(RERUN_FILE));
+  try {
+    fs.unlinkSync(path.resolve(RERUN_FILE));
+  } catch (err) {
+    console.error(err);
+  }
 };
 
