@@ -64,6 +64,8 @@ class RequestQueueHandler {
         const data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
         await helper.batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
+      } else {
+        clearInterval(this.pollEventBatchInterval);
       }
     }, BATCH_INTERVAL);
   }
