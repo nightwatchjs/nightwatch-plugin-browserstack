@@ -62,10 +62,6 @@ module.exports = {
 
   },
 
-  async beforeEach() {
-    console.log(browser);
-  },
-
   async after() {
     localTunnel.stop();
     if (helper.isTestObservabilitySession()) {
