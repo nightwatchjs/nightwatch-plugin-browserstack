@@ -7,10 +7,16 @@ const helper = require('./utils/helper');
 class TestObservability {
   configure(settings = {}) {
     this._settings = settings['@nightwatch/browserstack'] || {};
+    this._bstackOptions = {};
+    if (settings && settings.desiredCapabilities && settings.desiredCapabilities['bstack:options']) {
+      this._bstackOptions = settings.desiredCapabilities['bstack:options'];
+    }
     
-    this._user = helper.getObservabilityUser(this._settings);
-    this._key = helper.getObservabilityKey(this._settings);
-    if (this._settings && this._settings.testObservability) {
+    if (this._settings.testObservabilityOptions || this._bstackOptions) {
+      this._user = helper.getObservabilityUser(this._settings.testObservabilityOptions, this._bstackOptions);
+      this._key = helper.getObservabilityKey(this._settings.testObservabilityOptions, this._bstackOptions);
+    }
+    if (this._settings.testObservability) {
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.testObservability;
     }
     if (process.argv.includes('--disable-test-observability')) {
@@ -23,12 +29,12 @@ class TestObservability {
     this._gitMetadata = await helper.getGitMetaData();
     const data = {
       format: 'json',
-      project_name: helper.getObservabilityProject(this._settings),
-      name: helper.getObservabilityBuild(this._settings),
+      project_name: helper.getObservabilityProject(this._settings, this._bstackOptions),
+      name: helper.getObservabilityBuild(this._settings, this._bstackOptions),
       build_identifier: options.buildIdentifier,
       description: options.buildDescription || '',
       start_time: (new Date()).toISOString(),
-      tags: helper.getObservabilityBuildTags(this._settings),
+      tags: helper.getObservabilityBuildTags(this._settings, this._bstackOptions),
       host_info: {
         hostname: os.hostname(),
         platform: os.platform(),
@@ -60,7 +66,7 @@ class TestObservability {
 
     try {
       const response = await helper.makeRequest('POST', 'api/v1/builds', data, config);
-      console.log('Build creation successfull!');
+      console.log('nightwatch-browserstack-plugin: Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
       if (response.data && response.data.jwt) {
@@ -74,12 +80,12 @@ class TestObservability {
       }
     } catch (error) {
       if (error.response) {
-        console.log(`EXCEPTION IN BUILD START EVENT : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN BUILD START EVENT : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
         if ((error.message && error.message.includes('with status : 401')) || (error && error.toString().includes('with status : 401'))) {
-          console.log('Either your BrowserStack access credentials are incorrect or you do not have access to BrowserStack Test Observability yet.');
+          console.log('nightwatch-browserstack-plugin: Either your BrowserStack access credentials are incorrect or you do not have access to BrowserStack Test Observability yet.');
         } else {
-          console.log(`EXCEPTION IN BUILD START EVENT : ${error.message || error}`);
+          console.log(`nightwatch-browserstack-plugin: EXCEPTION IN BUILD START EVENT : ${error.message || error}`);
         }
       }
       process.env.BS_TESTOPS_BUILD_COMPLETED = false;
@@ -92,7 +98,7 @@ class TestObservability {
       return;
     }
     if (!process.env.BS_TESTOPS_JWT) {
-      console.log('[STOP_BUILD] Missing Authentication Token/ Build ID');
+      console.log('nightwatch-browserstack-plugin: [STOP_BUILD] Missing Authentication Token/ Build ID');
 
       return {
         status: 'error',
@@ -109,7 +115,7 @@ class TestObservability {
         'X-BSTACK-TESTOPS': 'true'
       }
     };
-
+    helper.requestQueueHandler.shutdown();
     try {
       const response = await helper.makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
       if (response.data.error) {
@@ -122,9 +128,9 @@ class TestObservability {
       }
     } catch (error) {
       if (error.response) {
-        console.log(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        console.log(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
       }
 
       return {
@@ -284,8 +290,8 @@ class TestObservability {
 
     if (eventType === 'TestRunStarted') {
       testData.integrations = {};
-      const provider = helper.getCloudProvider(browser);
-      testData.integrations[provider] = helper.getIntegrationsObject(browser);
+      const provider = helper.getCloudProvider(testFileReport.host);
+      testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
     }
 
     if (eventType === 'TestRunFinished') {

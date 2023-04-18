@@ -5,6 +5,9 @@ const helper = require('../src/utils/helper');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 
+const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
+const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_FAILED_FILE;
+
 module.exports = {
 
   reporter: function(results, done) {
@@ -17,7 +20,7 @@ module.exports = {
           }
         }
       } catch (error) {
-        console.log(`Something went wrong in processing report file for test observability - ${error}`);
+        console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${error}`);
       }
     }
     done(results);
@@ -44,13 +47,23 @@ module.exports = {
 
     try {
       testObservability.configure(settings);
-      if (helper.isTestObservabilitySession() && testObservability._user && testObservability._key) {
-        await testObservability.launchTestSession(settings);
+      if (helper.isTestObservabilitySession()) {
+        if (testObservability._user && testObservability._key) {
+          await testObservability.launchTestSession();
+        }
+        if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
+          const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
+          helper.handleNightwatchRerun(specs);
+        }
       } 
     } catch (error) {
-      console.log(`Could not configure or launch test observability - ${error}`);
+      console.log(`nightwatch-browserstack-plugin: Could not configure or launch test observability - ${error}`);
     }
 
+  },
+
+  async beforeEach() {
+    console.log(browser);
   },
 
   async after() {
@@ -59,7 +72,12 @@ module.exports = {
       try {
         await testObservability.stopBuildUpstream();
       } catch (error) {
-        console.log(`Something went wrong in stopping build session for test observability - ${error}`);
+        console.log(`nightwatch-browserstack-plugin: Something went wrong in stopping build session for test observability - ${error}`);
+      }
+      process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
+      process.env.NIGHTWATCH_RERUN_FAILED_FILE = nightwatchRerunFile;
+      if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
+        helper.deleteRerunFile();
       }
     }
   },
