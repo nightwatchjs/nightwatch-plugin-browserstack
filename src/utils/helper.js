@@ -204,10 +204,6 @@ exports.getCiInfo = () => {
   return null;
 };
 
-exports.vcFilePath = (filePath) => {
-  return findGitConfig(filePath);
-};
-
 const findGitConfig = (filePath) => {
   if (filePath == null || filePath === '' || filePath === '/') {
     return null;
