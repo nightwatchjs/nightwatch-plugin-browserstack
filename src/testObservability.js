@@ -190,6 +190,7 @@ class TestObservability {
           eventData.timeMs = completedEventData.timeMs;
           eventData.startTimestamp = completedEventData.startTimestamp;
           eventData.endTimestamp = completedEventData.endTimestamp;
+          eventData.stackTrace = completedEventData.stackTrace;
           eventData.lastError = completedEventData.lastError;
           await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
@@ -274,7 +275,7 @@ class TestObservability {
       if (eventData.status === 'fail' && eventData.lastError) {
         testData.failure = [
           {
-            'backtrace': [eventData.lastError.stack]
+            'backtrace': [eventData.stackTrace]
           }
         ];
         testData.failure_reason = stripAnsi(eventData.lastError.message);
