@@ -1,5 +1,6 @@
 const os = require('os');
 const path = require('path');
+const fs = require('fs');
 const stripAnsi = require('strip-ansi');
 const {v4: uuidv4} = require('uuid');
 const helper = require('./utils/helper');
@@ -218,7 +219,7 @@ class TestObservability {
           test_run_uuid: testUuid,
           kind: 'TEST_SCREENSHOT',
           timestamp: new Date(timestamp).toISOString(),
-          message: screenshot
+          message: fs.readFileSync(screenshot, 'base64')
         }
       ]
     };
