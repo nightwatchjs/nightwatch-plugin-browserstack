@@ -272,14 +272,16 @@ class TestObservability {
       testData.finished_at = new Date(eventData.endTimestamp).toISOString();
       testData.result = eventData.status === 'pass' ? 'passed' : 'failed';
       testData.duration_in_ms = 'timeMs' in eventData ? eventData.timeMs : eventData.time;
-      if (eventData.status === 'fail' && eventData.lastError) {
+      if (eventData.status === 'fail') {
         testData.failure = [
           {
             'backtrace': [eventData.stackTrace]
           }
         ];
-        testData.failure_reason = stripAnsi(eventData.lastError.message);
-        testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+        testData.failure_reason = eventData.lastError ? stripAnsi(eventData.lastError.message) : null;
+        if (eventData.lastError && eventData.lastError.name) {
+          testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+        }
       }
     }
 
