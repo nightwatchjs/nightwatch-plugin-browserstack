@@ -202,7 +202,6 @@ class TestObservability {
             for (const command of eventData.commands) {
               if (command.name === 'saveScreenshot' && command.args) {
                 await this.createScreenshotLogEvent(testUuid, command.args[0], command.startTime);
-                break;
               }
             }
           }

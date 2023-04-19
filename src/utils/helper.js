@@ -361,6 +361,7 @@ exports.uploadEventData = async (eventData) => {
   
     try {
       const response = await this.makeRequest('POST', event_api_url, data, config);
+      console.log(`Performance check ${Math.floor(Date.now() / 1000)}`);
       if (response.data.error) {
         throw ({message: response.data.error});
       } else {
@@ -373,6 +374,7 @@ exports.uploadEventData = async (eventData) => {
         };
       }
     } catch (error) {
+      console.log(`Performance check ${Math.floor(Date.now() / 1000)}`);
       if (error.response) {
         console.log(`nightwatch-browserstack-plugin: EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
@@ -399,6 +401,7 @@ exports.batchAndPostEvents = async (eventUrl, kind, data) => {
 
   try {
     const response = await this.makeRequest('POST', eventUrl, data, config);
+    console.log(`Performance check ${Math.floor(Date.now() / 1000)}`);
     if (response.data.error) {
       throw ({message: response.data.error});
     } else {
@@ -406,6 +409,7 @@ exports.batchAndPostEvents = async (eventUrl, kind, data) => {
       exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - data.length);
     }
   } catch (error) {
+    console.log(`Performance check ${Math.floor(Date.now() / 1000)}`);
     if (error.response) {
       console.log(`nightwatch-browserstack-plugin: EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
     } else {
