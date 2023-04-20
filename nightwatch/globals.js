@@ -27,7 +27,6 @@ module.exports = {
   },
 
   async before(settings) {
-    console.log(`Performance start ${Math.floor(Date.now() / 1000)}`);
     localTunnel.configure(settings);
     await localTunnel.start();
 
@@ -64,7 +63,6 @@ module.exports = {
   },
 
   async after() {
-    console.log(`Performance stop ${Math.floor(Date.now() / 1000)}`);
     localTunnel.stop();
     if (helper.isTestObservabilitySession()) {
       try {
