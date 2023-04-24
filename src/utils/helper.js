@@ -107,6 +107,14 @@ exports.getObservabilityBuildTags = (options, bstackOptions={}) => {
   return [];
 };
 
+exports.getFrameworkName = (testRunner) => {
+  if (testRunner && testRunner.type) {
+    return `nightwatch-${testRunner.type}`;
+  }
+
+  return 'nightwatch-default';
+};
+
 exports.getCiInfo = () => {
   var env = process.env;
   // Jenkins

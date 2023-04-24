@@ -8,6 +8,7 @@ const helper = require('./utils/helper');
 class TestObservability {
   configure(settings = {}) {
     this._settings = settings['@nightwatch/browserstack'] || {};
+    this._testRunner = settings.test_runner;
     this._bstackOptions = {};
     if (settings && settings.desiredCapabilities && settings.desiredCapabilities['bstack:options']) {
       this._bstackOptions = settings.desiredCapabilities['bstack:options'];
@@ -48,7 +49,7 @@ class TestObservability {
       failed_tests_rerun: process.env.BROWSERSTACK_RERUN || false,
       version_control: this._gitMetadata,
       observability_version: {
-        frameworkName: 'nightwatch',
+        frameworkName: helper.getFrameworkName(this._testRunner),
         frameworkVersion: helper.getPackageVersion('nightwatch'),
         sdkVersion: helper.getAgentVersion()
       }
@@ -149,7 +150,7 @@ class TestObservability {
       const beforeHookId = uuidv4();
       const afterHookId = uuidv4();
       const globalAfterEachHookId = uuidv4();
-      const hookIds = [globalBeforeEachHookId, beforeHookId, afterHookId, globalAfterEachHookId];
+      const hookIds = [];
       for (const sectionName in completedSections) {
         const eventData = completedSections[sectionName];
         if (sectionName === '__global_beforeEach_hook') {
@@ -242,6 +243,8 @@ class TestObservability {
               path: stripAnsi(httpRequest[1] || '').replace(/&#39;/g, '\'').trim().split(' ')[2],
               method: stripAnsi(httpRequest[1] || '').replace(/&#39;/g, '\'').trim().split(' ')[1],
               body: stripAnsi(httpRequest[2] || '').replace(/&#39;/g, '\''),
+              status_code: stripAnsi(httpResponse[1] || '').replace(/&#39;/g, '\'').trim().split(' ')[1],
+              duration_ms: new Date(httpResponse[0]).getTime() - new Date(httpRequest[0]).getTime(),
               response: stripAnsi(httpResponse[2] || '').replace(/&#39;/g, '\'')
             }
           }

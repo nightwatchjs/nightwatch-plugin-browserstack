@@ -67,6 +67,9 @@ module.exports = {
     if (helper.isTestObservabilitySession()) {
       try {
         await testObservability.stopBuildUpstream();
+        if (process.env.BS_TESTOPS_BUILD_HASHED_ID) {
+          console.log(`\nVisit https://observability.browserstack.com/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID} to view build report, insights, and many more debugging information all at one place!\n`);
+        }
       } catch (error) {
         console.log(`nightwatch-browserstack-plugin: Something went wrong in stopping build session for test observability - ${error}`);
       }
