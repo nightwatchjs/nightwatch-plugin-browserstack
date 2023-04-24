@@ -119,7 +119,7 @@ class TestObservability {
     helper.requestQueueHandler.shutdown();
     try {
       const response = await helper.makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
-      if (response.data.error) {
+      if (response.data && response.data.error) {
         throw ({message: response.data.error});
       } else {
         return {
@@ -260,6 +260,7 @@ class TestObservability {
       scopes: [
         testFileReport.name
       ],
+      tags: testFileReport.tags,
       identifier: `${testFileReport.name} - ${eventType}`,
       file_name: testFileReport.modulePath,
       location: testFileReport.modulePath,

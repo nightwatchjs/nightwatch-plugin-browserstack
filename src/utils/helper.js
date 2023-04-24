@@ -295,7 +295,7 @@ exports.makeRequest = (type, url, data, config) => {
         }
       } else {
         try {
-          if (typeof(body) !== 'object') {body = JSON.parse(body)}
+          if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
         } catch (e) {
           reject('Not a JSON response from BrowserStack Server');
         }
