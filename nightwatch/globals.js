@@ -10,13 +10,13 @@ const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_FAILED_FILE;
 
 module.exports = {
 
-  reporter: function(results, done) {
+  reporter: async function(results, done) {
     if (helper.isTestObservabilitySession()) {
       try {
         const modulesWithEnv = results['modulesWithEnv'];
         for (const testSetting in modulesWithEnv) {
           for (const testFile in modulesWithEnv[testSetting]) {
-            testObservability.processTestFile(modulesWithEnv[testSetting][testFile]);
+            await testObservability.processTestFile(modulesWithEnv[testSetting][testFile]);
           }
         }
       } catch (error) {
