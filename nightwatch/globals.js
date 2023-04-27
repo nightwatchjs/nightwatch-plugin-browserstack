@@ -1,5 +1,6 @@
 const LocalTunnel = require('../src/local-tunnel');
 const TestObservability = require('../src/testObservability');
+const { CUSTOM_REPORTER_CALLBACK_TIMEOUT } = require('../src/utils/constants');
 const helper = require('../src/utils/helper');
 
 const localTunnel = new LocalTunnel();
@@ -10,19 +11,29 @@ const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_FAILED_FILE;
 
 module.exports = {
 
-  reporter: async function(results, done) {
+  reporter: function(results, done) {
     if (helper.isTestObservabilitySession()) {
+      const promises = [];
       try {
         const modulesWithEnv = results['modulesWithEnv'];
         for (const testSetting in modulesWithEnv) {
           for (const testFile in modulesWithEnv[testSetting]) {
-            await testObservability.processTestFile(modulesWithEnv[testSetting][testFile]);
+            promises.push(testObservability.processTestFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
           }
         }
+
+        Promise.all(promises).then(() => {
+          done();
+        }).catch((err) =>{
+          console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${err}`);
+          done();
+        });
+        
+        return;
       } catch (error) {
         console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${error}`);
       }
-    }
+    } 
     done(results);
   },
 
@@ -48,10 +59,11 @@ module.exports = {
     try {
       testObservability.configure(settings);
       if (helper.isTestObservabilitySession()) {
+        settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
         if (testObservability._user && testObservability._key) {
           await testObservability.launchTestSession();
         }
-        if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
+        if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
           helper.handleNightwatchRerun(specs);
         }

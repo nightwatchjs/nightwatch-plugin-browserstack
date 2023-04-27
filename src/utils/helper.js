@@ -7,8 +7,9 @@ const request = require('request');
 const {promisify} = require('util');
 const gitRepoInfo = require('git-repo-info');
 const gitconfig = require('gitconfiglocal');
-const {API_URL, RERUN_FILE} = require('./constants');
 const pGitconfig = promisify(gitconfig);
+const gitLastCommit = require('git-last-commit');
+const {API_URL, RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS} = require('./constants');
 
 const httpKeepAliveAgent = new http.Agent({
   keepAlive: true,
@@ -228,34 +229,71 @@ const findGitConfig = (filePath) => {
   }
 };
 
-exports.getGitMetaData = async () => {
-  const info = gitRepoInfo();
-  if (!info.commonGitDir) {
-    console.log('nightwatch-browserstack-plugin: Unable to find a Git directory');
+exports.getGitMetaData = () => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      var info = gitRepoInfo();
+      if (!info.commonGitDir) {
+        console.log('nightwatch-browserstack-plugin: Unable to find a Git directory');
+        resolve({});
+      }
+      if (!info.author && findGitConfig(process.cwd())) {
+        /* commit objects are packed */
+        gitLastCommit.getLastCommit(async (err, commit) => {
+          info['author'] = info['author'] || `${commit['author']['name'].replace(/[“]+/g, '')} <${commit['author']['email'].replace(/[“]+/g, '')}>`;
+          info['authorDate'] = info['authorDate'] || commit['authoredOn'];
+          info['committer'] = info['committer'] || `${commit['committer']['name'].replace(/[“]+/g, '')} <${commit['committer']['email'].replace(/[“]+/g, '')}>`;
+          info['committerDate'] = info['committerDate'] || commit['committedOn'];
+          info['commitMessage'] = info['commitMessage'] || commit['subject'];
 
-    return;
-  }
-  const {remote} = await pGitconfig(info.commonGitDir);
-  const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName].url}));
-
-  return {
-    name: 'git',
-    sha: info.sha,
-    short_sha: info.abbreviatedSha,
-    branch: info.branch,
-    tag: info.tag,
-    committer: info.committer,
-    committer_date: info.committerDate,
-    author: info.author,
-    author_date: info.authorDate,
-    commit_message: info.commitMessage,
-    root: info.root,
-    common_git_dir: info.commonGitDir,
-    worktree_git_dir: info.worktreeGitDir,
-    last_tag: info.lastTag,
-    commits_since_last_tag: info.commitsSinceLastTag,
-    remotes: remotes
-  };
+          const {remote} = await pGitconfig(info.commonGitDir);
+          const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
+          resolve({
+            'name': 'git',
+            'sha': info['sha'],
+            'short_sha': info['abbreviatedSha'],
+            'branch': info['branch'],
+            'tag': info['tag'],
+            'committer': info['committer'],
+            'committer_date': info['committerDate'],
+            'author': info['author'],
+            'author_date': info['authorDate'],
+            'commit_message': info['commitMessage'],
+            'root': info['root'],
+            'common_git_dir': info['commonGitDir'],
+            'worktree_git_dir': info['worktreeGitDir'],
+            'last_tag': info['lastTag'],
+            'commits_since_last_tag': info['commitsSinceLastTag'],
+            'remotes': remotes
+          });
+        }, {dst: findGitConfig(process.cwd())});
+      } else {
+        const {remote} = await pGitconfig(info.commonGitDir);
+        const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
+        resolve({
+          'name': 'git',
+          'sha': info['sha'],
+          'short_sha': info['abbreviatedSha'],
+          'branch': info['branch'],
+          'tag': info['tag'],
+          'committer': info['committer'],
+          'committer_date': info['committerDate'],
+          'author': info['author'],
+          'author_date': info['authorDate'],
+          'commit_message': info['commitMessage'],
+          'root': info['root'],
+          'common_git_dir': info['commonGitDir'],
+          'worktree_git_dir': info['worktreeGitDir'],
+          'last_tag': info['lastTag'],
+          'commits_since_last_tag': info['commitsSinceLastTag'],
+          'remotes': remotes
+        });
+      }
+    } catch (err) {
+      console.log(`nightwatch-browserstack-plugin: Exception in populating Git metadata with error : ${err}`);
+      resolve({});
+    }
+  });
 };
 
 exports.requireModule = (module) => {
@@ -486,3 +524,17 @@ exports.deleteRerunFile = () => {
   }
 };
 
+const sleep = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
+
+exports.uploadPending = async (
+  waitTimeout = DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS,
+  waitInterval = DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS 
+) => {
+  if (this.pending_test_uploads <= 0 || waitTimeout <= 0) {
+    return;
+  }
+
+  await sleep(waitInterval);
+
+  return this.uploadPending(waitTimeout - waitInterval);
+};

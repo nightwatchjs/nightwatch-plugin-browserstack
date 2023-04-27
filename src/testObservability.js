@@ -117,6 +117,7 @@ class TestObservability {
         'X-BSTACK-TESTOPS': 'true'
       }
     };
+    await helper.uploadPending();
     await helper.requestQueueHandler.shutdown();
     try {
       const response = await helper.makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
@@ -265,8 +266,8 @@ class TestObservability {
       ],
       tags: testFileReport.tags,
       identifier: `${testFileReport.name} - ${eventType}`,
-      file_name: testFileReport.modulePath,
-      location: testFileReport.modulePath,
+      file_name: path.relative(process.cwd(), testFileReport.modulePath),
+      location: path.relative(process.cwd(), testFileReport.modulePath),
       vc_filepath: this._gitMetadata ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
       started_at: new Date(eventData.startTimestamp).toISOString(),
       result: 'pending',
