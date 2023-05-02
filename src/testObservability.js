@@ -146,6 +146,7 @@ class TestObservability {
   async processTestFile(testFileReport) {
     const completedSections = testFileReport['completedSections'];
     const completed = testFileReport['completed'];
+    const skippedTests = testFileReport['skipped'];
     if (completedSections) {
       const globalBeforeEachHookId = uuidv4();
       const beforeHookId = uuidv4();
@@ -155,37 +156,37 @@ class TestObservability {
       for (const sectionName in completedSections) {
         const eventData = completedSections[sectionName];
         if (sectionName === '__global_beforeEach_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
               await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalBeforeEachHookId);
             }
           }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
         } else if (sectionName === '__before_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', beforeHookId, 'BEFORE_ALL');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', beforeHookId, 'BEFORE_ALL', sectionName);
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId);
+              await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId, sectionName);
             }
           }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', beforeHookId, 'BEFORE_ALL');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', beforeHookId, 'BEFORE_ALL', sectionName);
         } else if (sectionName === '__after_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', afterHookId, 'AFTER_ALL');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', afterHookId, 'AFTER_ALL', sectionName);
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
               await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], afterHookId);
             }
           }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', afterHookId, 'AFTER_ALL');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', afterHookId, 'AFTER_ALL', sectionName);
         } else if (sectionName === '__global_afterEach_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalAfterEachHookId, 'GLOBAL_AFTER_EACH');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
           if (eventData.httpOutput && eventData.httpOutput.length > 0) {
             for (let i=0; i<eventData.httpOutput.length; i+=2) {
               await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalAfterEachHookId);
             }
           }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH');
+          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
         } else {
           const testUuid = uuidv4();
           const completedEventData = completed[sectionName];
@@ -210,7 +211,42 @@ class TestObservability {
           await this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
         }
       }
+      if (skippedTests && skippedTests.length > 0) {
+        for (const skippedTest of skippedTests) {
+          await this.sendSkippedTestEvent(skippedTest, testFileReport);
+        }
+      }
     }
+  }
+
+  async sendSkippedTestEvent(skippedTest, testFileReport) {
+    const testData = {
+      uuid: uuidv4(),
+      type: 'test',
+      name: skippedTest,
+      scope: `${testFileReport.name} - ${skippedTest}`,
+      scopes: [
+        testFileReport.name
+      ],
+      tags: testFileReport.tags,
+      identifier: `${testFileReport.name} - ${skippedTest}`,
+      file_name: path.relative(process.cwd(), testFileReport.modulePath),
+      location: path.relative(process.cwd(), testFileReport.modulePath),
+      vc_filepath: this._gitMetadata ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
+      started_at: new Date(testFileReport.endTimestamp).toISOString(),
+      finished_at: new Date(testFileReport.endTimestamp).toISOString(),
+      duration_in_ms: 0,
+      result: 'skipped',
+      framework: 'nightwatch'
+    };
+    testData.integrations = {};
+    const provider = helper.getCloudProvider(testFileReport.host);
+    testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
+    const uploadData = {
+      event_type: 'TestRunFinished'
+    };
+    uploadData['test_run'] = testData;
+    await helper.uploadEventData(uploadData);
   }
 
   async createScreenshotLogEvent(testUuid, screenshot, timestamp) {
@@ -228,7 +264,7 @@ class TestObservability {
         }
       ]
     };
-    await helper.uploadEventData(eventData);
+    // await helper.uploadEventData(eventData);
   }
 
   async createHttpLogEvent(httpRequest, httpResponse, test_run_uuid) {
@@ -259,13 +295,13 @@ class TestObservability {
     const testData = {
       uuid: uuid,
       type: 'hook',
-      name: eventType,
-      scope: `${testFileReport.name} - ${eventType}`,
+      name: sectionName,
+      scope: `${testFileReport.name} - ${sectionName}`,
       scopes: [
         testFileReport.name
       ],
       tags: testFileReport.tags,
-      identifier: `${testFileReport.name} - ${eventType}`,
+      identifier: `${testFileReport.name} - ${sectionName}`,
       file_name: path.relative(process.cwd(), testFileReport.modulePath),
       location: path.relative(process.cwd(), testFileReport.modulePath),
       vc_filepath: this._gitMetadata ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
@@ -291,21 +327,16 @@ class TestObservability {
         }
       }
     }
-
-    if (eventType === 'TestRunStarted' || eventType === 'TestRunFinished') {
-      testData.type = 'test';
-      testData.name = sectionName;
-      testData.scope = `${testFileReport.name} - ${sectionName}`;
-      testData.identifier = `${testFileReport.name} - ${sectionName}`;
-    }
-
+    
     if (eventType === 'TestRunStarted') {
+      testData.type = 'test';
       testData.integrations = {};
       const provider = helper.getCloudProvider(testFileReport.host);
       testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
     }
 
     if (eventType === 'TestRunFinished') {
+      testData.type = 'test';
       testData.hooks = hooks;
     }
 

@@ -1,6 +1,6 @@
 const LocalTunnel = require('../src/local-tunnel');
 const TestObservability = require('../src/testObservability');
-const { CUSTOM_REPORTER_CALLBACK_TIMEOUT } = require('../src/utils/constants');
+const {CUSTOM_REPORTER_CALLBACK_TIMEOUT} = require('../src/utils/constants');
 const helper = require('../src/utils/helper');
 
 const localTunnel = new LocalTunnel();
