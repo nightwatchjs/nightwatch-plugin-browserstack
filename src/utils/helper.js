@@ -513,7 +513,7 @@ exports.handleNightwatchRerun = (specs) => {
     }
   });
   process.env.NIGHTWATCH_RERUN_FAILED = true;
-  process.env.NIGHTWATCH_RERUN_FAILED_FILE = path.resolve(RERUN_FILE);
+  process.env.NIGHTWATCH_RERUN_REPORT_FILE = path.resolve(RERUN_FILE);
 };
 
 exports.deleteRerunFile = () => {

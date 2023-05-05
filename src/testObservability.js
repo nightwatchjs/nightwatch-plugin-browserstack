@@ -4,10 +4,21 @@ const fs = require('fs');
 const stripAnsi = require('strip-ansi');
 const {v4: uuidv4} = require('uuid');
 const helper = require('./utils/helper');
+const CrashReporter = require('./utils/crashReporter');
 
 class TestObservability {
   configure(settings = {}) {
     this._settings = settings['@nightwatch/browserstack'] || {};
+
+    if (this._settings.testObservability) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.testObservability;
+    }
+    if (process.argv.includes('--disable-test-observability')) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
+
+      return;
+    }
+
     this._testRunner = settings.test_runner;
     this._bstackOptions = {};
     if (settings && settings.desiredCapabilities && settings.desiredCapabilities['bstack:options']) {
@@ -17,12 +28,8 @@ class TestObservability {
     if (this._settings.testObservabilityOptions || this._bstackOptions) {
       this._user = helper.getObservabilityUser(this._settings.testObservabilityOptions, this._bstackOptions);
       this._key = helper.getObservabilityKey(this._settings.testObservabilityOptions, this._bstackOptions);
-    }
-    if (this._settings.testObservability) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.testObservability;
-    }
-    if (process.argv.includes('--disable-test-observability')) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
+      CrashReporter.setCredentialsForCrashReportUpload(this._user, this._key);
+      CrashReporter.setConfigDetails(settings);
     }
   }
 
@@ -70,15 +77,11 @@ class TestObservability {
       const response = await helper.makeRequest('POST', 'api/v1/builds', data, config);
       console.log('nightwatch-browserstack-plugin: Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
-
-      if (response.data && response.data.jwt) {
-        process.env.BS_TESTOPS_JWT = response.data.jwt;
-      }
-      if (response.data && response.data.build_hashed_id) {
-        process.env.BS_TESTOPS_BUILD_HASHED_ID = response.data.build_hashed_id;
-      }
-      if (response.data && response.data.allow_screenshots) {
-        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = response.data.allow_screenshots.toString();
+      const data = response.data;
+      if (data) {
+        process.env.BS_TESTOPS_JWT = data.jwt;
+        process.env.BS_TESTOPS_BUILD_HASHED_ID = data.build_hashed_id;
+        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = data.allow_screenshots && data.allow_screenshots.toString();
       }
     } catch (error) {
       if (error.response) {
@@ -91,7 +94,6 @@ class TestObservability {
         }
       }
       process.env.BS_TESTOPS_BUILD_COMPLETED = false;
-
     }
   }
 
@@ -146,7 +148,7 @@ class TestObservability {
   async processTestFile(testFileReport) {
     const completedSections = testFileReport['completedSections'];
     const completed = testFileReport['completed'];
-    const skippedTests = testFileReport['skipped'];
+    const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
     if (completedSections) {
       const globalBeforeEachHookId = uuidv4();
       const beforeHookId = uuidv4();

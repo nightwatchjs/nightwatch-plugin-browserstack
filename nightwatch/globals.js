@@ -1,13 +1,14 @@
 const LocalTunnel = require('../src/local-tunnel');
 const TestObservability = require('../src/testObservability');
 const {CUSTOM_REPORTER_CALLBACK_TIMEOUT} = require('../src/utils/constants');
+const CrashReporter = require('../src/utils/crashReporter');
 const helper = require('../src/utils/helper');
 
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
-const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_FAILED_FILE;
+const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 
 module.exports = {
 
@@ -18,6 +19,12 @@ module.exports = {
         const modulesWithEnv = results['modulesWithEnv'];
         for (const testSetting in modulesWithEnv) {
           for (const testFile in modulesWithEnv[testSetting]) {
+            for (const completedSection in modulesWithEnv[testSetting][testFile].completed) {
+              if (modulesWithEnv[testSetting][testFile].completed[completedSection]) {
+                delete modulesWithEnv[testSetting][testFile].completed[completedSection].steps;
+                delete modulesWithEnv[testSetting][testFile].completed[completedSection].testcases;
+              }
+            }
             promises.push(testObservability.processTestFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
           }
         }
@@ -26,11 +33,13 @@ module.exports = {
           done();
         }).catch((err) =>{
           console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${err}`);
+          CrashReporter.uploadCrashReport(err.message, err.stack);
           done();
         });
         
         return;
       } catch (error) {
+        CrashReporter.uploadCrashReport(error.message, error.stack);
         console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${error}`);
       }
     } 
@@ -86,7 +95,7 @@ module.exports = {
         console.log(`nightwatch-browserstack-plugin: Something went wrong in stopping build session for test observability - ${error}`);
       }
       process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
-      process.env.NIGHTWATCH_RERUN_FAILED_FILE = nightwatchRerunFile;
+      process.env.NIGHTWATCH_RERUN_REPORT_FILE = nightwatchRerunFile;
       if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
         helper.deleteRerunFile();
       }
