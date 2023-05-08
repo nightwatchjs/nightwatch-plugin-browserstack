@@ -151,7 +151,6 @@ class TestObservability {
 
   async processTestFile(testFileReport) {
     const completedSections = testFileReport['completedSections'];
-    const completed = testFileReport['completed'];
     const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
     if (completedSections) {
       const globalBeforeEachHookId = uuidv4();
@@ -208,10 +207,10 @@ class TestObservability {
           default: {
             if (eventData.retryTestData && eventData.retryTestData.length>0) {
               for (const retryTest of eventData.retryTestData) {
-                await this.processTestRunData(completed, retryTest, sectionName, testFileReport, hookIds);
+                await this.processTestRunData(retryTest, sectionName, testFileReport, hookIds);
               }
             }
-            await this.processTestRunData(completed, eventData, sectionName, testFileReport, hookIds);
+            await this.processTestRunData(eventData, sectionName, testFileReport, hookIds);
             break;
           }
         }
@@ -224,11 +223,10 @@ class TestObservability {
     }
   }
 
-  async processTestRunData (completed, eventData, sectionName, testFileReport, hookIds) {
+  async processTestRunData (eventData, sectionName, testFileReport, hookIds) {
     const testUuid = uuidv4();
-    const completedEventData = completed[sectionName];
-    eventData.stackTrace = completedEventData.stackTrace;
-    eventData.lastError = completedEventData.lastError;
+    const errorData = eventData.commands.find(command => command.result && command.result.stack);
+    eventData.lastError = errorData ? errorData.result : null;
     await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
     if (eventData.httpOutput && eventData.httpOutput.length > 0) {
       for (let i=0; i<eventData.httpOutput.length; i+=2) {
@@ -341,10 +339,10 @@ class TestObservability {
       testData.finished_at = new Date(eventData.endTimestamp).toISOString();
       testData.result = eventData.status === 'pass' ? 'passed' : 'failed';
       testData.duration_in_ms = 'timeMs' in eventData ? eventData.timeMs : eventData.time;
-      if (eventData.status === 'fail') {
+      if (eventData.status === 'fail' && eventData.lastError) {
         testData.failure = [
           {
-            'backtrace': [eventData.stackTrace]
+            'backtrace': [eventData.lastError.stack]
           }
         ];
         testData.failure_reason = eventData.lastError ? stripAnsi(eventData.lastError.message) : null;
