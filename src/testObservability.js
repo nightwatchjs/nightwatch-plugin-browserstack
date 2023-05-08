@@ -10,8 +10,8 @@ class TestObservability {
   configure(settings = {}) {
     this._settings = settings['@nightwatch/browserstack'] || {};
 
-    if (this._settings.testObservability) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.testObservability;
+    if (this._settings.test_observability) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.test_observability.enabled;
     }
     if (process.argv.includes('--disable-test-observability')) {
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
@@ -25,16 +25,16 @@ class TestObservability {
       this._bstackOptions = settings.desiredCapabilities['bstack:options'];
     }
     
-    if (this._settings.testObservabilityOptions || this._bstackOptions) {
-      this._user = helper.getObservabilityUser(this._settings.testObservabilityOptions, this._bstackOptions);
-      this._key = helper.getObservabilityKey(this._settings.testObservabilityOptions, this._bstackOptions);
+    if (this._settings.test_observability || this._bstackOptions) {
+      this._user = helper.getObservabilityUser(this._settings.test_observability, this._bstackOptions);
+      this._key = helper.getObservabilityKey(this._settings.test_observability, this._bstackOptions);
       CrashReporter.setCredentialsForCrashReportUpload(this._user, this._key);
       CrashReporter.setConfigDetails(settings);
     }
   }
 
   async launchTestSession() {
-    const options = this._settings.testObservabilityOptions || {};
+    const options = this._settings.test_observability || {};
     this._gitMetadata = await helper.getGitMetaData();
     const data = {
       format: 'json',
@@ -77,11 +77,15 @@ class TestObservability {
       const response = await helper.makeRequest('POST', 'api/v1/builds', data, config);
       console.log('nightwatch-browserstack-plugin: Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
-      const data = response.data;
-      if (data) {
-        process.env.BS_TESTOPS_JWT = data.jwt;
-        process.env.BS_TESTOPS_BUILD_HASHED_ID = data.build_hashed_id;
-        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = data.allow_screenshots && data.allow_screenshots.toString();
+
+      if (response.data && response.data.jwt) {
+        process.env.BS_TESTOPS_JWT = response.data.jwt;
+      }
+      if (response.data && response.data.build_hashed_id) {
+        process.env.BS_TESTOPS_BUILD_HASHED_ID = response.data.build_hashed_id;
+      }
+      if (response.data && response.data.allow_screenshots) {
+        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = response.data.allow_screenshots.toString();
       }
     } catch (error) {
       if (error.response) {
@@ -90,7 +94,7 @@ class TestObservability {
         if ((error.message && error.message.includes('with status : 401')) || (error && error.toString().includes('with status : 401'))) {
           console.log('nightwatch-browserstack-plugin: Either your BrowserStack access credentials are incorrect or you do not have access to BrowserStack Test Observability yet.');
         } else {
-          console.log(`nightwatch-browserstack-plugin: EXCEPTION IN BUILD START EVENT : ${error.message || error}`);
+          console.log(`nightwatch-browserstack-plugin: EXCEPTION IN BUILD START EVENT : ${error.message || error} with stacktrace ${error.stack}`);
         }
       }
       process.env.BS_TESTOPS_BUILD_COMPLETED = false;
@@ -157,60 +161,59 @@ class TestObservability {
       const hookIds = [];
       for (const sectionName in completedSections) {
         const eventData = completedSections[sectionName];
-        if (sectionName === '__global_beforeEach_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
-          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-            for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalBeforeEachHookId);
-            }
-          }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
-        } else if (sectionName === '__before_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', beforeHookId, 'BEFORE_ALL', sectionName);
-          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-            for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId, sectionName);
-            }
-          }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', beforeHookId, 'BEFORE_ALL', sectionName);
-        } else if (sectionName === '__after_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', afterHookId, 'AFTER_ALL', sectionName);
-          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-            for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], afterHookId);
-            }
-          }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', afterHookId, 'AFTER_ALL', sectionName);
-        } else if (sectionName === '__global_afterEach_hook') {
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
-          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-            for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalAfterEachHookId);
-            }
-          }
-          await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
-        } else {
-          const testUuid = uuidv4();
-          const completedEventData = completed[sectionName];
-          eventData.timeMs = completedEventData.timeMs;
-          eventData.startTimestamp = completedEventData.startTimestamp;
-          eventData.endTimestamp = completedEventData.endTimestamp;
-          eventData.stackTrace = completedEventData.stackTrace;
-          eventData.lastError = completedEventData.lastError;
-          await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
-          if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-            for (let i=0; i<eventData.httpOutput.length; i+=2) {
-              await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], testUuid);
-            }
-          }
-          if (process.env.BS_TESTOPS_ALLOW_SCREENSHOTS === 'true') {
-            for (const command of eventData.commands) {
-              if (command.name === 'saveScreenshot' && command.args) {
-                await this.createScreenshotLogEvent(testUuid, command.args[0], command.startTime);
+        if (eventData.commands.length === 0) {
+          continue;
+        }
+        switch (sectionName) {
+          case '__global_beforeEach_hook': {
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
+            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+              for (let i=0; i<eventData.httpOutput.length; i+=2) {
+                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalBeforeEachHookId);
               }
             }
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
+            break;
           }
-          await this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
+          case '__before_hook': {
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', beforeHookId, 'BEFORE_ALL', sectionName);
+            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+              for (let i=0; i<eventData.httpOutput.length; i+=2) {
+                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId, sectionName);
+              }
+            }
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', beforeHookId, 'BEFORE_ALL', sectionName);
+            break;
+          }
+          case '__after_hook': {
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', afterHookId, 'AFTER_ALL', sectionName);
+            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+              for (let i=0; i<eventData.httpOutput.length; i+=2) {
+                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], afterHookId);
+              }
+            }
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', afterHookId, 'AFTER_ALL', sectionName);
+            break;
+          }
+          case '__global_afterEach_hook': {
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
+            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+              for (let i=0; i<eventData.httpOutput.length; i+=2) {
+                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalAfterEachHookId);
+              }
+            }
+            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
+            break;
+          }
+          default: {
+            if (eventData.retryTestData && eventData.retryTestData.length>0) {
+              for (const retryTest of eventData.retryTestData) {
+                await this.processTestRunData(completed, retryTest, sectionName, testFileReport, hookIds);
+              }
+            }
+            await this.processTestRunData(completed, eventData, sectionName, testFileReport, hookIds);
+            break;
+          }
         }
       }
       if (skippedTests && skippedTests.length > 0) {
@@ -219,6 +222,27 @@ class TestObservability {
         }
       }
     }
+  }
+
+  async processTestRunData (completed, eventData, sectionName, testFileReport, hookIds) {
+    const testUuid = uuidv4();
+    const completedEventData = completed[sectionName];
+    eventData.stackTrace = completedEventData.stackTrace;
+    eventData.lastError = completedEventData.lastError;
+    await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
+    if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+      for (let i=0; i<eventData.httpOutput.length; i+=2) {
+        await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], testUuid);
+      }
+    }
+    if (process.env.BS_TESTOPS_ALLOW_SCREENSHOTS === 'true') {
+      for (const command of eventData.commands) {
+        if (command.name === 'saveScreenshot' && command.args) {
+          await this.createScreenshotLogEvent(testUuid, command.args[0], command.startTime);
+        }
+      }
+    }
+    await this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
   }
 
   async sendSkippedTestEvent(skippedTest, testFileReport) {
@@ -266,7 +290,7 @@ class TestObservability {
         }
       ]
     };
-    // await helper.uploadEventData(eventData);
+    await helper.uploadEventData(eventData);
   }
 
   async createHttpLogEvent(httpRequest, httpResponse, test_run_uuid) {

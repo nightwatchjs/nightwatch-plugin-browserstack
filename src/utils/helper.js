@@ -78,8 +78,8 @@ exports.getObservabilityKey = (config, bstackOptions={}) => {
 };
 
 exports.getObservabilityProject = (options, bstackOptions={}) => {
-  if (options.testObservabilityOptions && options.testObservabilityOptions.projectName) {
-    return options.testObservabilityOptions.projectName;
+  if (options.test_observability && options.test_observability.projectName) {
+    return options.test_observability.projectName;
   } else if (bstackOptions.projectName) {
     return bstackOptions.projectName;
   }
@@ -89,8 +89,8 @@ exports.getObservabilityProject = (options, bstackOptions={}) => {
 };
 
 exports.getObservabilityBuild = (options, bstackOptions={}) => {
-  if (options.testObservabilityOptions && options.testObservabilityOptions.buildName) {
-    return options.testObservabilityOptions.buildName;
+  if (options.test_observability && options.test_observability.buildName) {
+    return options.test_observability.buildName;
   } else if (bstackOptions.buildName) {
     return bstackOptions.buildName;
   }
@@ -99,8 +99,8 @@ exports.getObservabilityBuild = (options, bstackOptions={}) => {
 };
 
 exports.getObservabilityBuildTags = (options, bstackOptions={}) => {
-  if (options.testObservabilityOptions && options.testObservabilityOptions.buildTag) {
-    return options.testObservabilityOptions.buildTag;
+  if (options.test_observability && options.test_observability.buildTag) {
+    return options.test_observability.buildTag;
   } else if (bstackOptions.buildTag) {
     return bstackOptions.buildTag;
   }
@@ -116,101 +116,127 @@ exports.getFrameworkName = (testRunner) => {
   return 'nightwatch-default';
 };
 
-exports.getCiInfo = () => {
+exports.getCIVendor = () => {
   var env = process.env;
   // Jenkins
   if ((typeof env.JENKINS_URL === 'string' && env.JENKINS_URL.length > 0) || (typeof env.JENKINS_HOME === 'string' && env.JENKINS_HOME.length > 0)) {
-    return {
-      name: 'Jenkins',
-      build_url: env.BUILD_URL,
-      job_name: env.JOB_NAME,
-      build_number: env.BUILD_NUMBER
-    };
+    return 'Jenkins';
   }
   // CircleCI
   if (env.CI === 'true' && env.CIRCLECI === 'true') {
-    return {
-      name: 'CircleCI',
-      build_url: env.CIRCLE_BUILD_URL,
-      job_name: env.CIRCLE_JOB,
-      build_number: env.CIRCLE_BUILD_NUM
-    };
+    return 'CircleCI';
   }
   // Travis CI
   if (env.CI === 'true' && env.TRAVIS === 'true') {
-    return {
-      name: 'Travis CI',
-      build_url: env.TRAVIS_BUILD_WEB_URL,
-      job_name: env.TRAVIS_JOB_NAME,
-      build_number: env.TRAVIS_BUILD_NUMBER
-    };
+    return 'TravisCI';
   }
   // Codeship
   if (env.CI === 'true' && env.CI_NAME === 'codeship') {
-    return {
-      name: 'Codeship',
-      build_url: null,
-      job_name: null,
-      build_number: null
-    };
+    return 'Codeship';
   }
   // Bitbucket
   if (env.BITBUCKET_BRANCH && env.BITBUCKET_COMMIT) {
-    return {
-      name: 'Bitbucket',
-      build_url: env.BITBUCKET_GIT_HTTP_ORIGIN,
-      job_name: null,
-      build_number: env.BITBUCKET_BUILD_NUMBER
-    };
+    return 'Bitbucket';
   }
   // Drone
   if (env.CI === 'true' && env.DRONE === 'true') {
-    return {
-      name: 'Drone',
-      build_url: env.DRONE_BUILD_LINK,
-      job_name: null,
-      build_number: env.DRONE_BUILD_NUMBER
-    };
+    return 'Drone';
   }
   // Semaphore
   if (env.CI === 'true' && env.SEMAPHORE === 'true') {
-    return {
-      name: 'Semaphore',
-      build_url: env.SEMAPHORE_ORGANIZATION_URL,
-      job_name: env.SEMAPHORE_JOB_NAME,
-      build_number: env.SEMAPHORE_JOB_ID
-    };
+    return 'Semaphore';
   }
   // GitLab
   if (env.CI === 'true' && env.GITLAB_CI === 'true') {
-    return {
-      name: 'GitLab',
-      build_url: env.CI_JOB_URL,
-      job_name: env.CI_JOB_NAME,
-      build_number: env.CI_JOB_ID
-    };
+    return 'GitLab';
   }
   // Buildkite
   if (env.CI === 'true' && env.BUILDKITE === 'true') {
-    return {
-      name: 'Buildkite',
-      build_url: env.BUILDKITE_BUILD_URL,
-      job_name: env.BUILDKITE_LABEL || env.BUILDKITE_PIPELINE_NAME,
-      build_number: env.BUILDKITE_BUILD_NUMBER
-    };
+    return 'Buildkite';
   }
   // Visual Studio Team Services
   if (env.TF_BUILD === 'True') {
-    return {
-      name: 'Visual Studio Team Services',
-      build_url: `${env.SYSTEM_TEAMFOUNDATIONSERVERURI}${env.SYSTEM_TEAMPROJECTID}`,
-      job_name: env.SYSTEM_DEFINITIONID,
-      build_number: env.BUILD_BUILDID
-    };
+    return 'Visual Studio Team Services';
   }
+};
 
-  // if no matches, return null
-  return null;
+exports.getCiInfo = () => {
+  var env = process.env;
+  const ciVendor = this.getCIVendor();
+  switch (ciVendor) {
+    case 'Jenkins':
+      return {
+        name: 'Jenkins',
+        build_url: env.BUILD_URL,
+        job_name: env.JOB_NAME,
+        build_number: env.BUILD_NUMBER
+      };
+    case 'CircleCI': 
+      return {
+        name: 'CircleCI',
+        build_url: env.CIRCLE_BUILD_URL,
+        job_name: env.CIRCLE_JOB,
+        build_number: env.CIRCLE_BUILD_NUM
+      };
+    case 'TravisCI':
+      return {
+        name: 'Travis CI',
+        build_url: env.TRAVIS_BUILD_WEB_URL,
+        job_name: env.TRAVIS_JOB_NAME,
+        build_number: env.TRAVIS_BUILD_NUMBER
+      };
+    case 'Codeship':
+      return {
+        name: 'Codeship',
+        build_url: null,
+        job_name: null,
+        build_number: null
+      };
+    case 'Bitbucket':
+      return {
+        name: 'Bitbucket',
+        build_url: env.BITBUCKET_GIT_HTTP_ORIGIN,
+        job_name: null,
+        build_number: env.BITBUCKET_BUILD_NUMBER
+      };
+    case 'Drone':
+      return {
+        name: 'Drone',
+        build_url: env.DRONE_BUILD_LINK,
+        job_name: null,
+        build_number: env.DRONE_BUILD_NUMBER
+      };
+    case 'Semaphore':
+      return {
+        name: 'Semaphore',
+        build_url: env.SEMAPHORE_ORGANIZATION_URL,
+        job_name: env.SEMAPHORE_JOB_NAME,
+        build_number: env.SEMAPHORE_JOB_ID
+      };
+    case 'GitLab':
+      return {
+        name: 'GitLab',
+        build_url: env.CI_JOB_URL,
+        job_name: env.CI_JOB_NAME,
+        build_number: env.CI_JOB_ID
+      };
+    case 'Buildkite':
+      return {
+        name: 'Buildkite',
+        build_url: env.BUILDKITE_BUILD_URL,
+        job_name: env.BUILDKITE_LABEL || env.BUILDKITE_PIPELINE_NAME,
+        build_number: env.BUILDKITE_BUILD_NUMBER
+      };
+    case 'Visual Studio Team Services':
+      return {
+        name: 'Visual Studio Team Services',
+        build_url: `${env.SYSTEM_TEAMFOUNDATIONSERVERURI}${env.SYSTEM_TEAMPROJECTID}`,
+        job_name: env.SYSTEM_DEFINITIONID,
+        build_number: env.BUILD_BUILDID
+      };
+    default:
+      return null;
+  }
 };
 
 const findGitConfig = (filePath) => {

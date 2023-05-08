@@ -21,8 +21,8 @@ class CrashReporter {
 
   static filterPII(settings) {
     const configWithoutPII = JSON.parse(JSON.stringify(settings));
-    if (configWithoutPII['@nightwatch/browserstack'] && configWithoutPII['@nightwatch/browserstack'].testObservabilityOptions) {
-      this.deletePIIKeysFromObject(configWithoutPII['@nightwatch/browserstack'].testObservabilityOptions);
+    if (configWithoutPII['@nightwatch/browserstack'] && configWithoutPII['@nightwatch/browserstack'].test_observability) {
+      this.deletePIIKeysFromObject(configWithoutPII['@nightwatch/browserstack'].test_observability);
     }
     if (configWithoutPII.desiredCapabilities && configWithoutPII.desiredCapabilities['bstack:options']) {
       this.deletePIIKeysFromObject(configWithoutPII.desiredCapabilities['bstack:options']);

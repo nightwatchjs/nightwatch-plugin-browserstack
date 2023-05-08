@@ -32,7 +32,7 @@ module.exports = {
         Promise.all(promises).then(() => {
           done();
         }).catch((err) =>{
-          console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${err}`);
+          console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${err.message} with stacktrace ${err.stack}`);
           CrashReporter.uploadCrashReport(err.message, err.stack);
           done();
         });
@@ -40,7 +40,7 @@ module.exports = {
         return;
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
-        console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${error}`);
+        console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
       }
     } 
     done(results);
