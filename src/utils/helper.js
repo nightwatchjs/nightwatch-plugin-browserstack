@@ -40,6 +40,7 @@ const httpsScreenshotsKeepAliveAgent = new https.Agent({
 });
 
 const RequestQueueHandler = require('./requestQueueHandler');
+const Logger = require('./logger');
 exports.requestQueueHandler = new RequestQueueHandler();
 exports.pending_test_uploads = {
   count: 0
@@ -260,7 +261,7 @@ exports.getGitMetaData = () => {
     try {
       var info = gitRepoInfo();
       if (!info.commonGitDir) {
-        console.log('nightwatch-browserstack-plugin: Unable to find a Git directory');
+        Logger.info('Unable to find a Git directory');
         resolve({});
       }
       if (!info.author && findGitConfig(process.cwd())) {
@@ -316,14 +317,14 @@ exports.getGitMetaData = () => {
         });
       }
     } catch (err) {
-      console.log(`nightwatch-browserstack-plugin: Exception in populating Git metadata with error : ${err}`);
+      Logger.error(`Exception in populating Git metadata with error : ${err}`);
       resolve({});
     }
   });
 };
 
 exports.requireModule = (module) => {
-  console.log(`nightwatch-browserstack-plugin: Getting ${module} from ${process.cwd()}`);
+  Logger.info(`Getting ${module} from ${process.cwd()}`);
   const local_path = path.join(process.cwd(), 'node_modules', module);
 
   return require(local_path);
@@ -399,7 +400,7 @@ exports.uploadEventData = async (eventData) => {
   
   if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
     if (process.env.BS_TESTOPS_JWT === 'null') {
-      console.log(`nightwatch-browserstack-plugin: EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : missing authentication token`);
+      Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : missing authentication token`);
       exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count-1);
 
       return {
@@ -445,9 +446,9 @@ exports.uploadEventData = async (eventData) => {
       }
     } catch (error) {
       if (error.response) {
-        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        Logger.error(`EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+        Logger.error(`EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
       }
       exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - (event_api_url === 'api/v1/event' ? 1 : data.length));
 
@@ -477,9 +478,9 @@ exports.batchAndPostEvents = async (eventUrl, kind, data) => {
     }
   } catch (error) {
     if (error.response) {
-      console.log(`nightwatch-browserstack-plugin: EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+      Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
     } else {
-      console.log(`nightwatch-browserstack-plugin: EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+      Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
     }
     exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - data.length);
   }

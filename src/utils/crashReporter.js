@@ -1,4 +1,5 @@
 const helper = require('../utils/helper');
+const Logger = require('./logger');
 
 class CrashReporter {
 
@@ -65,7 +66,7 @@ class CrashReporter {
       };
       await helper.makeRequest('POST', 'api/v1/analytics', data, config);
     } catch (error) {
-        console.log(`nightwatch-browserstack-plugin: [Crash_Report_Upload] Failed due to ${error}`);
+        Logger.error(`[Crash_Report_Upload] Failed due to ${error}`);
     }
   }
 }

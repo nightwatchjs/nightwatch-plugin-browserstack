@@ -5,6 +5,7 @@ const stripAnsi = require('strip-ansi');
 const {v4: uuidv4} = require('uuid');
 const helper = require('./utils/helper');
 const CrashReporter = require('./utils/crashReporter');
+const Logger = require('./utils/logger');
 
 class TestObservability {
   configure(settings = {}) {
@@ -75,7 +76,7 @@ class TestObservability {
 
     try {
       const response = await helper.makeRequest('POST', 'api/v1/builds', data, config);
-      console.log('nightwatch-browserstack-plugin: Build creation successfull!');
+      Logger.info('Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
       if (response.data && response.data.jwt) {
@@ -89,12 +90,12 @@ class TestObservability {
       }
     } catch (error) {
       if (error.response) {
-        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN BUILD START EVENT : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
         if ((error.message && error.message.includes('with status : 401')) || (error && error.toString().includes('with status : 401'))) {
-          console.log('nightwatch-browserstack-plugin: Either your BrowserStack access credentials are incorrect or you do not have access to BrowserStack Test Observability yet.');
+          Logger.error('Either your BrowserStack access credentials are incorrect or you do not have access to BrowserStack Test Observability yet.');
         } else {
-          console.log(`nightwatch-browserstack-plugin: EXCEPTION IN BUILD START EVENT : ${error.message || error} with stacktrace ${error.stack}`);
+          Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.message || error}`);
         }
       }
       process.env.BS_TESTOPS_BUILD_COMPLETED = false;
@@ -106,7 +107,7 @@ class TestObservability {
       return;
     }
     if (!process.env.BS_TESTOPS_JWT) {
-      console.log('nightwatch-browserstack-plugin: [STOP_BUILD] Missing Authentication Token/ Build ID');
+      Logger.info('[STOP_BUILD] Missing Authentication Token/ Build ID');
 
       return {
         status: 'error',
@@ -137,9 +138,9 @@ class TestObservability {
       }
     } catch (error) {
       if (error.response) {
-        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        Logger.error(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        console.log(`nightwatch-browserstack-plugin: EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+        Logger.error(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
       }
 
       return {
@@ -150,7 +151,7 @@ class TestObservability {
   }
 
   async processTestFile(testFileReport) {
-    const completedSections = testFileReport['completedSections'];
+    const completedSections = testFileReport['completedSections'].grp.fd;
     const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
     if (completedSections) {
       const globalBeforeEachHookId = uuidv4();

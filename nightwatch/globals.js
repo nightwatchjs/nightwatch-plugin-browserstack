@@ -3,6 +3,7 @@ const TestObservability = require('../src/testObservability');
 const {CUSTOM_REPORTER_CALLBACK_TIMEOUT} = require('../src/utils/constants');
 const CrashReporter = require('../src/utils/crashReporter');
 const helper = require('../src/utils/helper');
+const Logger = require('../src/utils/logger');
 
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
@@ -32,7 +33,7 @@ module.exports = {
         Promise.all(promises).then(() => {
           done();
         }).catch((err) =>{
-          console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${err.message} with stacktrace ${err.stack}`);
+          Logger.error(`Something went wrong in processing report file for test observability - ${err.message} with stacktrace ${err.stack}`);
           CrashReporter.uploadCrashReport(err.message, err.stack);
           done();
         });
@@ -40,7 +41,7 @@ module.exports = {
         return;
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
-        console.log(`nightwatch-browserstack-plugin: Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
       }
     } 
     done(results);
@@ -78,7 +79,7 @@ module.exports = {
         }
       } 
     } catch (error) {
-      console.log(`nightwatch-browserstack-plugin: Could not configure or launch test observability - ${error}`);
+      Logger.error(`Could not configure or launch test observability - ${error}`);
     }
 
   },
@@ -92,7 +93,7 @@ module.exports = {
           console.log(`\nVisit https://observability.browserstack.com/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID} to view build report, insights, and many more debugging information all at one place!\n`);
         }
       } catch (error) {
-        console.log(`nightwatch-browserstack-plugin: Something went wrong in stopping build session for test observability - ${error}`);
+        Logger.error(`Something went wrong in stopping build session for test observability - ${error}`);
       }
       process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
       process.env.NIGHTWATCH_RERUN_REPORT_FILE = nightwatchRerunFile;
