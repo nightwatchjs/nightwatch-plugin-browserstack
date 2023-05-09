@@ -151,7 +151,7 @@ class TestObservability {
   }
 
   async processTestFile(testFileReport) {
-    const completedSections = testFileReport['completedSections'].grp.fd;
+    const completedSections = testFileReport['completedSections'];
     const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
     if (completedSections) {
       const globalBeforeEachHookId = uuidv4();
