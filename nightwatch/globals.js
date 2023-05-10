@@ -26,7 +26,7 @@ module.exports = {
                 delete modulesWithEnv[testSetting][testFile].completed[completedSection].testcases;
               }
             }
-            promises.push(testObservability.processTestFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
+            promises.push(testObservability.processTestReportFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
           }
         }
 
@@ -90,7 +90,7 @@ module.exports = {
       try {
         await testObservability.stopBuildUpstream();
         if (process.env.BS_TESTOPS_BUILD_HASHED_ID) {
-          console.log(`\nVisit https://observability.browserstack.com/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID} to view build report, insights, and many more debugging information all at one place!\n`);
+          Logger.info(`\nVisit https://observability.browserstack.com/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID} to view build report, insights, and many more debugging information all at one place!\n`);
         }
       } catch (error) {
         Logger.error(`Something went wrong in stopping build session for test observability - ${error}`);

@@ -150,7 +150,17 @@ class TestObservability {
     }
   }
 
-  async processTestFile(testFileReport) {
+  async sendEvents(eventData, testFileReport, startEventType, finishedEventType, hookId, hookType, sectionName) {
+    await this.sendTestRunEvent(eventData, testFileReport, startEventType, hookId, hookType, sectionName);
+    if (eventData.httpOutput && eventData.httpOutput.length > 0) {
+      for (let i=0; i<eventData.httpOutput.length; i+=2) {
+        await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], hookId);
+      }
+    }
+    await this.sendTestRunEvent(eventData, testFileReport, finishedEventType, hookId, hookType, sectionName);
+  }
+
+  async processTestReportFile(testFileReport) {
     const completedSections = testFileReport['completedSections'];
     const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
     if (completedSections) {
@@ -166,43 +176,19 @@ class TestObservability {
         }
         switch (sectionName) {
           case '__global_beforeEach_hook': {
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
-            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-              for (let i=0; i<eventData.httpOutput.length; i+=2) {
-                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalBeforeEachHookId);
-              }
-            }
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
+            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
             break;
           }
           case '__before_hook': {
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', beforeHookId, 'BEFORE_ALL', sectionName);
-            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-              for (let i=0; i<eventData.httpOutput.length; i+=2) {
-                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], beforeHookId, sectionName);
-              }
-            }
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', beforeHookId, 'BEFORE_ALL', sectionName);
+            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', beforeHookId, 'BEFORE_ALL', sectionName);
             break;
           }
           case '__after_hook': {
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', afterHookId, 'AFTER_ALL', sectionName);
-            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-              for (let i=0; i<eventData.httpOutput.length; i+=2) {
-                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], afterHookId);
-              }
-            }
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', afterHookId, 'AFTER_ALL', sectionName);
+            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', afterHookId, 'AFTER_ALL', sectionName);
             break;
           }
           case '__global_afterEach_hook': {
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunStarted', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
-            if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-              for (let i=0; i<eventData.httpOutput.length; i+=2) {
-                await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], globalAfterEachHookId);
-              }
-            }
-            await this.sendTestRunEvent(eventData, testFileReport, 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
+            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
             break;
           }
           default: {

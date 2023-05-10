@@ -11,33 +11,19 @@ const pGitconfig = promisify(gitconfig);
 const gitLastCommit = require('git-last-commit');
 const {API_URL, RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS} = require('./constants');
 
-const httpKeepAliveAgent = new http.Agent({
-  keepAlive: true,
-  timeout: 60000,
-  maxSockets: 2,
-  maxTotalSockets: 2
-});
+function createKeepAliveAgent(protocol) {
+  return new protocol.Agent({
+    keepAlive: true,
+    timeout: 60000,
+    maxSockets: 2,
+    maxTotalSockets: 2
+  });
+}
 
-const httpsKeepAliveAgent = new https.Agent({
-  keepAlive: true,
-  timeout: 60000,
-  maxSockets: 2,
-  maxTotalSockets: 2
-});
-
-const httpScreenshotsKeepAliveAgent = new http.Agent({
-  keepAlive: true,
-  timeout: 60000,
-  maxSockets: 2,
-  maxTotalSockets: 2
-});
-
-const httpsScreenshotsKeepAliveAgent = new https.Agent({
-  keepAlive: true,
-  timeout: 60000,
-  maxSockets: 2,
-  maxTotalSockets: 2
-});
+const httpKeepAliveAgent = createKeepAliveAgent(http);
+const httpsKeepAliveAgent = createKeepAliveAgent(https);
+const httpScreenshotsKeepAliveAgent = createKeepAliveAgent(http);
+const httpsScreenshotsKeepAliveAgent = createKeepAliveAgent(https);
 
 const RequestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');

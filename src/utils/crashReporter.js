@@ -13,20 +13,20 @@ class CrashReporter {
     };
   }
 
-  static deletePIIKeysFromObject(obj) {
-    if (!obj) {
-        return;
-    }
-    ['user', 'username', 'userName', 'key', 'accessKey'].forEach(key => delete obj[key]);
-  }
-
   static filterPII(settings) {
+    const keysToDelete = ['user', 'username', 'userName', 'key', 'accessKey'];
     const configWithoutPII = JSON.parse(JSON.stringify(settings));
+    const deleteKeys = (obj) => {
+      if (!obj) {
+        return;
+      }
+      keysToDelete.forEach(key => delete obj[key]);
+    }
     if (configWithoutPII['@nightwatch/browserstack'] && configWithoutPII['@nightwatch/browserstack'].test_observability) {
-      this.deletePIIKeysFromObject(configWithoutPII['@nightwatch/browserstack'].test_observability);
+      deleteKeys(configWithoutPII['@nightwatch/browserstack'].test_observability);
     }
     if (configWithoutPII.desiredCapabilities && configWithoutPII.desiredCapabilities['bstack:options']) {
-      this.deletePIIKeysFromObject(configWithoutPII.desiredCapabilities['bstack:options']);
+      deleteKeys(configWithoutPII.desiredCapabilities['bstack:options']);
     }
     return configWithoutPII;
   }
