@@ -75,7 +75,7 @@ module.exports = {
         }
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
-          helper.handleNightwatchRerun(specs);
+          await helper.handleNightwatchRerun(specs);
         }
       } 
     } catch (error) {
@@ -98,7 +98,7 @@ module.exports = {
       process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
       process.env.NIGHTWATCH_RERUN_REPORT_FILE = nightwatchRerunFile;
       if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
-        helper.deleteRerunFile();
+        await helper.deleteRerunFile();
       }
     }
   },

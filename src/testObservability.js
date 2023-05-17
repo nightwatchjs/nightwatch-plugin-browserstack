@@ -145,7 +145,7 @@ class TestObservability {
 
       return {
         status: 'error',
-        message: error.message || error.response ? `${error.response.status}:${error.response.statusText}` : error
+        message: error
       };
     }
   }

@@ -1,5 +1,6 @@
 const os = require('os');
 const fs = require('fs');
+const fsPromises = fs.promises;
 const path = require('path');
 const http = require('node:http');
 const https = require('node:https');
@@ -226,19 +227,19 @@ exports.getCiInfo = () => {
   }
 };
 
-const findGitConfig = (filePath) => {
+const findGitConfig = async (filePath) => {
   if (filePath == null || filePath === '' || filePath === '/') {
     return null;
   }
   try {
-    fs.statSync(filePath + '/.git/config');
+    await fsPromises.stat(filePath + '/.git/config');
 
     return filePath;
   } catch (e) {
     const parentFilePath = filePath.split('/');
     parentFilePath.pop();
 
-    return findGitConfig(parentFilePath.join('/'));
+    return await findGitConfig(parentFilePath.join('/'));
   }
 };
 
@@ -250,7 +251,7 @@ exports.getGitMetaData = () => {
         Logger.info('Unable to find a Git directory');
         resolve({});
       }
-      if (!info.author && findGitConfig(process.cwd())) {
+      if (!info.author && await findGitConfig(process.cwd())) {
         /* commit objects are packed */
         gitLastCommit.getLastCommit(async (err, commit) => {
           info['author'] = info['author'] || `${commit['author']['name'].replace(/[“]+/g, '')} <${commit['author']['email'].replace(/[“]+/g, '')}>`;
@@ -279,7 +280,7 @@ exports.getGitMetaData = () => {
             'commits_since_last_tag': info['commitsSinceLastTag'],
             'remotes': remotes
           });
-        }, {dst: findGitConfig(process.cwd())});
+        }, {dst: await findGitConfig(process.cwd())});
       } else {
         const {remote} = await pGitconfig(info.commonGitDir);
         const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
@@ -507,7 +508,7 @@ exports.getIntegrationsObject = (capabilities, sessionId) => {
   };
 };
 
-exports.handleNightwatchRerun = (specs) => {
+exports.handleNightwatchRerun = async (specs) => {
   const modules = {};
   specs.forEach(spec => {
     modules[spec] = {
@@ -518,22 +519,20 @@ exports.handleNightwatchRerun = (specs) => {
   const data = {
     modules: modules
   };
-
-  fs.writeFileSync(RERUN_FILE, JSON.stringify(data), (error) => {
-    if (error) {
-      console.error(error);
-      throw error;
-    }
-  });
-  process.env.NIGHTWATCH_RERUN_FAILED = true;
-  process.env.NIGHTWATCH_RERUN_REPORT_FILE = path.resolve(RERUN_FILE);
+  try {
+    await fsPromises.writeFile(RERUN_FILE, JSON.stringify(data));
+    process.env.NIGHTWATCH_RERUN_FAILED = true;
+    process.env.NIGHTWATCH_RERUN_REPORT_FILE = path.resolve(RERUN_FILE);
+  } catch (error) {
+    Logger.error(error);
+  }
 };
 
-exports.deleteRerunFile = () => {
+exports.deleteRerunFile = async () => {
   try {
-    fs.unlinkSync(path.resolve(RERUN_FILE));
+    await fsPromises.unlink(path.resolve(RERUN_FILE));
   } catch (err) {
-    console.error(err);
+    Logger.error(err);
   }
 };
 
