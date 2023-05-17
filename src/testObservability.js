@@ -125,7 +125,7 @@ class TestObservability {
       }
     };
     await helper.uploadPending();
-    await helper.requestQueueHandler.shutdown();
+    await helper.shutDownRequestHandler();
     try {
       const response = await helper.makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
       if (response.data && response.data.error) {

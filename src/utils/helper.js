@@ -26,9 +26,8 @@ const httpsKeepAliveAgent = createKeepAliveAgent(https);
 const httpScreenshotsKeepAliveAgent = createKeepAliveAgent(http);
 const httpsScreenshotsKeepAliveAgent = createKeepAliveAgent(https);
 
-const RequestQueueHandler = require('./requestQueueHandler');
+const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
-exports.requestQueueHandler = new RequestQueueHandler();
 exports.pending_test_uploads = {
   count: 0
 };
@@ -340,7 +339,7 @@ exports.makeRequest = (type, url, data, config) => {
       agent: API_URL.includes('https') ? httpsKeepAliveAgent : httpKeepAliveAgent
     }};
 
-    if (url === exports.requestQueueHandler.screenshotEventUrl) {
+    if (url === requestQueueHandler.screenshotEventUrl) {
       options.agent = API_URL.includes('https') ? httpsScreenshotsKeepAliveAgent : httpScreenshotsKeepAliveAgent;
     }
 
@@ -398,12 +397,12 @@ exports.uploadEventData = async (eventData) => {
     let data = eventData; 
     let event_api_url = 'api/v1/event';
       
-    exports.requestQueueHandler.start();
+    requestQueueHandler.start();
     const {
       shouldProceed,
       proceedWithData,
       proceedWithUrl
-    } = exports.requestQueueHandler.add(eventData);
+    } = requestQueueHandler.add(eventData);
     if (!shouldProceed) {
       return;
     } else if (proceedWithData) {
@@ -433,9 +432,9 @@ exports.uploadEventData = async (eventData) => {
       }
     } catch (error) {
       if (error.response) {
-        Logger.error(`EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        Logger.error(`EXCEPTION IN ${event_api_url !== requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        Logger.error(`EXCEPTION IN ${event_api_url !== exports.requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+        Logger.error(`EXCEPTION IN ${event_api_url !== requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
       }
       exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - (event_api_url === 'api/v1/event' ? 1 : data.length));
 
@@ -549,4 +548,8 @@ exports.uploadPending = async (
   await sleep(waitInterval);
 
   return this.uploadPending(waitTimeout - waitInterval);
+};
+
+exports.shutDownRequestHandler = async () => {
+  await requestQueueHandler.shutdown();
 };
