@@ -57,11 +57,11 @@ exports.isTestObservabilitySession = () => {
 };
 
 exports.getObservabilityUser = (config, bstackOptions={}) => {
-  return config.user  || bstackOptions.userName || process.env.BROWSERSTACK_USERNAME;
+  return process.env.BROWSERSTACK_USERNAME || config.user  || bstackOptions.userName;
 };
 
 exports.getObservabilityKey = (config, bstackOptions={}) => {
-  return config.key || bstackOptions.accessKey || process.env.BROWSERSTACK_ACCESS_KEY;
+  return process.env.BROWSERSTACK_ACCESS_KEY || config.key || bstackOptions.accessKey;
 };
 
 exports.getObservabilityProject = (options, bstackOptions={}) => {
