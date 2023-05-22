@@ -380,7 +380,7 @@ exports.uploadEventData = async (eventData) => {
     ['HookRunFinished']: 'Hook_End_Upload'
   }[eventData.event_type];
 
-  if (process.env.BS_TESTOPS_JWT !== 'null') {
+  if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
     exports.pending_test_uploads.count += 1;
   }
   
