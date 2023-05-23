@@ -13,37 +13,35 @@ const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 
 module.exports = {
 
-  reporter: function(results, done) {
-    if (helper.isTestObservabilitySession()) {
-      const promises = [];
-      try {
-        const modulesWithEnv = results['modulesWithEnv'];
-        for (const testSetting in modulesWithEnv) {
-          for (const testFile in modulesWithEnv[testSetting]) {
-            for (const completedSection in modulesWithEnv[testSetting][testFile].completed) {
-              if (modulesWithEnv[testSetting][testFile].completed[completedSection]) {
-                delete modulesWithEnv[testSetting][testFile].completed[completedSection].steps;
-                delete modulesWithEnv[testSetting][testFile].completed[completedSection].testcases;
-              }
-            }
-            promises.push(testObservability.processTestReportFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
-          }
-        }
+  reporter: async function(results, done) {
+    if (!helper.isTestObservabilitySession()) {
+      done(results);
 
-        Promise.all(promises).then(() => {
-          done();
-        }).catch((err) =>{
-          Logger.error(`Something went wrong in processing report file for test observability - ${err.message} with stacktrace ${err.stack}`);
-          CrashReporter.uploadCrashReport(err.message, err.stack);
-          done();
-        });
-        
-        return;
-      } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+      return;
+    }
+    try {
+      const modulesWithEnv = results['modulesWithEnv'];
+      const promises = [];
+      for (const testSetting in modulesWithEnv) {
+        for (const testFile in modulesWithEnv[testSetting]) {
+          const completedSections = modulesWithEnv[testSetting][testFile].completed;
+
+          for (const completedSection in completedSections) {
+            if (completedSections[completedSection]) {
+              delete completedSections[completedSection].steps;
+              delete completedSections[completedSection].testcases;
+            }
+          }
+          promises.push(testObservability.processTestReportFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
+        }
       }
-    } 
+      
+      await Promise.all(promises);
+      done();
+    } catch (error) {
+      CrashReporter.uploadCrashReport(error.message, error.stack);
+      Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+    }
     done(results);
   },
 

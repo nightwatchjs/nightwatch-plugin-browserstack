@@ -44,7 +44,7 @@ class TestObservability {
       name: helper.getObservabilityBuild(this._settings, this._bstackOptions),
       build_identifier: options.buildIdentifier,
       description: options.buildDescription || '',
-      start_time: (new Date()).toISOString(),
+      start_time: new Date().toISOString(),
       tags: helper.getObservabilityBuildTags(this._settings, this._bstackOptions),
       host_info: {
         hostname: os.hostname(),
@@ -80,14 +80,15 @@ class TestObservability {
       Logger.info('Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
-      if (response.data && response.data.jwt) {
-        process.env.BS_TESTOPS_JWT = response.data.jwt;
+      const responseData = response.data || {};
+      if (responseData.jwt) {
+        process.env.BS_TESTOPS_JWT = responseData.jwt;
       }
-      if (response.data && response.data.build_hashed_id) {
-        process.env.BS_TESTOPS_BUILD_HASHED_ID = response.data.build_hashed_id;
+      if (responseData.build_hashed_id) {
+        process.env.BS_TESTOPS_BUILD_HASHED_ID = responseData.build_hashed_id;
       }
-      if (response.data && response.data.allow_screenshots) {
-        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = response.data.allow_screenshots.toString();
+      if (responseData.allow_screenshots) {
+        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = responseData.allow_screenshots.toString();
       }
     } catch (error) {
       if (error.response) {
@@ -116,7 +117,7 @@ class TestObservability {
       };
     }
     const data = {
-      'stop_time': (new Date()).toISOString()
+      'stop_time': new Date().toISOString()
     };
     const config = {
       headers: {
@@ -129,8 +130,8 @@ class TestObservability {
     await helper.shutDownRequestHandler();
     try {
       const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
-      if (response.data && response.data.error) {
-        throw ({message: response.data.error});
+      if (response.data?.error) {
+        throw {message: response.data.error};
       } else {
         return {
           status: 'success',
@@ -154,8 +155,10 @@ class TestObservability {
   async sendEvents(eventData, testFileReport, startEventType, finishedEventType, hookId, hookType, sectionName) {
     await this.sendTestRunEvent(eventData, testFileReport, startEventType, hookId, hookType, sectionName);
     if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-      for (let i=0; i<eventData.httpOutput.length; i+=2) {
-        await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], hookId);
+      for (const [index, output] of eventData.httpOutput.entries()) {
+        if (index % 2 === 0) {
+          await this.createHttpLogEvent(output, eventData.httpOutput[index + 1], hookId);
+        }
       }
     }
     await this.sendTestRunEvent(eventData, testFileReport, finishedEventType, hookId, hookType, sectionName);
@@ -190,7 +193,7 @@ class TestObservability {
             break;
           }
           default: {
-            if (eventData.retryTestData && eventData.retryTestData.length>0) {
+            if (eventData.retryTestData?.length>0) {
               for (const retryTest of eventData.retryTestData) {
                 await this.processTestRunData(retryTest, sectionName, testFileReport, hookIds);
               }
@@ -200,7 +203,7 @@ class TestObservability {
           }
         }
       }
-      if (skippedTests && skippedTests.length > 0) {
+      if (skippedTests?.length > 0) {
         for (const skippedTest of skippedTests) {
           await this.sendSkippedTestEvent(skippedTest, testFileReport);
         }
@@ -210,12 +213,14 @@ class TestObservability {
 
   async processTestRunData (eventData, sectionName, testFileReport, hookIds) {
     const testUuid = uuidv4();
-    const errorData = eventData.commands.find(command => command.result && command.result.stack);
+    const errorData = eventData.commands.find(command => command.result?.stack);
     eventData.lastError = errorData ? errorData.result : null;
     await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
     if (eventData.httpOutput && eventData.httpOutput.length > 0) {
-      for (let i=0; i<eventData.httpOutput.length; i+=2) {
-        await this.createHttpLogEvent(eventData.httpOutput[i], eventData.httpOutput[i+1], testUuid);
+      for (const [index, output] of eventData.httpOutput.entries()) {
+        if (index % 2 === 0) {
+          await this.createHttpLogEvent(output, eventData.httpOutput[index + 1], testUuid);
+        }
       }
     }
     if (process.env.BS_TESTOPS_ALLOW_SCREENSHOTS === 'true') {
@@ -335,6 +340,12 @@ class TestObservability {
           testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
         }
       }
+    }
+
+    if (eventType === 'HookRunStarted') {
+      testData.integrations = {};
+      const provider = helper.getCloudProvider(testFileReport.host);
+      testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
     }
     
     if (eventType === 'TestRunStarted') {
