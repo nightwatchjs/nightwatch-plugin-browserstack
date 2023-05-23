@@ -1,4 +1,5 @@
-const helper = require('../utils/helper');
+const helper = require('./helper');
+const {makeRequest} = require('./requestHelper');
 const Logger = require('./logger');
 
 class CrashReporter {
@@ -64,7 +65,7 @@ class CrashReporter {
         },
         config: this.userConfigForReporting
       };
-      await helper.makeRequest('POST', 'api/v1/analytics', data, config);
+      await makeRequest('POST', 'api/v1/analytics', data, config);
     } catch (error) {
         Logger.error(`[Crash_Report_Upload] Failed due to ${error}`);
     }

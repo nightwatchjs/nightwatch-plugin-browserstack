@@ -4,6 +4,7 @@ const fs = require('fs');
 const stripAnsi = require('strip-ansi');
 const {v4: uuidv4} = require('uuid');
 const helper = require('./utils/helper');
+const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
 
@@ -75,7 +76,7 @@ class TestObservability {
     };
 
     try {
-      const response = await helper.makeRequest('POST', 'api/v1/builds', data, config);
+      const response = await makeRequest('POST', 'api/v1/builds', data, config);
       Logger.info('Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
@@ -127,7 +128,7 @@ class TestObservability {
     await helper.uploadPending();
     await helper.shutDownRequestHandler();
     try {
-      const response = await helper.makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
+      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
       if (response.data && response.data.error) {
         throw ({message: response.data.error});
       } else {
@@ -171,9 +172,6 @@ class TestObservability {
       const hookIds = [];
       for (const sectionName in completedSections) {
         const eventData = completedSections[sectionName];
-        if (eventData.commands.length === 0) {
-          continue;
-        }
         switch (sectionName) {
           case '__global_beforeEach_hook': {
             await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);

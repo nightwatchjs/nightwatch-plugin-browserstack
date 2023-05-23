@@ -48,7 +48,7 @@ module.exports = {
   },
 
   onEvent({eventName, hook_type, ...args}) {
-    if (browser && eventName === 'TestRunStarted') {
+    if (typeof browser !== 'undefined' && eventName === 'TestRunStarted') {
       browser.execute(`browserstack_executor: {"action": "annotate", "arguments": {"type":"Annotation","data":"ObservabilitySync:${Date.now()}","level": "debug"}}`);
     }
   },

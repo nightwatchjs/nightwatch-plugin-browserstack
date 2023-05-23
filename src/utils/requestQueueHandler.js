@@ -1,7 +1,9 @@
 const {BATCH_SIZE, BATCH_INTERVAL} = require('./constants');
-const helper = require('./helper');
+const Logger = require('./logger');
+const {makeRequest} = require('./requestHelper');
 
 class RequestQueueHandler {
+  pending_test_uploads = 0;
   constructor() {
     this.queue = [];
     this.started = false;
@@ -54,7 +56,7 @@ class RequestQueueHandler {
     while (this.queue.length > 0) {
       const data = this.queue.slice(0, BATCH_SIZE);
       this.queue.splice(0, BATCH_SIZE);
-      await helper.batchAndPostEvents(this.eventUrl, 'Shutdown-Queue', data);
+      await this.batchAndPostEvents(this.eventUrl, 'Shutdown-Queue', data);
     }
   }
 
@@ -63,7 +65,7 @@ class RequestQueueHandler {
       if (this.queue.length > 0) {
         const data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
-        await helper.batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
+        await this.batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
       }
     }, BATCH_INTERVAL);
   }
@@ -86,6 +88,32 @@ class RequestQueueHandler {
   shouldProceed () {
     return this.queue.length >= BATCH_SIZE;
   }
+
+  async batchAndPostEvents (eventUrl, kind, data) {
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Content-Type': 'application/json',
+        'X-BSTACK-TESTOPS': 'true'
+      }
+    };
+  
+    try {
+      const response = await makeRequest('POST', eventUrl, data, config);
+      if (response.data.error) {
+        throw ({message: response.data.error});
+      } else {
+        this.pending_test_uploads = Math.max(0, this.pending_test_uploads - data.length);
+      }
+    } catch (error) {
+      if (error.response) {
+        Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+      } else {
+        Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+      }
+      this.pending_test_uploads = Math.max(0, this.pending_test_uploads - data.length);
+    }
+  };
 }
 
 module.exports = new RequestQueueHandler();

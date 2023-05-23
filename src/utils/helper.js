@@ -2,35 +2,16 @@ const os = require('os');
 const fs = require('fs');
 const fsPromises = fs.promises;
 const path = require('path');
-const http = require('node:http');
-const https = require('node:https');
-const request = require('request');
 const {promisify} = require('util');
 const gitRepoInfo = require('git-repo-info');
 const gitconfig = require('gitconfiglocal');
 const pGitconfig = promisify(gitconfig);
 const gitLastCommit = require('git-last-commit');
-const {API_URL, RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS} = require('./constants');
-
-function createKeepAliveAgent(protocol) {
-  return new protocol.Agent({
-    keepAlive: true,
-    timeout: 60000,
-    maxSockets: 2,
-    maxTotalSockets: 2
-  });
-}
-
-const httpKeepAliveAgent = createKeepAliveAgent(http);
-const httpsKeepAliveAgent = createKeepAliveAgent(https);
-const httpScreenshotsKeepAliveAgent = createKeepAliveAgent(http);
-const httpsScreenshotsKeepAliveAgent = createKeepAliveAgent(https);
+const {makeRequest} = require('./requestHelper');
+const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS} = require('./constants');
 
 const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
-exports.pending_test_uploads = {
-  count: 0
-};
 
 exports.generateLocalIdentifier = () => {
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
@@ -329,47 +310,6 @@ exports.getPackageVersion = (package_) => {
   return packages[package_] = this.requireModule(`${package_}/package.json`).version;
 };
 
-exports.makeRequest = (type, url, data, config) => {
-  return new Promise((resolve, reject) => {
-    const options = {...config, ...{
-      method: type,
-      url: `${API_URL}/${url}`,
-      body: data,
-      json: config.headers['Content-Type'] === 'application/json',
-      agent: API_URL.includes('https') ? httpsKeepAliveAgent : httpKeepAliveAgent
-    }};
-
-    if (url === requestQueueHandler.screenshotEventUrl) {
-      options.agent = API_URL.includes('https') ? httpsScreenshotsKeepAliveAgent : httpScreenshotsKeepAliveAgent;
-    }
-
-    request(options, function callback(error, response, body) {
-      if (error) {
-        reject(error);
-      } else if (response.statusCode !== 200) {
-        if (response.statusCode === 401) {
-          reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
-        } else {
-          reject(`Received response from BrowserStack Server with status : ${response.statusCode}`);
-        }
-      } else {
-        try {
-          if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
-        } catch (e) {
-          reject('Not a JSON response from BrowserStack Server');
-        }
-        resolve({
-          data: body
-        });
-      }
-    });
-  });
-};
-
-exports.pending_test_uploads = {
-  count: 0
-};
-
 exports.uploadEventData = async (eventData) => {
   const log_tag = {
     ['TestRunStarted']: 'Test_Start_Upload',
@@ -381,13 +321,13 @@ exports.uploadEventData = async (eventData) => {
   }[eventData.event_type];
 
   if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
-    exports.pending_test_uploads.count += 1;
+    requestQueueHandler.pending_test_uploads += 1;
   }
   
   if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
     if (process.env.BS_TESTOPS_JWT === 'null') {
       Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : missing authentication token`);
-      exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count-1);
+      requestQueueHandler.pending_test_uploads = Math.max(0, requestQueueHandler.pending_test_uploads-1);
 
       return {
         status: 'error',
@@ -419,11 +359,11 @@ exports.uploadEventData = async (eventData) => {
     };
   
     try {
-      const response = await this.makeRequest('POST', event_api_url, data, config);
+      const response = await makeRequest('POST', event_api_url, data, config);
       if (response.data.error) {
         throw ({message: response.data.error});
       } else {
-        exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - (event_api_url === 'api/v1/event' ? 1 : data.length));
+        requestQueueHandler.pending_test_uploads = Math.max(0, requestQueueHandler.pending_test_uploads - (event_api_url === 'api/v1/event' ? 1 : data.length));
 
         return {
           status: 'success',
@@ -436,39 +376,13 @@ exports.uploadEventData = async (eventData) => {
       } else {
         Logger.error(`EXCEPTION IN ${event_api_url !== requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
       }
-      exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - (event_api_url === 'api/v1/event' ? 1 : data.length));
+      requestQueueHandler.pending_test_uploads = Math.max(0, requestQueueHandler.pending_test_uploads - (event_api_url === 'api/v1/event' ? 1 : data.length));
 
       return {
         status: 'error',
         message: error.message || (error.response ? `${error.response.status}:${error.response.statusText}` : error)
       };
     }
-  }
-};
-
-exports.batchAndPostEvents = async (eventUrl, kind, data) => {
-  const config = {
-    headers: {
-      'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
-      'Content-Type': 'application/json',
-      'X-BSTACK-TESTOPS': 'true'
-    }
-  };
-
-  try {
-    const response = await this.makeRequest('POST', eventUrl, data, config);
-    if (response.data.error) {
-      throw ({message: response.data.error});
-    } else {
-      exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - data.length);
-    }
-  } catch (error) {
-    if (error.response) {
-      Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
-    } else {
-      Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
-    }
-    exports.pending_test_uploads.count = Math.max(0, exports.pending_test_uploads.count - data.length);
   }
 };
 
@@ -541,7 +455,7 @@ exports.uploadPending = async (
   waitTimeout = DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS,
   waitInterval = DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS 
 ) => {
-  if (this.pending_test_uploads <= 0 || waitTimeout <= 0) {
+  if (requestQueueHandler.pending_test_uploads <= 0 || waitTimeout <= 0) {
     return;
   }
 
