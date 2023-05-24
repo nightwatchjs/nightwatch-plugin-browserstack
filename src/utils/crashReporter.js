@@ -22,18 +22,19 @@ class CrashReporter {
         return;
       }
       keysToDelete.forEach(key => delete obj[key]);
-    }
+    };
     if (configWithoutPII['@nightwatch/browserstack'] && configWithoutPII['@nightwatch/browserstack'].test_observability) {
       deleteKeys(configWithoutPII['@nightwatch/browserstack'].test_observability);
     }
     if (configWithoutPII.desiredCapabilities && configWithoutPII.desiredCapabilities['bstack:options']) {
       deleteKeys(configWithoutPII.desiredCapabilities['bstack:options']);
     }
+    
     return configWithoutPII;
   }
 
   static setConfigDetails(settings={}) {
-    const configWithoutPII = this.filterPII(settings)
+    const configWithoutPII = this.filterPII(settings);
 
     this.userConfigForReporting = {
       framework: 'nightwatch-default',
@@ -67,7 +68,7 @@ class CrashReporter {
       };
       await makeRequest('POST', 'api/v1/analytics', data, config);
     } catch (error) {
-        Logger.error(`[Crash_Report_Upload] Failed due to ${error}`);
+      Logger.error(`[Crash_Report_Upload] Failed due to ${error}`);
     }
   }
 }

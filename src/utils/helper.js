@@ -224,22 +224,45 @@ const findGitConfig = async (filePath) => {
 };
 
 exports.getGitMetaData = () => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      var info = gitRepoInfo();
-      if (!info.commonGitDir) {
-        Logger.info('Unable to find a Git directory');
-        resolve({});
-      }
-      if (!info.author && await findGitConfig(process.cwd())) {
-        /* commit objects are packed */
-        gitLastCommit.getLastCommit(async (err, commit) => {
-          info['author'] = info['author'] || `${commit['author']['name'].replace(/[“]+/g, '')} <${commit['author']['email'].replace(/[“]+/g, '')}>`;
-          info['authorDate'] = info['authorDate'] || commit['authoredOn'];
-          info['committer'] = info['committer'] || `${commit['committer']['name'].replace(/[“]+/g, '')} <${commit['committer']['email'].replace(/[“]+/g, '')}>`;
-          info['committerDate'] = info['committerDate'] || commit['committedOn'];
-          info['commitMessage'] = info['commitMessage'] || commit['subject'];
+  return new Promise((resolve, reject) => {
+    (async () => {
+      try {
+        var info = gitRepoInfo();
+        if (!info.commonGitDir) {
+          Logger.info('Unable to find a Git directory');
+          resolve({});
+        }
+        if (!info.author && await findGitConfig(process.cwd())) {
+          /* commit objects are packed */
+          gitLastCommit.getLastCommit(async (err, commit) => {
+            info['author'] = info['author'] || `${commit['author']['name'].replace(/[“]+/g, '')} <${commit['author']['email'].replace(/[“]+/g, '')}>`;
+            info['authorDate'] = info['authorDate'] || commit['authoredOn'];
+            info['committer'] = info['committer'] || `${commit['committer']['name'].replace(/[“]+/g, '')} <${commit['committer']['email'].replace(/[“]+/g, '')}>`;
+            info['committerDate'] = info['committerDate'] || commit['committedOn'];
+            info['commitMessage'] = info['commitMessage'] || commit['subject'];
 
+            const {remote} = await pGitconfig(info.commonGitDir);
+            const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
+            resolve({
+              'name': 'git',
+              'sha': info['sha'],
+              'short_sha': info['abbreviatedSha'],
+              'branch': info['branch'],
+              'tag': info['tag'],
+              'committer': info['committer'],
+              'committer_date': info['committerDate'],
+              'author': info['author'],
+              'author_date': info['authorDate'],
+              'commit_message': info['commitMessage'],
+              'root': info['root'],
+              'common_git_dir': info['commonGitDir'],
+              'worktree_git_dir': info['worktreeGitDir'],
+              'last_tag': info['lastTag'],
+              'commits_since_last_tag': info['commitsSinceLastTag'],
+              'remotes': remotes
+            });
+          }, {dst: await findGitConfig(process.cwd())});
+        } else {
           const {remote} = await pGitconfig(info.commonGitDir);
           const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
           resolve({
@@ -260,33 +283,12 @@ exports.getGitMetaData = () => {
             'commits_since_last_tag': info['commitsSinceLastTag'],
             'remotes': remotes
           });
-        }, {dst: await findGitConfig(process.cwd())});
-      } else {
-        const {remote} = await pGitconfig(info.commonGitDir);
-        const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
-        resolve({
-          'name': 'git',
-          'sha': info['sha'],
-          'short_sha': info['abbreviatedSha'],
-          'branch': info['branch'],
-          'tag': info['tag'],
-          'committer': info['committer'],
-          'committer_date': info['committerDate'],
-          'author': info['author'],
-          'author_date': info['authorDate'],
-          'commit_message': info['commitMessage'],
-          'root': info['root'],
-          'common_git_dir': info['commonGitDir'],
-          'worktree_git_dir': info['worktreeGitDir'],
-          'last_tag': info['lastTag'],
-          'commits_since_last_tag': info['commitsSinceLastTag'],
-          'remotes': remotes
-        });
+        }
+      } catch (err) {
+        Logger.error(`Exception in populating Git metadata with error : ${err}`);
+        resolve({});
       }
-    } catch (err) {
-      Logger.error(`Exception in populating Git metadata with error : ${err}`);
-      resolve({});
-    }
+    })();
   });
 };
 

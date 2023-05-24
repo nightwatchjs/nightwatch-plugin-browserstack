@@ -18,20 +18,24 @@ const httpScreenshotsKeepAliveAgent = createKeepAliveAgent(http);
 const httpsScreenshotsKeepAliveAgent = createKeepAliveAgent(https);
 
 exports.makeRequest = (type, url, data, config) => {
+  const isHttps = API_URL.includes('https');
+  let agent;
+  if (url === SCREENSHOT_EVENT_URL) {
+    agent = isHttps ? httpsScreenshotsKeepAliveAgent : httpScreenshotsKeepAliveAgent;
+  } else {
+    agent = isHttps ? httpsKeepAliveAgent : httpKeepAliveAgent;
+  }
   
+  const options = {
+    ...config,
+    method: type,
+    url: `${API_URL}/${url}`,
+    body: data,
+    json: config.headers['Content-Type'] === 'application/json',
+    agent
+  };
+ 
   return new Promise((resolve, reject) => {
-    const options = {...config, ...{
-      method: type,
-      url: `${API_URL}/${url}`,
-      body: data,
-      json: config.headers['Content-Type'] === 'application/json',
-      agent: API_URL.includes('https') ? httpsKeepAliveAgent : httpKeepAliveAgent
-    }};
-
-    if (url === SCREENSHOT_EVENT_URL) {
-      options.agent = API_URL.includes('https') ? httpsScreenshotsKeepAliveAgent : httpScreenshotsKeepAliveAgent;
-    }
-
     request(options, function callback(error, response, body) {
       if (error) {
         reject(error);
