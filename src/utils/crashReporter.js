@@ -4,9 +4,6 @@ const Logger = require('./logger');
 
 class CrashReporter {
 
-  static userConfigForReporting = {};
-  static credentialsForCrashReportUpload = {};
-
   static setCredentialsForCrashReportUpload(username, key) {
     this.credentialsForCrashReportUpload = {
       username: username,
@@ -45,7 +42,7 @@ class CrashReporter {
 
   static async uploadCrashReport(exception, stackTrace) {
     const config = {
-      auth: this.credentialsForCrashReportUpload,
+      auth: this.credentialsForCrashReportUpload || {},
       headers: {
         'Content-Type': 'application/json',
         'X-BSTACK-TESTOPS': 'true'
@@ -64,7 +61,7 @@ class CrashReporter {
           error: exception.toString(),
           stackTrace: stackTrace
         },
-        config: this.userConfigForReporting
+        config: this.userConfigForReporting || {}
       };
       await makeRequest('POST', 'api/v1/analytics', data, config);
     } catch (error) {
