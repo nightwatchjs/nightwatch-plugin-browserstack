@@ -40,11 +40,7 @@ exports.makeRequest = (type, url, data, config) => {
       if (error) {
         reject(error);
       } else if (response.statusCode !== 200) {
-        if (response.statusCode === 401) {
-          reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
-        } else {
-          reject(`Received response from BrowserStack Server with status : ${response.statusCode}`);
-        }
+        reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
       } else {
         try {
           if (body && typeof(body) !== 'object') {body = JSON.parse(body)}

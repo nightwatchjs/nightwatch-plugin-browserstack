@@ -94,13 +94,10 @@ class TestObservability {
       if (error.response) {
         Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        if ((error.message && error.message.includes('with status : 401')) || (error && error.toString().includes('with status : 401'))) {
-          Logger.error('Either your BrowserStack access credentials are incorrect or you do not have access to BrowserStack Test Observability yet.');
-        } else {
-          Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.message || error}`);
-        }
+        Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.message || error}`);
       }
       process.env.BS_TESTOPS_BUILD_COMPLETED = false;
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
     }
   }
 
