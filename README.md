@@ -25,6 +25,13 @@ module.exports = {
     browserstackLocal: true, // set true to manage browserstack local tunnel. Defaults to false.
     browserstackLocalOptions: {
       // other browserstack local options
+    },
+    test_observability: {
+      enabled: true, // set true for enabling browserstack test observability
+      user: '${BROWSERSTACK_USERNAME}',
+      key: '${BROWSERSTACK_ACCESS_KEY}',
+      projectName: "BrowserStack Samples",
+      buildName: "browserstack build"
     }
   },
 
