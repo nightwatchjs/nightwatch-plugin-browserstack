@@ -6,7 +6,7 @@
 </p>
 
 
-Official Nightwatch plugin for integration with the BrowserStack Local tunnel.
+Official Nightwatch plugin for integration with the BrowserStack.
 
 ```
 npm i @nightwatch/browserstack --save-dev
