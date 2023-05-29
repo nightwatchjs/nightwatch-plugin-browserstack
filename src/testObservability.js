@@ -243,7 +243,7 @@ class TestObservability {
       identifier: `${testFileReport.name} - ${skippedTest}`,
       file_name: path.relative(process.cwd(), testFileReport.modulePath),
       location: path.relative(process.cwd(), testFileReport.modulePath),
-      vc_filepath: this._gitMetadata ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
       started_at: new Date(testFileReport.endTimestamp).toISOString(),
       finished_at: new Date(testFileReport.endTimestamp).toISOString(),
       duration_in_ms: 0,
@@ -315,7 +315,7 @@ class TestObservability {
       identifier: `${testFileReport.name} - ${sectionName}`,
       file_name: path.relative(process.cwd(), testFileReport.modulePath),
       location: path.relative(process.cwd(), testFileReport.modulePath),
-      vc_filepath: this._gitMetadata ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
       started_at: new Date(eventData.startTimestamp).toISOString(),
       result: 'pending',
       framework: 'nightwatch',
@@ -323,7 +323,7 @@ class TestObservability {
     };
 
     if (eventType === 'HookRunFinished' || eventType === 'TestRunFinished') {
-      testData.finished_at = new Date(eventData.endTimestamp).toISOString();
+      testData.finished_at = eventData.endTimestamp ? new Date(eventData.endTimestamp).toISOString() : new Date(eventData.startTimestamp).toISOString();
       testData.result = eventData.status === 'pass' ? 'passed' : 'failed';
       testData.duration_in_ms = 'timeMs' in eventData ? eventData.timeMs : eventData.time;
       if (eventData.status === 'fail' && eventData.lastError) {
