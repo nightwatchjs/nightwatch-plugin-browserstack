@@ -230,9 +230,9 @@ exports.getGitMetaData = () => {
         var info = gitRepoInfo();
         if (!info.commonGitDir) {
           Logger.info('Unable to find a Git directory');
+
           resolve({});
-        }
-        if (!info.author && await findGitConfig(process.cwd())) {
+        } else if (!info.author && await findGitConfig(process.cwd())) {
           /* commit objects are packed */
           gitLastCommit.getLastCommit(async (err, commit) => {
             info['author'] = info['author'] || `${commit['author']['name'].replace(/[“]+/g, '')} <${commit['author']['email'].replace(/[“]+/g, '')}>`;
@@ -243,6 +243,7 @@ exports.getGitMetaData = () => {
 
             const {remote} = await pGitconfig(info.commonGitDir);
             const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
+
             resolve({
               'name': 'git',
               'sha': info['sha'],
@@ -265,6 +266,7 @@ exports.getGitMetaData = () => {
         } else {
           const {remote} = await pGitconfig(info.commonGitDir);
           const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
+
           resolve({
             'name': 'git',
             'sha': info['sha'],
