@@ -4,50 +4,113 @@ const {CUSTOM_REPORTER_CALLBACK_TIMEOUT} = require('../src/utils/constants');
 const CrashReporter = require('../src/utils/crashReporter');
 const helper = require('../src/utils/helper');
 const Logger = require('../src/utils/logger');
+const {v4: uuidv4} = require('uuid');
 
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
+const eventIdData = {};
 
 module.exports = {
 
-  reporter: async function(results, done) {
-    if (!helper.isTestObservabilitySession()) {
-      done(results);
-
-      return;
-    }
-    try {
-      const modulesWithEnv = results['modulesWithEnv'];
-      const promises = [];
-      for (const testSetting in modulesWithEnv) {
-        for (const testFile in modulesWithEnv[testSetting]) {
-          const completedSections = modulesWithEnv[testSetting][testFile].completed;
-
-          for (const completedSection in completedSections) {
-            if (completedSections[completedSection]) {
-              delete completedSections[completedSection].steps;
-              delete completedSections[completedSection].testcases;
+  registerEventHandlers(eventBroadcaster) {
+    if (helper.isTestObservabilitySession()) {
+      eventBroadcaster.on('TestSuiteStarted', (args) => {
+        if (typeof browser !== 'undefined') {
+          browser.execute(`browserstack_executor: {"action": "annotate", "arguments": {"type":"Annotation","data":"ObservabilitySync:${Date.now()}","level": "debug"}}`);
+        }
+      });
+      eventBroadcaster.on('HookRunStarted', async (args) => {
+        try {
+          if (args.testResults?.results && !eventIdData.markedStatus) {
+            if (args.hook_type === 'before' || args.hook_type === 'after') {
+              const hookType = args.hook_type === 'before' ? 'BEFORE_ALL' : 'AFTER_ALL';
+              const sectionName = args.hook_type === 'before' ? '__before_hook' : '__after_hook';
+              eventIdData.id = uuidv4();
+              eventIdData.markedStatus = true;
+              const eventData = {
+                startTimestamp: Date.now()
+              };
+              await testObservability.sendTestRunEvent(eventData, args.testResults.results, 'HookRunStarted', eventIdData.id, hookType, sectionName);
             }
           }
-          promises.push(testObservability.processTestReportFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
+        } catch (error) {
+          CrashReporter.uploadCrashReport(error.message, error.stack);
         }
-      }
-      
-      await Promise.all(promises);
-      done();
-    } catch (error) {
-      CrashReporter.uploadCrashReport(error.message, error.stack);
-      Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-    }
-    done(results);
-  },
-
-  onEvent({eventName, hook_type, ...args}) {
-    if (typeof browser !== 'undefined' && eventName === 'TestRunStarted') {
-      browser.execute(`browserstack_executor: {"action": "annotate", "arguments": {"type":"Annotation","data":"ObservabilitySync:${Date.now()}","level": "debug"}}`);
+      });
+      eventBroadcaster.on('HookRunFinished', async (args) => {
+        try {
+          if (args.testResults?.results && eventIdData.markedStatus) {
+            if (args.hook_type === 'before' || args.hook_type === 'after') {
+              const hookType = args.hook_type === 'before' ? 'BEFORE_ALL' : 'AFTER_ALL';
+              const sectionName = args.hook_type === 'before' ? '__before_hook' : '__after_hook';
+              delete eventIdData.markedStatus;
+              const eventData = args.testResults.results.completedSections[sectionName];
+              await testObservability.sendTestRunEvent(eventData, args.testResults.results, 'HookRunStarted', eventIdData.id, hookType, sectionName);
+            }
+          }
+        } catch (error) {
+          CrashReporter.uploadCrashReport(error.message, error.stack);
+        }
+      });
+      eventBroadcaster.on('TestRunStarted', async (args) => {
+        try {
+          if (args.testResults?.results && !eventIdData.markedStatus) {
+            eventIdData.id = uuidv4();
+            eventIdData.markedStatus = true;
+            const eventData = {
+              startTimestamp: Date.now()
+            };
+            const sectionName = args.test_name;
+            await testObservability.sendTestRunEvent(eventData, args.testResults.results, 'TestRunStarted', eventData.id, null, sectionName);
+          }
+        } catch (error) {
+          CrashReporter.uploadCrashReport(error.message, error.stack);
+        }
+      });
+      eventBroadcaster.on('TestRunFinished', async (args) => {
+        try {
+          if (args.testResults?.results && eventIdData.markedStatus) {
+            delete eventIdData.markedStatus;
+            const sectionName = args.test_name;
+            const eventData = args.testResults.results.completedSections[sectionName];
+            await testObservability.sendTestRunEvent(eventData, args.testResults.results, 'TestRunFinished', eventData.id, null, sectionName);
+          }
+        } catch (error) {
+          CrashReporter.uploadCrashReport(error.message, error.stack);
+        }
+      });
+      eventBroadcaster.on('ScreenshotCreated', async (args) => {
+        try {
+          if (args.path && eventIdData.markedStatus) {
+            await testObservability.createScreenshotLogEvent(eventIdData.id, args.path, Date.now());
+          }
+        } catch (error) {
+          CrashReporter.uploadCrashReport(error.message, error.stack);
+        }
+      });
+      eventBroadcaster.on('LogCreated', async (args) => {
+        try {
+          if (args.httpOutput?.length > 0 && eventIdData.markedStatus) {
+            await testObservability.createHttpLogEvent(args.httpOutput[0], args.httpOutput[1], eventIdData.id);
+          }
+        } catch (error) {
+          CrashReporter.uploadCrashReport(error.message, error.stack);
+        }
+      });
+      eventBroadcaster.on('TestSuiteFinished', async (args) => {
+        try {
+          if (args.testResults?.results) {
+            const testFileReport = args.testResults.results;
+            const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
+            await testObservability.sendSkippedTestEvent(skippedTests, testFileReport);
+          }
+        } catch (error) {
+          CrashReporter.uploadCrashReport(error.message, error.stack);
+        }
+      });
     }
   },
 

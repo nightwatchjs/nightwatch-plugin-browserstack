@@ -285,7 +285,6 @@ exports.getGitMetaData = () => {
           });
         }
       } catch (err) {
-        Logger.error(`Exception in populating Git metadata with error : ${err}`);
         resolve({});
       }
     })();
@@ -293,7 +292,6 @@ exports.getGitMetaData = () => {
 };
 
 exports.requireModule = (module) => {
-  Logger.info(`Getting ${module} from ${process.cwd()}`);
   const local_path = path.join(process.cwd(), 'node_modules', module);
 
   return require(local_path);
