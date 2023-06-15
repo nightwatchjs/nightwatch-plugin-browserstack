@@ -367,6 +367,102 @@ class TestObservability {
     }
     await helper.uploadEventData(uploadData);
   }
+
+  async sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, eventType, testMetaData) {
+    const sessionCapabilities = reportData.sessionCapabilities;
+    const {feature, scenario, steps, uuid, startedAt, finishedAt} = testMetaData || {};
+    const examples = helper.getScenarioExamples(gherkinDocument, pickleData);
+    const fullNameWithExamples = examples
+      ? pickleData.name + ' (' + examples.join(', ')  + ')'
+      : pickleData.name;
+    const testData = {
+      uuid: uuid,
+      started_at: startedAt,
+      finished_at: finishedAt,
+      type: 'test',
+      body: {
+        lang: 'nightwatch',
+        code: null
+      },
+      name: fullNameWithExamples,
+      scope: fullNameWithExamples,
+      scopes: [feature?.name || ''],
+      tags: pickleData.tags?.map(({name}) => (name)),
+      identifier: scenario?.name,
+      file_name: path.relative(process.cwd(), feature.path),
+      location: path.relative(process.cwd(), feature.path),
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, feature.path) : null,
+      framework: 'nightwatch',
+      result: 'pending',
+      meta: {
+        feature: feature,
+        scenario: scenario,
+        steps: steps,
+        examples: examples
+      }
+    };
+
+    if (sessionCapabilities) {
+      testData.integrations = {};
+      const provider = helper.getCloudProvider(reportData.host);
+      testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, reportData.sessionId);
+    }
+
+    if (reportData.testCaseFinished && steps) {
+      const testCaseResult = reportData.testCaseFinished;
+      let result = 'passed';
+      steps.every((step) => {
+        if (step.result === 'FAILED'){
+          result = 'failed';
+          testCaseResult.failure = step.failure;
+          testCaseResult.failureType = step.failureType;
+
+          return false;
+        } else if (step.result === 'SKIPPED') {
+          result = 'skipped';
+
+          return false;
+        } 
+
+        return true;
+      });
+
+      testData.finished_at = new Date().toISOString();
+      testData.result = result;
+      testData.duration_in_ms = testCaseResult.timestamp.nanos / 1000000;
+      if (result === 'FAILED') {
+        testData.failure = [
+          {
+            'backtrace': [testCaseResult?.failure ? stripAnsi(testCaseResult?.failure) : 'unknown']
+          }
+        ],
+        testData.failure_reason = testCaseResult?.failure ? stripAnsi(testCaseResult?.failure) : testCaseResult.message;
+        if (testCaseResult?.failureType) {
+          testData.failure_type = testCaseResult.failureType.match(/AssertError/)
+            ? 'AssertionError'
+            : 'UnhandledError';
+        }
+      }
+    }
+
+    const uploadData = {
+      event_type: eventType,
+      test_run: testData
+    };
+    await helper.uploadEventData(uploadData);
+
+  }
+
+  async appendTestItemLog (log, testUuid) {
+    try {
+      if (testUuid) {
+        log.test_run_uuid = testUuid;
+        await helper.uploadEventData({event_type: 'LogCreated', logs: [log]});
+      }
+    } catch (error) {
+      Logger.error(`Exception in uploading log data to Observability with error : ${error}`);
+    }
+  }
 }
 
 module.exports = TestObservability;
