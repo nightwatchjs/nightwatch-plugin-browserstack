@@ -31,7 +31,8 @@ class RequestQueueHandler {
       }
 
       this.queue.push(event);
-      let data = null; const shouldProceed = this.shouldProceed();
+      let data = null;
+      const shouldProceed = this.shouldProceed();
       if (shouldProceed) {
         data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
