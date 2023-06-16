@@ -430,7 +430,7 @@ class TestObservability {
       testData.finished_at = new Date().toISOString();
       testData.result = result;
       testData.duration_in_ms = testCaseResult.timestamp.nanos / 1000000;
-      if (result === 'FAILED') {
+      if (result === 'failed') {
         testData.failure = [
           {
             'backtrace': [testCaseResult?.failure ? stripAnsi(testCaseResult?.failure) : 'unknown']

@@ -1,6 +1,6 @@
 exports.BATCH_SIZE = 1000;
 exports.BATCH_INTERVAL = 2000;
-exports.API_URL = 'http://testops-collector-stag.us-east-1.elasticbeanstalk.com';
+exports.API_URL = 'https://collector-observability.browserstack.com';
 exports.SCREENSHOT_EVENT_URL = 'api/v1/screenshots';
 exports.BATCH_EVENT_URL = 'api/v1/batch';
 exports.RERUN_FILE = 'rerun.json';
