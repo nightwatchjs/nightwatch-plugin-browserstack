@@ -5,6 +5,8 @@ const CrashReporter = require('../src/utils/crashReporter');
 const helper = require('../src/utils/helper');
 const Logger = require('../src/utils/logger');
 const {v4: uuidv4} = require('uuid');
+const {debug} = require('../src/utils/helper');
+const util = require('util');
 
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
@@ -12,6 +14,8 @@ const testObservability = new TestObservability();
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 const _tests = {};
+const _testsData = {};
+const _testCasesData = {};
 
 const registerListeners = () => {
   process.removeAllListeners(`bs:addLog:${process.pid}`);
@@ -46,7 +50,7 @@ module.exports = {
           promises.push(testObservability.processTestReportFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
         }
       }
-      
+
       await Promise.all(promises);
       done();
     } catch (error) {
@@ -77,6 +81,9 @@ module.exports = {
         return;
       }
       try {
+        _testCasesData[args.envelope.id] = {
+          ...args.envelope
+        };
         const reportData = args.report;
         const testCaseId = reportData.testCaseStarted.testCaseId;
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
@@ -84,10 +91,13 @@ module.exports = {
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
         const featureData = gherkinDocument.feature;
         const uniqueId = uuidv4();
-        _tests['uniqueId'] = uniqueId; 
+        // _tests['uniqueId'] = uniqueId;
+        _tests['uniqueId'] = testCaseId;
+
         const testMetaData = {
           uuid: uniqueId,
-          startedAt: new Date().toISOString()
+          startedAt: new Date().toISOString(),
+          sentCBTInfo: !!reportData.sessionCapbailities
         };
         if (pickleData) {
           testMetaData.scenario = {
@@ -102,7 +112,8 @@ module.exports = {
             description: featureData.description
           };
         }
-        _tests[uniqueId] = testMetaData;
+        // _tests[uniqueId] = testMetaData;
+        _tests[testCaseId] = testMetaData;
         await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData);
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -116,14 +127,17 @@ module.exports = {
       }
       try {
         const reportData = args.report;
-        const testCaseId = reportData.testCaseStarted.testCaseId;
+        // const testCaseId = reportData.testCaseStarted.testCaseId;
+        const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
-        const uniqueId = _tests['uniqueId'];
-        const testMetaData = _tests[uniqueId];
+        // const uniqueId = _tests['uniqueId'];
+        // const uniqueId = _tests['uniqueId'];
+        const testMetaData = _tests[testCaseId];
         if (testMetaData) {
-          delete _tests[uniqueId];
+          delete _tests[testCaseId];
           testMetaData.finishedAt = new Date().toISOString();
           await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData);
         }
@@ -137,19 +151,26 @@ module.exports = {
       if (!helper.isTestObservabilitySession()) {
         return;
       }
-      try {
+      // try {
         const reportData = args.report;
-        const testCaseId = reportData.testCaseStarted.testCaseId;
+        // const testCaseId = reportData.testCaseStarted.testCaseId; // openurl
+      const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+        debug(` ${process.pid} [TestStepStarted] testcaseid is ${testCaseId}`);
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
+        debug(` ${process.pid} [TestStepStarted] pickle id is ${pickleId} pickle data is ${util.inspect(pickleData)}`);
+
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepStarted.testStepId;
+        debug(` ${process.pid} [TestStepStarted] teststepid is ${testStepId}`);
+        debug(` ${process.pid} [TestStepStarted] teststeps are ${util.inspect(testSteps)}`);
+
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
         if (pickleStepId && _tests['testStepId'] !== testStepId) {
-          const uniqueId = _tests['uniqueId'];
+          // const uniqueId = _tests[''];
           _tests['testStepId'] = testStepId;
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
-          const testMetaData = _tests[uniqueId] || {steps: []};
+          const testMetaData = _tests[testCaseId] || {steps: []};
           if (testMetaData && !testMetaData.steps) {
             testMetaData.steps = [];
           }
@@ -158,31 +179,42 @@ module.exports = {
             text: pickleStepData.text,
             started_at: new Date().toISOString()
           });
-          _tests[uniqueId] = testMetaData;
+          _tests[testCaseId] = testMetaData;
         }
-      } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
+      // } catch (error) {
+      //   CrashReporter.uploadCrashReport(error.message, error.stack);
+      //   Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+      // }
     });
 
     eventBroadcaster.on('TestStepFinished', async (args) => {
       if (!helper.isTestObservabilitySession()) {
         return;
       }
-      try {
+      // try {
         const reportData = args.report;
-        const testCaseId = reportData.testCaseStarted.testCaseId;
+        // const testCaseId = reportData.testCaseStarted.testCaseId;
+        // const testCaseId = args.envelope.testCaseStartedId;
+      const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+
+      // const testCaseId = args.envelope.testCaseId;
+        debug(` ${process.pid} [TestStepFinished] testcaseid is ${testCaseId}`);
+
         const testStepFinished = reportData.testStepFinished;
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
-        const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
+        debug(` ${process.pid} [TestStepFinished] pickle id is ${pickleId} pickle data is ${util.inspect(pickleData)}`);
+
+      const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepFinished.testStepId;
-        const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
+        debug(` ${process.pid} [TestStepFinished] teststepid is ${testStepId}`);
+        debug(` ${process.pid} [TestStepFinished] teststeps are ${util.inspect(testSteps)}`);
+
+      const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
         if (pickleStepId && _tests['testStepId']) {
-          const uniqueId = _tests['uniqueId'];
+          // const uniqueId = _tests['uniqueId'];
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
-          const testMetaData = _tests[uniqueId] || {steps: []};
+          const testMetaData = _tests[testCaseId] || {steps: []};
           if (!testMetaData.steps) {
             testMetaData.steps = [{
               id: pickleStepData.id,
@@ -204,20 +236,20 @@ module.exports = {
               }
             });
           }
-          _tests[uniqueId] = testMetaData;
+          _tests[testCaseId] = testMetaData;
           delete _tests['testStepId'];
           if (testStepFinished.httpOutput && testStepFinished.httpOutput.length > 0) {
             for (const [index, output] of testStepFinished.httpOutput.entries()) {
               if (index % 2 === 0) {
-                await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], uniqueId);
+                await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], testMetaData.uuid);
               }
             }
           }
         }
-      } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
+      // } catch (error) {
+      //   CrashReporter.uploadCrashReport(error.message, error.stack);
+      //   Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+      // }
     });
 
     eventBroadcaster.on('ScreenshotCreated', async (args) => {
@@ -266,7 +298,7 @@ module.exports = {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
           await helper.handleNightwatchRerun(specs);
         }
-      } 
+      }
     } catch (error) {
       Logger.error(`Could not configure or launch test observability - ${error}`);
     }
