@@ -307,11 +307,6 @@ module.exports = {
       } catch (error) {
         Logger.error(`Something went wrong in stopping build session for test observability - ${error}`);
       }
-      process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
-      process.env.NIGHTWATCH_RERUN_REPORT_FILE = nightwatchRerunFile;
-      if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
-        await helper.deleteRerunFile();
-      }
     }
   },
 
