@@ -82,15 +82,12 @@ module.exports = {
           ...args.envelope
         };
         const reportData = args.report;
-        console.log("from my repo");
-        // const testCaseId = reportData.testCaseStarted.testCaseId;
         const testCaseId = reportData.testCaseStarted[args.envelope.id].testCaseId;
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
         const featureData = gherkinDocument.feature;
         const uniqueId = uuidv4();
-        // _tests['uniqueId'] = uniqueId;
         _tests['uniqueId'] = testCaseId;
 
         const testMetaData = {
@@ -110,7 +107,6 @@ module.exports = {
             description: featureData.description
           };
         }
-        // _tests[uniqueId] = testMetaData;
         _tests[testCaseId] = testMetaData;
         await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
       } catch (error) {
@@ -125,13 +121,11 @@ module.exports = {
       }
       try {
         const reportData = args.report;
-        // const testCaseId = reportData.testCaseStarted.testCaseId;
         const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
 
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
-        // const uniqueId = _tests['uniqueId'];
         const testMetaData = _tests[testCaseId];
         if (testMetaData) {
           delete _tests[testCaseId];
@@ -150,16 +144,13 @@ module.exports = {
       }
       try {
         const reportData = args.report;
-        // const testCaseId = reportData.testCaseStarted.testCaseId;
         const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
-        // const testStepId = reportData.testStepStarted.testStepId;
         const testStepId = reportData.testStepStarted[args.envelope.testCaseStartedId].testStepId;
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
         if (pickleStepId && _tests['testStepId'] !== testStepId) {
-          // const uniqueId = _tests[''];
           _tests['testStepId'] = testStepId;
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
           const testMetaData = _tests[testCaseId] || {steps: []};
@@ -185,20 +176,14 @@ module.exports = {
       }
       try {
         const reportData = args.report;
-        // const testCaseId = reportData.testCaseStarted.testCaseId;
-        // const testCaseId = args.envelope.testCaseStartedId;
         const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
-        // const testCaseId = args.envelope.testCaseId;
-        // const testStepFinished = reportData.testStepFinished;
         const testStepFinished = reportData.testStepFinished[args.envelope.testCaseStartedId];
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
-        // const testStepId = reportData.testStepFinished.testStepId;
         const testStepId = reportData.testStepFinished[args.envelope.testCaseStartedId].testStepId;
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
         if (pickleStepId && _tests['testStepId']) {
-          // const uniqueId = _tests['uniqueId'];
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
           const testMetaData = _tests[testCaseId] || {steps: []};
           if (!testMetaData.steps) {
