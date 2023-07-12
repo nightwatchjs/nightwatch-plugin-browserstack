@@ -1,9 +1,10 @@
 exports.BATCH_SIZE = 1000;
 exports.BATCH_INTERVAL = 2000;
-exports.API_URL = 'https://collector-observability.browserstack.com';
+exports.API_URL = 'http://testops-collector-stag.us-east-1.elasticbeanstalk.com';
 exports.SCREENSHOT_EVENT_URL = 'api/v1/screenshots';
 exports.BATCH_EVENT_URL = 'api/v1/batch';
 exports.RERUN_FILE = 'rerun.json';
 exports.DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS = 5000;
 exports.DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS = 100;
 exports.CUSTOM_REPORTER_CALLBACK_TIMEOUT = 3600000;
+exports.consoleHolder = Object.assign({}, console);

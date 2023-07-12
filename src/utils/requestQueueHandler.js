@@ -10,7 +10,7 @@ class RequestQueueHandler {
     this.screenshotEventUrl = 'api/v1/screenshots';
     this.BATCH_EVENT_TYPES = ['LogCreated', 'TestRunFinished', 'TestRunSkipped', 'HookRunFinished', 'TestRunStarted', 'HookRunStarted'];
     this.pollEventBatchInterval = null;
-    RequestQueueHandler.pending_test_uploads = 0;
+    this.pending_test_uploads = 0;
   }
 
   start() {
@@ -31,7 +31,8 @@ class RequestQueueHandler {
       }
 
       this.queue.push(event);
-      let data = null; const shouldProceed = this.shouldProceed();
+      let data = null;
+      const shouldProceed = this.shouldProceed();
       if (shouldProceed) {
         data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
