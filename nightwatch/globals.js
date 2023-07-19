@@ -52,15 +52,18 @@ module.exports = {
   },
 
   async before(settings) {
+    if (!settings.desiredCapabilities['bstack:options']) {
+      settings.desiredCapabilities['bstack:options'] = {};
+    }
+
+    // Plugin identifier
+    settings.desiredCapabilities['bstack:options']['browserstackSDK'] = `nightwatch-plugin/${helper.getAgentVersion()}`;
+
     localTunnel.configure(settings);
     await localTunnel.start();
 
     // default config for plugin- local: false
     if (localTunnel._localTunnel && localTunnel._localTunnel.isRunning()) {
-      if (!settings.desiredCapabilities['bstack:options']) {
-        settings.desiredCapabilities['bstack:options'] = {};
-      }
-
       settings.desiredCapabilities['bstack:options'].local = true;
       // Adding envs to be updated at beforeChildProcess.
       process.env.BROWSERSTACK_LOCAL_ENABLED = true;
@@ -112,6 +115,9 @@ module.exports = {
     if (!settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options'] = {};
     }
+
+    // Plugin identifier
+    settings.desiredCapabilities['bstack:options']['browserstackSDK'] = `nightwatch-plugin/${helper.getAgentVersion()}`;
 
     if (!helper.isUndefined(process.env.BROWSERSTACK_LOCAL_ENABLED) && process.env.BROWSERSTACK_LOCAL_ENABLED.toString() === 'true') {
       settings.desiredCapabilities['bstack:options'].local = process.env.BROWSERSTACK_LOCAL_ENABLED;
