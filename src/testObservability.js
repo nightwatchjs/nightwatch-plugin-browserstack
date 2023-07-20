@@ -369,7 +369,6 @@ class TestObservability {
   }
 
   async sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, eventType, testMetaData, args = {}) {
-    const sessionCapabilities = reportData.sessionCapabilities;
     const {feature, scenario, steps, uuid, startedAt, finishedAt} = testMetaData || {};
     const examples = helper.getScenarioExamples(gherkinDocument, pickleData);
     const fullNameWithExamples = examples
@@ -402,10 +401,14 @@ class TestObservability {
       }
     };
 
-    if (sessionCapabilities) {
-      testData.integrations = {};
-      const provider = helper.getCloudProvider(reportData.host);
-      testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, reportData.sessionId);
+    if (eventType === 'TestRunFinished') {
+      const currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
+      const sessionCapabilities = currentSessionCapabilities.capabilities;
+      if ((sessionCapabilities) && (args.envelope.testCaseStartedId === currentSessionCapabilities.testCaseStartedId)) {
+        testData.integrations = {};
+        const provider = helper.getCloudProvider(currentSessionCapabilities.host);
+        testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId);
+      }
     }
 
     if (reportData.testCaseFinished && steps) {

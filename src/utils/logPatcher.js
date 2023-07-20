@@ -1,5 +1,7 @@
 const Transport = require('winston-transport');
-const {consoleHolder} = require('./constants');
+const {consoleHolder, PID_MAPPING_REGEX, IPC_SERVER_NAME, IPC_EVENTS} = require('./constants');
+const ipc = require('node-ipc');
+const CrashReporter = require('./crashReporter');
 
 const LOG_LEVELS = {
   INFO: 'INFO',
@@ -12,17 +14,45 @@ const LOG_LEVELS = {
 class LogPatcher extends Transport {
   constructor(opts) {
     super(opts);
+
+    ipc.config.id = IPC_SERVER_NAME;
+    ipc.config.retry = 1500;
+    ipc.config.silent = true;
+  
+    ipc.connectTo(IPC_SERVER_NAME, () => {
+      ipc.of.browserstackTestObservability.on('connect', async() => {
+        this.started = true;
+      });      
+    });
+
   }
 
+  localLogProcessListener = async (eventType, data) => {
+    try {
+      if (this.started) {
+        await ipc.of.browserstackTestObservability.emit(eventType, data);
+      }
+    } catch (error) {
+      CrashReporter.uploadCrashReport(error.message, error.stack);
+    }
+  };
+  
   logToTestOps = (level = LOG_LEVELS.INFO, message = ['']) => {
-    consoleHolder[level.toLowerCase()](...message);
-    process.emit(`bs:addLog:${process.pid}`, {
+    let eventType = IPC_EVENTS.LOG;
+    if (!message[0].match(PID_MAPPING_REGEX)) {
+      consoleHolder[level.toLowerCase()](...message);
+    } else {
+      eventType = IPC_EVENTS.LOG_INIT;
+    }
+    const pid = process.pid;
+    const loggingData = {
       timestamp: new Date().toISOString(),
       level: level.toUpperCase(),
       message: `"${message.join(', ')}"`,
       kind: 'TEST_LOG',
       http_response: {}
-    });
+    };
+    this.localLogProcessListener(eventType, {loggingData: loggingData, pid: pid});
   };
 
   /* Patching this would show user an extended trace on their cli */
