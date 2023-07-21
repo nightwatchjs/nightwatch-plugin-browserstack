@@ -401,14 +401,18 @@ class TestObservability {
       }
     };
 
-    if (eventType === 'TestRunFinished') {
-      const currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
-      const sessionCapabilities = currentSessionCapabilities.capabilities;
-      if ((sessionCapabilities) && (args.envelope.testCaseStartedId === currentSessionCapabilities.testCaseStartedId)) {
-        testData.integrations = {};
-        const provider = helper.getCloudProvider(currentSessionCapabilities.host);
-        testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId);
+    try {
+      if (eventType === 'TestRunFinished') {
+        const currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
+        const sessionCapabilities = currentSessionCapabilities.capabilities;
+        if ((sessionCapabilities) && (args.envelope.testCaseStartedId === currentSessionCapabilities.testCaseStartedId)) {
+          testData.integrations = {};
+          const provider = helper.getCloudProvider(currentSessionCapabilities.host);
+          testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId);
+        }
       }
+    } catch (error) {
+      CrashReporter.uploadCrashReport(error.message, error.stack);
     }
 
     if (reportData.testCaseFinished && steps) {
