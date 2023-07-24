@@ -15,16 +15,19 @@ class LogPatcher extends Transport {
   constructor(opts) {
     super(opts);
 
-    ipc.config.id = IPC_SERVER_NAME;
-    ipc.config.retry = 1500;
-    ipc.config.silent = true;
-  
-    ipc.connectTo(IPC_SERVER_NAME, () => {
-      ipc.of.browserstackTestObservability.on('connect', async() => {
-        this.started = true;
-      });      
-    });
-
+    try {
+      ipc.config.id = IPC_SERVER_NAME;
+      ipc.config.retry = 1500;
+      ipc.config.silent = true;
+    
+      ipc.connectTo(IPC_SERVER_NAME, () => {
+        ipc.of.browserstackTestObservability.on('connect', async() => {
+          this.started = true;
+        });      
+      });
+    } catch (error) {
+      CrashReporter.uploadCrashReport(error.message, error.stack);
+    }
   }
 
   localLogProcessListener = async (eventType, data) => {

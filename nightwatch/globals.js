@@ -6,6 +6,7 @@ const helper = require('../src/utils/helper');
 const Logger = require('../src/utils/logger');
 const {v4: uuidv4} = require('uuid');
 const ipc = require('node-ipc');
+const path = require('path');
 
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
@@ -14,10 +15,6 @@ const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 const _tests = {};
 const _testCasesData = {};
-
-const registerListeners = () => {
-  process.removeAllListeners(`bs:addLog:${process.pid}`);
-};
 
 const pidMapping = (data) => {
   const {loggingData, pid} = data;
@@ -140,8 +137,6 @@ module.exports = {
         return;
       }
       try {
-        // starting IPC 
-        startIPCServer();
         _testCasesData[args.envelope.id] = {
           ...args.envelope
         };
@@ -152,7 +147,6 @@ module.exports = {
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
         const featureData = gherkinDocument.feature;
         const uniqueId = uuidv4();
-        _tests['uniqueId'] = testCaseId;
 
         const testMetaData = {
           uuid: uniqueId,
@@ -298,9 +292,14 @@ module.exports = {
       ipc.config.retry = 1500;
       ipc.config.silent = true;
 
-      ipc.connectTo(IPC_SERVER_NAME, async () => {
-        await ipc.of.browserstackTestObservability.emit(IPC_EVENTS.SCREENSHOT, data);
-      });
+      try {
+        ipc.connectTo(IPC_SERVER_NAME, async () => {
+          await ipc.of.browserstackTestObservability.emit(IPC_EVENTS.SCREENSHOT, data);
+        });
+      } catch (error) {
+        CrashReporter.uploadCrashReport(error.message, error.stack);
+        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+      }
     });
   },
 
@@ -326,11 +325,11 @@ module.exports = {
     try {
       testObservability.configure(settings);
       if (helper.isTestObservabilitySession()) {
-        settings.test_runner.options['require'] = 'node_modules/@nightwatch/browserstack/nightwatch/observabilityLogPatcherHook.js';
-        registerListeners();
+        settings.test_runner.options['require'] = path.resolve('node_modules/@nightwatch/browserstack/nightwatch/observabilityLogPatcherHook.js');
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
         if (testObservability._user && testObservability._key) {
           await testObservability.launchTestSession();
+          startIPCServer();
         }
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');

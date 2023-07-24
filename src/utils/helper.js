@@ -486,10 +486,6 @@ exports.shutDownRequestHandler = async () => {
   await requestQueueHandler.shutdown();
 };
 
-exports.getUniqueIdentifierForCucumber = (pickle) => {
-  return pickle.uri + '_' + pickle.astNodeIds.join(',');
-};
-
 exports.getScenarioExamples = (gherkinDocument, scenario) => {
   if ((scenario.astNodeIds && scenario.astNodeIds.length <= 1) || scenario.astNodeIds === undefined) {
     return;
