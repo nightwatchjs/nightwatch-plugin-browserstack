@@ -521,3 +521,7 @@ exports.getScenarioExamples = (gherkinDocument, scenario) => {
 
   return;
 };
+
+exports.isCucumberTestSuite = (settings) => {
+  return settings?.test_runner?.type === 'cucumber';
+};

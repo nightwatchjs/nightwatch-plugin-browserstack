@@ -118,20 +118,6 @@ module.exports = {
 
   registerEventHandlers(eventBroadcaster) {
 
-    eventBroadcaster.on('TestFinished', (args) => {
-      if (!helper.isTestObservabilitySession()) {
-        return;
-      }
-      try {
-        if (typeof browser !== 'undefined') {
-          browser.execute(`browserstack_executor: {"action": "annotate", "arguments": {"type":"Annotation","data":"ObservabilitySync:${Date.now()}","level": "debug"}}`);
-        }
-      } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
-    });
-
     eventBroadcaster.on('TestCaseStarted', async (args) => {
       if (!helper.isTestObservabilitySession()) {
         return;
@@ -325,11 +311,13 @@ module.exports = {
     try {
       testObservability.configure(settings);
       if (helper.isTestObservabilitySession()) {
-        settings.test_runner.options['require'] = path.resolve('node_modules/@nightwatch/browserstack/nightwatch/observabilityLogPatcherHook.js');
+        if (helper.isCucumberTestSuite(settings)) {
+          settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
+        }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
         if (testObservability._user && testObservability._key) {
           await testObservability.launchTestSession();
-          startIPCServer();
+          if (helper.isCucumberTestSuite(settings)) {startIPCServer()}
         }
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
