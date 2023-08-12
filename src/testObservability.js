@@ -404,6 +404,10 @@ class TestObservability {
     try {
       if (eventType === 'TestRunFinished') {
         const currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
+        if (currentSessionCapabilities.error) {
+          throw new Error(`Error in driver capabilities: ${JSON.stringify(currentSessionCapabilities.error)}`);
+        }
+
         const sessionCapabilities = currentSessionCapabilities.capabilities;
         if ((sessionCapabilities) && (args.envelope.testCaseStartedId === currentSessionCapabilities.testCaseStartedId)) {
           testData.integrations = {};
