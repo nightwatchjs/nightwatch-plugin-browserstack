@@ -336,7 +336,7 @@ class TestObservability {
         if (eventData.lastError && eventData.lastError.name) {
           testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
         }
-      } else if (eventData.status === 'fail' && testFileReport?.completed[sectionName]?.lastError) {
+      } else if (eventData.status === 'fail' && (testFileReport?.completed[sectionName]?.lastError || testFileReport?.completed[sectionName]?.stackTrace)) {
         const testCompletionData = testFileReport.completed[sectionName];
         testData.failure = [
           {'backtrace': [testCompletionData?.stackTrace]}
