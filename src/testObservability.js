@@ -336,6 +336,13 @@ class TestObservability {
         if (eventData.lastError && eventData.lastError.name) {
           testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
         }
+      } else if (eventData.status === 'fail' && (testFileReport?.completed[sectionName]?.lastError || testFileReport?.completed[sectionName]?.stackTrace)) {
+        const testCompletionData = testFileReport.completed[sectionName];
+        testData.failure = [
+          {'backtrace': [testCompletionData?.stackTrace]}
+        ];
+        testData.failure_reason = testCompletionData?.assertions.find(val => val.stackTrace === testCompletionData.stackTrace)?.failure;
+        testData.failure_type = testCompletionData?.stackTrace.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
       }
     }
 
