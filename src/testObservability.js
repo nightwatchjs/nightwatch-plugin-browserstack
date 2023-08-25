@@ -126,7 +126,7 @@ class TestObservability {
     await helper.uploadPending();
     await helper.shutDownRequestHandler();
     try {
-      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
+      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config, false);
       if (response.data?.error) {
         throw {message: response.data.error};
       } else {
@@ -404,6 +404,7 @@ class TestObservability {
     try {
       if (eventType === 'TestRunFinished') {
         const currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
+        throw new Error();
         if (currentSessionCapabilities.error) {
           throw new Error(`Error in driver capabilities: ${JSON.stringify(currentSessionCapabilities.error)}`);
         }

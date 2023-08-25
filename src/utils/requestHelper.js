@@ -17,7 +17,7 @@ const httpsKeepAliveAgent = createKeepAliveAgent(https);
 const httpScreenshotsKeepAliveAgent = createKeepAliveAgent(http);
 const httpsScreenshotsKeepAliveAgent = createKeepAliveAgent(https);
 
-exports.makeRequest = (type, url, data, config) => {
+exports.makeRequest = (type, url, data, config, jsonResponse = true) => {
   const isHttps = API_URL.includes('https');
   let agent;
   if (url === SCREENSHOT_EVENT_URL) {
@@ -42,10 +42,12 @@ exports.makeRequest = (type, url, data, config) => {
       } else if (response.statusCode !== 200) {
         reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
       } else {
-        try {
-          if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
-        } catch (e) {
-          reject('Not a JSON response from BrowserStack Server');
+        if (jsonResponse) {
+          try {
+            if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
+          } catch (e) {
+            reject('Not a JSON response from BrowserStack Server');
+          }
         }
         resolve({
           data: body

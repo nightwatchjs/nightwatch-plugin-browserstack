@@ -63,7 +63,7 @@ class CrashReporter {
         },
         config: this.userConfigForReporting || {}
       };
-      await makeRequest('POST', 'api/v1/analytics', data, config);
+      await makeRequest('POST', 'api/v1/analytics', data, config, false);
     } catch (error) {
       Logger.error(`[Crash_Report_Upload] Failed due to ${error}`);
     }
