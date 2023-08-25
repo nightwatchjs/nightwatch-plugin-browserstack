@@ -404,7 +404,6 @@ class TestObservability {
     try {
       if (eventType === 'TestRunFinished') {
         const currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
-        throw new Error();
         if (currentSessionCapabilities.error) {
           throw new Error(`Error in driver capabilities: ${JSON.stringify(currentSessionCapabilities.error)}`);
         }
