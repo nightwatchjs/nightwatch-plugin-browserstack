@@ -4,9 +4,11 @@ const {CUSTOM_REPORTER_CALLBACK_TIMEOUT} = require('../src/utils/constants');
 const CrashReporter = require('../src/utils/crashReporter');
 const helper = require('../src/utils/helper');
 const Logger = require('../src/utils/logger');
+const AccessibilityAutomation = require('../src/accessibilityAutomation');
 
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
+const accessibilityAutomation = new AccessibilityAutomation();
 
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
@@ -86,6 +88,20 @@ module.exports = {
       Logger.error(`Could not configure or launch test observability - ${error}`);
     }
 
+    try{
+      accessibilityAutomation.configure(settings);
+      if (helper.isAccessibilitySession()) {
+        if (accessibilityAutomation._user && accessibilityAutomation._key) {
+          const [jwtToken, testRunId] = await accessibilityAutomation.createAccessibilityTestRun();
+          process.env.BS_A11Y_JWT = jwtToken;
+          process.env.BS_A11Y_TEST_RUN_ID = testRunId;
+          accessibilityAutomation.setAccessibilityCapabilities(settings);
+        }
+      }
+    } catch (error) {
+      Logger.error(`Could not configure or launch accessibility automation - ${error}`);
+    }
+
   },
 
   async after() {
@@ -105,6 +121,25 @@ module.exports = {
         await helper.deleteRerunFile();
       }
     }
+    if (helper.isAccessibilitySession()){
+      try {
+        await accessibilityAutomation.stopAccessibilityTestRun();
+      } catch (error) {
+        Logger.error(`Exception in stop accessibility test run: ${error}`);
+      }
+      
+    }
+  },
+
+  async beforeEach(settings) {
+      browser.getAccessibilityResults = accessibilityAutomation.getAccessibilityResults;
+      browser.getAccessibilityResultsSummary = accessibilityAutomation.getAccessibilityResultsSummary;
+      await accessibilityAutomation.beforeEachExecution(browser)
+  },
+  
+  // This will be run after each test suite is finished
+  async afterEach(settings) {
+    await accessibilityAutomation.afterEachExecution(browser);
   },
 
   beforeChildProcess(settings) {
@@ -120,5 +155,14 @@ module.exports = {
     if (process.env.BROWSERSTACK_LOCAL_IDENTIFIER) {
       settings.desiredCapabilities['bstack:options'].localIdentifier = process.env.BROWSERSTACK_LOCAL_IDENTIFIER;
     }
+
+    try {
+      if (helper.isAccessibilitySession()) {
+        accessibilityAutomation.setAccessibilityCapabilities(settings);
+      }
+    } catch(err){
+      Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
+    }
+
   }
 };

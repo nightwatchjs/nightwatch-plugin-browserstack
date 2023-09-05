@@ -7,3 +7,4 @@ exports.RERUN_FILE = 'rerun.json';
 exports.DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS = 5000;
 exports.DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS = 100;
 exports.CUSTOM_REPORTER_CALLBACK_TIMEOUT = 3600000;
+exports.ACCESSIBILITY_URL= 'https://accessibility.browserstack.com/api';
