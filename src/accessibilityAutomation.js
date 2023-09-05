@@ -68,7 +68,7 @@ class AccessibilityAutomation {
           frameworkVersion: helper.getPackageVersion('nightwatch'),
           sdkVersion: helper.getAgentVersion(),
         },
-        settings: accessibilityOptions,
+        settings: this.filterAccessibilityOptions(accessibilityOptions),
         versionControl: await helper.getGitMetaData(),
         ciInfo: helper.getCiInfo(),
         hostInfo: helper.getHostInfo(),
@@ -201,7 +201,7 @@ class AccessibilityAutomation {
       if (helper.isUndefined(this._settings.accessibilityOptions)) {
         this._bstackOptions.accessibilityOptions = {};
       } else {
-        this._bstackOptions.accessibilityOptions = this._settings.accessibilityOptions;
+        this._bstackOptions.accessibilityOptions = this.filterAccessibilityOptions(this._settings.accessibilityOptions);
       }
       if (
         (this._settings && this._settings.accessibility) ||
@@ -503,6 +503,11 @@ class AccessibilityAutomation {
       return {};
     }
   }
+
+  filterAccessibilityOptions(accessibilityOptions) {
+    return Object.fromEntries(Object.entries(accessibilityOptions).filter(([k,v]) => !(k.toLowerCase() == "excludetagsintestingscope" || k.toLowerCase() == "includetagsintestingscope")));
+  }
+
 }
 
 module.exports = AccessibilityAutomation;
