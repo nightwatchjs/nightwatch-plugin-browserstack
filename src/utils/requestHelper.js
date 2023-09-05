@@ -36,26 +36,20 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL) => {
   };
   return new Promise((resolve, reject) => {
     request(options, function callback(error, response, body) {
-      try {
-        if (error) {
-          console.log(error);
-          reject(error);
-        } else if (response.statusCode !== 200 && response.statusCode !== 201) {
-          reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
-        } else {
-          try {
-            if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
-          } catch (e) {
-            reject('Not a JSON response from BrowserStack Server');
-          }
-          resolve({
-            data: body
-          });
+      if (error) {
+        reject(error);
+      } else if (response.statusCode !== 200 && response.statusCode !== 201) {
+        reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
+      } else {
+        try {
+          if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
+        } catch (e) {
+          reject('Not a JSON response from BrowserStack Server');
         }
-      } catch (e) {
-        console.log(e);
+        resolve({
+          data: body
+        });
       }
-      
     });
   });
 };
