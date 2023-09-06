@@ -350,14 +350,14 @@ class AccessibilityAutomation {
             let pageOpen = true;
             let currentURL = await browser.getCurrentUrl();
 
-            let url;
+            let url = {};
             try {
               url = new URL(currentURL);
               pageOpen = true;
             } catch (e) {
               pageOpen = false;
             }
-            // pageOpen = url.protocol === 'http:' || url.protocol === 'https:';
+            pageOpen = url.protocol === 'http:' || url.protocol === 'https:';
 
             if (pageOpen) {
               if (this.currentTest.shouldScanTestForAccessibility) {
