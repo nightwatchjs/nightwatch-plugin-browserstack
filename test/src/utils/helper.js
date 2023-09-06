@@ -22,7 +22,8 @@ describe('generateLocalIdentifier', () => {
     const identifierComponents = generateLocalIdentifier().split('_');
     expect(identifierComponents.length).to.eq(5);
     expect(identifierComponents[0]).to.eq(new Date().getDate().toString());
-    expect(identifierComponents[1]).to.eq(new Date().toLocaleString('default', {month: 'short'}));
+    console.log(identifierComponents[1]);
+    expect(identifierComponents[1]).to.eq(new Date().toLocaleString('en-GB', {month: 'short'}));
     expect(identifierComponents[3]).to.eq('HOSTNAME');
     expect(identifierComponents[4].length).to.eq(4);
   });
