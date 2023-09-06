@@ -226,7 +226,7 @@ exports.getHostInfo = () => {
 };
 
 exports.isBrowserstackInfra = () => {
-  return true;
+  return process.env.BROWSERSTACK_INFRA == 'true';
 }
 
 const findGitConfig = async (filePath) => {

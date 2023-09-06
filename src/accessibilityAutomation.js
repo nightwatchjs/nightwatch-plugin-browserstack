@@ -16,6 +16,10 @@ class AccessibilityAutomation {
       process.env.BROWSERSTACK_ACCESSIBILITY = false;
       return;
     }
+    process.env.BROWSERSTACK_INFRA = true;
+    if(settings && settings.webdriver && settings.webdriver.host && settings.webdriver.host.indexOf('browserstack') == -1){
+      process.env.BROWSERSTACK_INFRA = false;
+    }
 
     this._testRunner = settings.test_runner;
     this._bstackOptions = {};
