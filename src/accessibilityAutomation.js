@@ -72,7 +72,7 @@ class AccessibilityAutomation {
           frameworkVersion: helper.getPackageVersion('nightwatch'),
           sdkVersion: helper.getAgentVersion(),
         },
-        settings: this.filterAccessibilityOptions(accessibilityOptions),
+        settings: accessibilityOptions,
         versionControl: await helper.getGitMetaData(),
         ciInfo: helper.getCiInfo(),
         hostInfo: helper.getHostInfo(),
@@ -348,7 +348,7 @@ class AccessibilityAutomation {
           let session = await browser.session();
           if (session) {
             let pageOpen = true;
-            let currentURL = await browser.getCurrentUrl();
+            let currentURL = await browser.driver.getCurrentUrl();
 
             let url = {};
             try {
