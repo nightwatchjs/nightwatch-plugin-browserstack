@@ -1,8 +1,9 @@
 const path = require('path');
 const helper = require('./utils/helper');
-const { makeRequest } = require('./utils/requestHelper');
+const {makeRequest} = require('./utils/requestHelper');
 const Logger = require('./utils/logger');
-const { ACCESSIBILITY_URL } = require('./utils/constants');
+const {ACCESSIBILITY_URL} = require('./utils/constants');
+const util = require('util');
 
 class AccessibilityAutomation {
   configure(settings = {}) {
@@ -10,14 +11,15 @@ class AccessibilityAutomation {
 
     if (this._settings.accessibility) {
       process.env.BROWSERSTACK_ACCESSIBILITY =
-        String(this._settings.accessibility).toLowerCase() == 'true';
+        String(this._settings.accessibility).toLowerCase() === 'true';
     }
     if (process.argv.includes('--disable-accessibility')) {
       process.env.BROWSERSTACK_ACCESSIBILITY = false;
+
       return;
     }
     process.env.BROWSERSTACK_INFRA = true;
-    if(settings && settings.webdriver && settings.webdriver.host && settings.webdriver.host.indexOf('browserstack') == -1){
+    if (settings && settings.webdriver && settings.webdriver.host && settings.webdriver.host.indexOf('browserstack') === -1){
       process.env.BROWSERSTACK_INFRA = false;
     }
 
@@ -45,6 +47,7 @@ class AccessibilityAutomation {
       Logger.error(
         'Exception while creating test run for BrowserStack Accessibility Automation: Missing authentication token'
       );
+
       return [null, null];
     }
 
@@ -57,7 +60,7 @@ class AccessibilityAutomation {
       }
 
       const fromProduct = {
-        accessibility: true,
+        accessibility: true
       };
 
       const data = {
@@ -70,22 +73,22 @@ class AccessibilityAutomation {
         source: {
           frameworkName: helper.getFrameworkName(this._testRunner),
           frameworkVersion: helper.getPackageVersion('nightwatch'),
-          sdkVersion: helper.getAgentVersion(),
+          sdkVersion: helper.getAgentVersion()
         },
         settings: accessibilityOptions,
         versionControl: await helper.getGitMetaData(),
         ciInfo: helper.getCiInfo(),
         hostInfo: helper.getHostInfo(),
-        browserstackAutomation: helper.isBrowserstackInfra(),
+        browserstackAutomation: helper.isBrowserstackInfra()
       };
       const config = {
         auth: {
           user: userName,
-          pass: accessKey,
+          pass: accessKey
         },
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       };
 
       const response = await makeRequest('POST', 'test_runs', data, config, ACCESSIBILITY_URL);
@@ -103,7 +106,7 @@ class AccessibilityAutomation {
           } ${error.response.statusText} ${JSON.stringify(error.response.data)}`
         );
       } else {
-        if (error.message == 'Invalid configuration passed.') {
+        if (error.message === 'Invalid configuration passed.') {
           Logger.error(
             `Exception while creating test run for BrowserStack Accessibility Automation: ${
               error.message || error.stack
@@ -121,6 +124,7 @@ class AccessibilityAutomation {
           );
         }
       }
+
       return [null, null];
     }
   }
@@ -132,24 +136,24 @@ class AccessibilityAutomation {
     ) {
       return {
         status: 'error',
-        message: 'Build creation had failed.',
+        message: 'Build creation had failed.'
       };
     }
 
-    const data = { endTime: new Date().toISOString() };
+    const data = {endTime: new Date().toISOString()};
     const config = {
       headers: {
         Authorization: `Bearer ${process.env.BS_A11Y_JWT}`,
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     };
     const options = {
       ...config,
       ...{
         body: data,
         auth: null,
-        json: true,
-      },
+        json: true
+      }
     };
 
     try {
@@ -166,7 +170,8 @@ class AccessibilityAutomation {
         Logger.info(
           `BrowserStack Accessibility Automation Test Run marked as completed at ${new Date().toISOString()}`
         );
-        return { status: 'success', message: '' };
+
+        return {status: 'success', message: ''};
       }
     } catch (error) {
       if (error.response) {
@@ -182,11 +187,12 @@ class AccessibilityAutomation {
           }`
         );
       }
+
       return {
         status: 'error',
         message:
           error.message ||
-          (error.response ? `${error.response.status}:${error.response.statusText}` : error),
+          (error.response ? `${error.response.status}:${error.response.statusText}` : error)
       };
     }
   }
@@ -218,7 +224,7 @@ class AccessibilityAutomation {
           if (this._bstackOptions.accessibilityOptions) {
             this._bstackOptions.accessibilityOptions.authToken = process.env.BS_A11Y_JWT;
           } else {
-            this._bstackOptions.accessibilityOptions = { authToken: process.env.BS_A11Y_JWT };
+            this._bstackOptions.accessibilityOptions = {authToken: process.env.BS_A11Y_JWT};
           }
           this._bstackOptions.accessibilityOptions.scannerVersion = JSON.parse(
             process.env.BROWSERSTACK_ACCESSIBILITY_OPTIONS
@@ -229,7 +235,7 @@ class AccessibilityAutomation {
               process.env.BS_A11Y_JWT;
           } else {
             settings.desiredCapabilities['browserstack.accessibilityOptions'] = {
-              authToken: process.env.BS_A11Y_JWT,
+              authToken: process.env.BS_A11Y_JWT
             };
           }
           settings.desiredCapabilities['browserstack.accessibilityOptions'].scannerVersion = JSON.parse(
@@ -252,10 +258,12 @@ class AccessibilityAutomation {
         typeof process.env.BS_A11Y_JWT === 'string' &&
         process.env.BS_A11Y_JWT.length > 0 &&
         process.env.BS_A11Y_JWT !== 'null';
+
       return isBrowserstackAccessibilityEnabled && hasA11yJwtToken;
     } catch (error) {
       Logger.debug(`Exception in verifying the Accessibility session with error : ${error}`);
     }
+
     return false;
   }
 
@@ -284,6 +292,7 @@ class AccessibilityAutomation {
         error
       );
     }
+
     return false;
   }
 
@@ -296,41 +305,48 @@ class AccessibilityAutomation {
         browser_name: driver.capabilities.browserName,
         browser_version: driver.capabilities.browserVersion
       };
-    } catch(error) {
+    } catch (error) {
       Logger.debug(`Exception in fetching platform details with error : ${error}`);
     }
+
     return response;
   }
 
-  setExtension = (driver) => {
+  setExtension(driver) {
     try {
       const capabilityConfig = driver.desiredCapabilities || {};
       const deviceName = driver.capabilities.deviceName || (capabilityConfig['bstack:options'] ? capabilityConfig['bstack:options'].deviceName : capabilityConfig.device) || '';
   
       if (deviceName !== '') {
-        Logger.warn(`Accessibility Automation will run only on Desktop browsers.`);
+        Logger.warn('Accessibility Automation will run only on Desktop browsers.');
+
         return false;
       }
       const browser = driver.capabilities.browserName || (capabilityConfig['bstack:options'] ? capabilityConfig['bstack:options'].browserName : capabilityConfig.browser) || '';
       if (browser.toLowerCase() !== 'chrome') {
-        Logger.warn(`Accessibility Automation will run only on Chrome browsers.`);
+        Logger.warn('Accessibility Automation will run only on Chrome browsers.');
+
         return false;
       }
       const browserVersion = driver.capabilities.browserVersion || (capabilityConfig['bstack:options'] ? capabilityConfig['bstack:options'].browserVersion : capabilityConfig.browser_version) || '';
-      if ( !helper.isUndefined(browserVersion) && !(browserVersion === 'latest'  ||  parseInt(browserVersion) > 94) ) {
-        Logger.warn(`Accessibility Automation will run only on Chrome browser version greater than 94.`);
+      if (!helper.isUndefined(browserVersion) && !(browserVersion === 'latest'  ||  parseInt(browserVersion) > 94)) {
+        Logger.warn('Accessibility Automation will run only on Chrome browser version greater than 94.');
+
         return false;
       }
   
       const chromeOptions = capabilityConfig.chromeOptions || capabilityConfig['goog:chromeOptions'] || {};
       if (chromeOptions.args?.includes('--headless') || chromeOptions.args?.includes('headless')) {
-        Logger.warn(`Accessibility Automation will not run on legacy headless mode. Switch to new headless mode or avoid using headless mode.`);
+        Logger.warn('Accessibility Automation will not run on legacy headless mode. Switch to new headless mode or avoid using headless mode.');
+
         return false;
       }
+
       return true;
     } catch (error) {
       Logger.debug(`Exception in setExtension Error: ${error}`);
     }
+
     return false;
   }
 
@@ -396,13 +412,13 @@ class AccessibilityAutomation {
         }
       }
     } catch (err) {
-        Logger.error('Exception in starting accessibility automation scan for this test case', err);
+      Logger.error('Exception in starting accessibility automation scan for this test case', err);
     }
   }
 
   async afterEachExecution(browser) {
     try {
-      if (this.currentTest.accessibilityScanStarted && this.isAccessibilityAutomationSession() && this._isAccessibilitySession ) {
+      if (this.currentTest.accessibilityScanStarted && this.isAccessibilityAutomationSession() && this._isAccessibilitySession) {
         if (this.currentTest.shouldScanTestForAccessibility) {
           Logger.info(
             'Automate test case execution has ended. Processing for accessibility testing is underway. '
@@ -414,9 +430,9 @@ class AccessibilityAutomation {
             name: this.currentTest.module,
             testRunId: process.env.BS_A11Y_TEST_RUN_ID,
             filePath: this.currentTest.module,
-            scopeList: this.currentTest.module,
+            scopeList: this.currentTest.module
           },
-          platform: await this.fetchPlatformDetails(browser),
+          platform: await this.fetchPlatformDetails(browser)
         };
         let final_res = await browser.executeAsyncScript(
           `
@@ -450,9 +466,10 @@ class AccessibilityAutomation {
     }
   }
 
-  getAccessibilityResults = async () => {
+  async getAccessibilityResults() {
     if (!this.isAccessibilityAutomationSession() || !this._isAccessibilitySession) {
-      Logger.warn(`Not a Accessibility Automation session, cannot retrieve Accessibility results.`);
+      Logger.warn('Not a Accessibility Automation session, cannot retrieve Accessibility results.');
+
       return {};
     }
     try {
@@ -471,18 +488,21 @@ class AccessibilityAutomation {
           }
         });
       `);
+
       return results;
     } catch {
       Logger.error('No accessibility results were found.');
+
       return {};
     }
   }
 
-  getAccessibilityResultsSummary = async () => {
+  async getAccessibilityResultsSummary() {
     if (!this.isAccessibilityAutomationSession() || !this._isAccessibilitySession) {
       Logger.warn(
-        `Not a Accessibility Automation session, cannot retrieve Accessibility results summary.`
+        'Not a Accessibility Automation session, cannot retrieve Accessibility results summary.'
       );
+
       return {};
     }
     try {
@@ -501,15 +521,17 @@ class AccessibilityAutomation {
           }
         });
       `);
+
       return summaryResults;
     } catch {
       Logger.error('No accessibility summary was found.');
+
       return {};
     }
   }
 
   filterAccessibilityOptions(accessibilityOptions) {
-    return Object.fromEntries(Object.entries(accessibilityOptions).filter(([k,v]) => !(k.toLowerCase() == "excludetagsintestingscope" || k.toLowerCase() == "includetagsintestingscope")));
+    return Object.fromEntries(Object.entries(accessibilityOptions).filter(([k, v]) => !(k.toLowerCase() === 'excludetagsintestingscope' || k.toLowerCase() === 'includetagsintestingscope')));
   }
 
 }

@@ -222,12 +222,12 @@ exports.getHostInfo = () => {
     type: os.type(),
     version: os.version(),
     arch: os.arch()
-  }
+  };
 };
 
 exports.isBrowserstackInfra = () => {
-  return process.env.BROWSERSTACK_INFRA == 'true';
-}
+  return process.env.BROWSERSTACK_INFRA === 'true';
+};
 
 const findGitConfig = async (filePath) => {
   if (filePath == null || filePath === '' || filePath === '/') {
@@ -513,9 +513,9 @@ exports.shutDownRequestHandler = async () => {
 
 exports.getPlatformVersion = (driver) => {
   let platformVersion = null;
-  try{
+  try {
     let caps = driver.desiredCapabilities || {};
-    if(!this.isUndefined(caps['bstack:options']) && !this.isUndefined(caps['bstack:options']['osVersion'])){
+    if (!this.isUndefined(caps['bstack:options']) && !this.isUndefined(caps['bstack:options']['osVersion'])){
       platformVersion = caps['bstack:options']['osVersion'];
     } else if (!this.isUndefined(caps['os_version'])){
       platformVersion = caps['os_version'];
@@ -523,5 +523,6 @@ exports.getPlatformVersion = (driver) => {
   } catch (err) {
     Logger.error(`Unable to fetch platform Version : ${err}`);
   }
+
   return platformVersion;
 };

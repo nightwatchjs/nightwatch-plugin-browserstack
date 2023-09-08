@@ -7,7 +7,7 @@ const helper = require('./utils/helper');
 const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
-const { API_URL } = require('./utils/constants');
+const {API_URL} = require('./utils/constants');
 
 class TestObservability {
   configure(settings = {}) {
@@ -41,7 +41,7 @@ class TestObservability {
     this._gitMetadata = await helper.getGitMetaData();
     const fromProduct = {
       test_observability: true
-    }
+    };
     const data = {
       format: 'json',
       project_name: helper.getProjectName(this._settings, this._bstackOptions, fromProduct),

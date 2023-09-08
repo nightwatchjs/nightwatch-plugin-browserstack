@@ -88,7 +88,7 @@ module.exports = {
       Logger.error(`Could not configure or launch test observability - ${error}`);
     }
 
-    try{
+    try {
       accessibilityAutomation.configure(settings);
       if (helper.isAccessibilitySession()) {
         if (accessibilityAutomation._user && accessibilityAutomation._key) {
@@ -132,9 +132,9 @@ module.exports = {
   },
 
   async beforeEach(settings) {
-      browser.getAccessibilityResults = accessibilityAutomation.getAccessibilityResults;
-      browser.getAccessibilityResultsSummary = accessibilityAutomation.getAccessibilityResultsSummary;
-      await accessibilityAutomation.beforeEachExecution(browser)
+    browser.getAccessibilityResults = accessibilityAutomation.getAccessibilityResults;
+    browser.getAccessibilityResultsSummary = accessibilityAutomation.getAccessibilityResultsSummary;
+    await accessibilityAutomation.beforeEachExecution(browser);
   },
   
   // This will be run after each test suite is finished
@@ -160,7 +160,7 @@ module.exports = {
       if (helper.isAccessibilitySession()) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
       }
-    } catch(err){
+    } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
     }
 

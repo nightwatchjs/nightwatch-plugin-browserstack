@@ -34,6 +34,7 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL) => {
     json: config.headers['Content-Type'] === 'application/json',
     agent
   };
+
   return new Promise((resolve, reject) => {
     request(options, function callback(error, response, body) {
       if (error) {

@@ -206,51 +206,51 @@ describe('getProjectName', () => {
   });
 
   it('returns empty for empty options', async () => {
-    expect(getProjectName(options,bstackOptions,fromProduct)).to.eq('');
+    expect(getProjectName(options, bstackOptions, fromProduct)).to.eq('');
   });
 
   it('returns projectName from bstackOptions', async () => {
     bstackOptions.projectName = 'bstackOptionsProjectName';
-    expect(getProjectName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsProjectName');
+    expect(getProjectName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsProjectName');
   });
 
   it('returns projectName from bstackOptions if fromProduct is not set', async () => {
     bstackOptions.projectName = 'bstackOptionsProjectName';
     options.test_observability = {projectName: 'obsProjectName'};
     options.accessibility = {projectName: 'accessibilityProjectName'};
-    expect(getProjectName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsProjectName');
+    expect(getProjectName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsProjectName');
   });
 
   it('returns projectName from test_observability if fromProduct is set to test_observability', async () => {
     bstackOptions.projectName = 'bstackOptionsProjectName';
     options.test_observability = {projectName: 'obsProjectName'};
     options.accessibility = {projectName: 'accessibilityProjectName'};
-    fromProduct.test_observability = true
-    expect(getProjectName(options,bstackOptions,fromProduct)).to.eq('obsProjectName');
+    fromProduct.test_observability = true;
+    expect(getProjectName(options, bstackOptions, fromProduct)).to.eq('obsProjectName');
   });
 
   it('returns projectName from accessibility if fromProduct is set to accessibility', async () => {
     bstackOptions.projectName = 'bstackOptionsProjectName';
     options.test_observability = {projectName: 'obsProjectName'};
     options.accessibility = {projectName: 'accessibilityProjectName'};
-    fromProduct.accessibility = true
-    expect(getProjectName(options,bstackOptions,fromProduct)).to.eq('accessibilityProjectName');
+    fromProduct.accessibility = true;
+    expect(getProjectName(options, bstackOptions, fromProduct)).to.eq('accessibilityProjectName');
   });
 
   it('returns projectName from bstackOptions if fromProduct is set to test_observability and projectName not overriden in test_observability', async () => {
     bstackOptions.projectName = 'bstackOptionsProjectName';
     options.test_observability = {};
     options.accessibility = {projectName: 'accessibilityProjectName'};
-    fromProduct.test_observability = true
-    expect(getProjectName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsProjectName');
+    fromProduct.test_observability = true;
+    expect(getProjectName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsProjectName');
   });
 
   it('returns projectName from bstackOptions if fromProduct is set to accessibility and projectName not overriden in accessibility', async () => {
     bstackOptions.projectName = 'bstackOptionsProjectName';
     options.test_observability = {};
     options.accessibility = {};
-    fromProduct.test_observability = true
-    expect(getProjectName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsProjectName');
+    fromProduct.test_observability = true;
+    expect(getProjectName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsProjectName');
   });
 
 });
@@ -271,51 +271,51 @@ describe('getBuildName', () => {
   });
 
   it('returns empty for empty options', async () => {
-    expect(getBuildName(options,bstackOptions,fromProduct)).to.eq('nightwatch-plugin-browserstack');
+    expect(getBuildName(options, bstackOptions, fromProduct)).to.eq('nightwatch-plugin-browserstack');
   });
 
   it('returns buildName from bstackOptions', async () => {
     bstackOptions.buildName = 'bstackOptionsBuildName';
-    expect(getBuildName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsBuildName');
+    expect(getBuildName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsBuildName');
   });
 
   it('returns buildName from bstackOptions if fromProduct is not set', async () => {
     bstackOptions.buildName = 'bstackOptionsBuildName';
     options.test_observability = {buildName: 'obsBuildName'};
     options.accessibility = {buildName: 'accessibilityBuildName'};
-    expect(getBuildName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsBuildName');
+    expect(getBuildName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsBuildName');
   });
 
   it('returns buildName from test_observability if fromProduct is set to test_observability', async () => {
     bstackOptions.buildName = 'bstackOptionsBuildName';
     options.test_observability = {buildName: 'obsBuildName'};
     options.accessibility = {buildName: 'accessibilityBuildName'};
-    fromProduct.test_observability = true
-    expect(getBuildName(options,bstackOptions,fromProduct)).to.eq('obsBuildName');
+    fromProduct.test_observability = true;
+    expect(getBuildName(options, bstackOptions, fromProduct)).to.eq('obsBuildName');
   });
 
   it('returns buildName from accessibility if fromProduct is set to accessibility', async () => {
     bstackOptions.buildName = 'bstackOptionsBuildName';
     options.test_observability = {buildName: 'obsBuildName'};
     options.accessibility = {buildName: 'accessibilityBuildName'};
-    fromProduct.accessibility = true
-    expect(getBuildName(options,bstackOptions,fromProduct)).to.eq('accessibilityBuildName');
+    fromProduct.accessibility = true;
+    expect(getBuildName(options, bstackOptions, fromProduct)).to.eq('accessibilityBuildName');
   });
 
   it('returns buildName from bstackOptions if fromProduct is set to test_observability and projectName not overriden in test_observability', async () => {
     bstackOptions.buildName = 'bstackOptionsBuildName';
     options.test_observability = {};
     options.accessibility = {};
-    fromProduct.test_observability = true
-    expect(getBuildName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsBuildName');
+    fromProduct.test_observability = true;
+    expect(getBuildName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsBuildName');
   });
 
   it('returns buildName from bstackOptions if fromProduct is set to accessibility and projectName not overriden in accessibility', async () => {
     bstackOptions.buildName = 'bstackOptionsBuildName';
     options.test_observability = {};
     options.accessibility = {};
-    fromProduct.test_observability = true
-    expect(getBuildName(options,bstackOptions,fromProduct)).to.eq('bstackOptionsBuildName');
+    fromProduct.test_observability = true;
+    expect(getBuildName(options, bstackOptions, fromProduct)).to.eq('bstackOptionsBuildName');
   });
 
 });
