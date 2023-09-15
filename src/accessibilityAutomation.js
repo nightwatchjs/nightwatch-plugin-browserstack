@@ -430,7 +430,7 @@ class AccessibilityAutomation {
             name: this.currentTest.module,
             testRunId: process.env.BS_A11Y_TEST_RUN_ID,
             filePath: this.currentTest.module,
-            scopeList: this.currentTest.module
+            scopeList: [ this.currentTest.module ]
           },
           platform: await this.fetchPlatformDetails(browser)
         };
