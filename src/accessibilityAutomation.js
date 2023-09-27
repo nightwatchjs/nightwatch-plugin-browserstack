@@ -267,7 +267,7 @@ class AccessibilityAutomation {
     return false;
   }
 
-  shouldScanTestForAccessibility(test) {
+  shouldScanTestForAccessibility(testMetaData) {
     if (process.env.BROWSERSTACK_ACCESSIBILITY_OPTIONS == null) {
       return true;
     }
@@ -280,7 +280,7 @@ class AccessibilityAutomation {
         ? accessibilityConfig.excludeTagsInTestingScope
         : [];
 
-      const fullTestName = test.module;
+      const fullTestName = testMetaData.testcase;
       const excluded = excludeTags.some((exclude) => fullTestName.includes(exclude));
       const included =
         includeTags.length === 0 || includeTags.some((include) => fullTestName.includes(include));
@@ -350,11 +350,11 @@ class AccessibilityAutomation {
     return false;
   }
 
-  async beforeEachExecution(browser) {
+  async beforeEachExecution(testMetaData) {
     try {
       this.currentTest = browser.currentTest;
       this.currentTest.shouldScanTestForAccessibility = this.shouldScanTestForAccessibility(
-        this.currentTest
+        testMetaData
       );
       this.currentTest.accessibilityScanStarted = true;
       this._isAccessibilitySession = this.setExtension(browser);
@@ -416,7 +416,7 @@ class AccessibilityAutomation {
     }
   }
 
-  async afterEachExecution(browser) {
+  async afterEachExecution(testMetaData) {
     try {
       if (this.currentTest.accessibilityScanStarted && this.isAccessibilityAutomationSession() && this._isAccessibilitySession) {
         if (this.currentTest.shouldScanTestForAccessibility) {
@@ -427,10 +427,10 @@ class AccessibilityAutomation {
         const dataForExtension = {
           saveResults: this.currentTest.shouldScanTestForAccessibility,
           testDetails: {
-            name: this.currentTest.module,
+            name: testMetaData.testcase,
             testRunId: process.env.BS_A11Y_TEST_RUN_ID,
-            filePath: this.currentTest.module,
-            scopeList: [ this.currentTest.module ]
+            filePath: testMetaData.metadata.modulePath,
+            scopeList: [ testMetaData.metadata.name, testMetaData.testcase]
           },
           platform: await this.fetchPlatformDetails(browser)
         };

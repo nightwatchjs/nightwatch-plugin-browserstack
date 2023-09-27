@@ -46,7 +46,14 @@ module.exports = {
     }
     done(results);
   },
-
+  registerEventHandlers(eventBroadcaster) {
+    eventBroadcaster.on('TestRunStarted', async (test) => {
+      await accessibilityAutomation.beforeEachExecution(test);
+    });
+    eventBroadcaster.on('TestRunFinished', async (test) => {
+      await accessibilityAutomation.afterEachExecution(test);
+    });
+  },
   onEvent({eventName, hook_type, ...args}) {
     if (typeof browser !== 'undefined' && eventName === 'TestRunStarted') {
       browser.execute(`browserstack_executor: {"action": "annotate", "arguments": {"type":"Annotation","data":"ObservabilitySync:${Date.now()}","level": "debug"}}`);
@@ -132,14 +139,14 @@ module.exports = {
   },
 
   async beforeEach(settings) {
-    browser.getAccessibilityResults = accessibilityAutomation.getAccessibilityResults;
-    browser.getAccessibilityResultsSummary = accessibilityAutomation.getAccessibilityResultsSummary;
-    await accessibilityAutomation.beforeEachExecution(browser);
+    browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults(); }
+    browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
+    // await accessibilityAutomation.beforeEachExecution(browser);
   },
   
   // This will be run after each test suite is finished
   async afterEach(settings) {
-    await accessibilityAutomation.afterEachExecution(browser);
+    // await accessibilityAutomation.afterEachExecution(browser);
   },
 
   beforeChildProcess(settings) {
