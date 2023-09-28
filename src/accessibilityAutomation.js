@@ -430,7 +430,7 @@ class AccessibilityAutomation {
             name: testMetaData.testcase,
             testRunId: process.env.BS_A11Y_TEST_RUN_ID,
             filePath: testMetaData.metadata.modulePath,
-            scopeList: [ testMetaData.metadata.name, testMetaData.testcase]
+            scopeList: [testMetaData.metadata.name, testMetaData.testcase]
           },
           platform: await this.fetchPlatformDetails(browser)
         };

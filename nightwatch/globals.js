@@ -139,7 +139,7 @@ module.exports = {
   },
 
   async beforeEach(settings) {
-    browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults(); }
+    browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
     browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     // await accessibilityAutomation.beforeEachExecution(browser);
   },
