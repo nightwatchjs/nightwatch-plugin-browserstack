@@ -6,6 +6,14 @@ class Logger {
   static error(msg) {
     console.error(`nightwatch-browserstack-plugin: ${msg}`);
   }
+
+  static warn(msg) {
+    console.warn(`nightwatch-browserstack-plugin: ${msg}`);
+  }
+
+  static debug(msg) {
+    console.debug(`nightwatch-browserstack-plugin: ${msg}`);
+  }
 };
 
 module.exports = Logger;

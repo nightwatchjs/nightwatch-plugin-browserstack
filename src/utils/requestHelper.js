@@ -17,8 +17,8 @@ const httpsKeepAliveAgent = createKeepAliveAgent(https);
 const httpScreenshotsKeepAliveAgent = createKeepAliveAgent(http);
 const httpsScreenshotsKeepAliveAgent = createKeepAliveAgent(https);
 
-exports.makeRequest = (type, url, data, config) => {
-  const isHttps = API_URL.includes('https');
+exports.makeRequest = (type, url, data, config, requestUrl=API_URL) => {
+  const isHttps = requestUrl.includes('https');
   let agent;
   if (url === SCREENSHOT_EVENT_URL) {
     agent = isHttps ? httpsScreenshotsKeepAliveAgent : httpScreenshotsKeepAliveAgent;
@@ -29,17 +29,17 @@ exports.makeRequest = (type, url, data, config) => {
   const options = {
     ...config,
     method: type,
-    url: `${API_URL}/${url}`,
+    url: `${requestUrl}/${url}`,
     body: data,
     json: config.headers['Content-Type'] === 'application/json',
     agent
   };
- 
+
   return new Promise((resolve, reject) => {
     request(options, function callback(error, response, body) {
       if (error) {
         reject(error);
-      } else if (response.statusCode !== 200) {
+      } else if (response.statusCode !== 200 && response.statusCode !== 201) {
         reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
       } else {
         try {
