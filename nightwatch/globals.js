@@ -246,8 +246,13 @@ module.exports = {
                 step.finished_at = new Date().toISOString();
                 step.result = testStepFinished.testStepResult?.status;
                 step.duration = testStepFinished.testStepResult?.duration?.seconds;
-                step.failure = testStepFinished.testStepResult?.exception?.message;
-                step.failureType = testStepFinished.testStepResult?.exception?.type;
+                if (testStepFinished.testStepResult?.exception) {
+                  step.failure = testStepFinished.testStepResult?.exception?.message;
+                  step.failureType = testStepFinished.testStepResult?.exception?.type;
+                } else {
+                  step.failure = testStepFinished.testStepResult?.message;
+                  step.failureType = 'UnhandledError';
+                }
               }
             });
           }
