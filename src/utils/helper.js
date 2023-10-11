@@ -59,9 +59,15 @@ exports.getObservabilityKey = (config, bstackOptions={}) => {
   return process.env.BROWSERSTACK_ACCESS_KEY || config.key || bstackOptions.accessKey;
 };
 
-exports.getObservabilityProject = (options, bstackOptions={}) => {
-  if (options.test_observability && options.test_observability.projectName) {
+exports.isAccessibilitySession = () => {
+  return process.env.BROWSERSTACK_ACCESSIBILITY === 'true';
+};
+
+exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
+  if (fromProduct.test_observability && options.test_observability && options.test_observability.projectName) {
     return options.test_observability.projectName;
+  } else if (fromProduct.accessibility && options.accessibility && options.accessibility.projectName) {
+    return options.accessibility.projectName;
   } else if (bstackOptions.projectName) {
     return bstackOptions.projectName;
   }
@@ -70,9 +76,11 @@ exports.getObservabilityProject = (options, bstackOptions={}) => {
   
 };
 
-exports.getObservabilityBuild = (options, bstackOptions={}) => {
-  if (options.test_observability && options.test_observability.buildName) {
+exports.getBuildName = (options, bstackOptions={}, fromProduct={}) => {
+  if (fromProduct.test_observability && options.test_observability && options.test_observability.buildName) {
     return options.test_observability.buildName;
+  } else if (fromProduct.accessibility && options.accessibility && options.accessibility.buildName) {
+    return options.accessibility.buildName;
   } else if (bstackOptions.buildName) {
     return bstackOptions.buildName;
   }
@@ -219,6 +227,20 @@ exports.getCiInfo = () => {
     default:
       return null;
   }
+};
+
+exports.getHostInfo = () => {
+  return {
+    hostname: os.hostname(),
+    platform: os.platform(),
+    type: os.type(),
+    version: os.version(),
+    arch: os.arch()
+  };
+};
+
+exports.isBrowserstackInfra = () => {
+  return process.env.BROWSERSTACK_INFRA === 'true';
 };
 
 const findGitConfig = async (filePath) => {
@@ -421,6 +443,23 @@ exports.getAccessKey = (settings) => {
   return accessKey;
 };
 
+exports.getUserName = (settings) => {
+  let userName = null;
+  if (this.isObject(settings.desiredCapabilities)) {
+    if (settings.desiredCapabilities['browserstack.user']) {
+      userName = settings.desiredCapabilities['browserstack.user'];
+    } else if (this.isObject(settings.desiredCapabilities['bstack:options'])) {
+      userName = settings.desiredCapabilities['bstack:options'].userName;
+    }
+  }
+
+  if (this.isUndefined(userName)) {
+    userName = process.env.BROWSERSTACK_USERNAME;
+  }
+
+  return userName;
+};
+
 exports.getCloudProvider = (hostname) => {
   if (hostname && hostname.includes('browserstack')) {
     return 'browserstack';
@@ -524,4 +563,20 @@ exports.getScenarioExamples = (gherkinDocument, scenario) => {
 
 exports.isCucumberTestSuite = (settings) => {
   return settings?.test_runner?.type === 'cucumber';
+};
+
+exports.getPlatformVersion = (driver) => {
+  let platformVersion = null;
+  try {
+    let caps = driver.desiredCapabilities || {};
+    if (!this.isUndefined(caps['bstack:options']) && !this.isUndefined(caps['bstack:options']['osVersion'])){
+      platformVersion = caps['bstack:options']['osVersion'];
+    } else if (!this.isUndefined(caps['os_version'])){
+      platformVersion = caps['os_version'];
+    }
+  } catch (err) {
+    Logger.error(`Unable to fetch platform Version : ${err}`);
+  }
+
+  return platformVersion;
 };

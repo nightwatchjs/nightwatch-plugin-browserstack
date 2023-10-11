@@ -7,6 +7,7 @@ const helper = require('./utils/helper');
 const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
+const {API_URL} = require('./utils/constants');
 
 class TestObservability {
   configure(settings = {}) {
@@ -38,21 +39,18 @@ class TestObservability {
   async launchTestSession() {
     const options = this._settings.test_observability || {};
     this._gitMetadata = await helper.getGitMetaData();
+    const fromProduct = {
+      test_observability: true
+    };
     const data = {
       format: 'json',
-      project_name: helper.getObservabilityProject(this._settings, this._bstackOptions),
-      name: helper.getObservabilityBuild(this._settings, this._bstackOptions),
+      project_name: helper.getProjectName(this._settings, this._bstackOptions, fromProduct),
+      name: helper.getBuildName(this._settings, this._bstackOptions, fromProduct),
       build_identifier: options.buildIdentifier,
       description: options.buildDescription || '',
       start_time: new Date().toISOString(),
       tags: helper.getObservabilityBuildTags(this._settings, this._bstackOptions),
-      host_info: {
-        hostname: os.hostname(),
-        platform: os.platform(),
-        type: os.type(),
-        version: os.version(),
-        arch: os.arch()
-      },
+      host_info: helper.getHostInfo(),
       ci_info: helper.getCiInfo(),
       build_run_identifier: process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER,
       failed_tests_rerun: process.env.BROWSERSTACK_RERUN || false,
@@ -76,7 +74,7 @@ class TestObservability {
     };
 
     try {
-      const response = await makeRequest('POST', 'api/v1/builds', data, config);
+      const response = await makeRequest('POST', 'api/v1/builds', data, config, API_URL);
       Logger.info('Build creation successfull!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
@@ -336,6 +334,13 @@ class TestObservability {
         if (eventData.lastError && eventData.lastError.name) {
           testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
         }
+      } else if (eventData.status === 'fail' && (testFileReport?.completed[sectionName]?.lastError || testFileReport?.completed[sectionName]?.stackTrace)) {
+        const testCompletionData = testFileReport.completed[sectionName];
+        testData.failure = [
+          {'backtrace': [testCompletionData?.stackTrace]}
+        ];
+        testData.failure_reason = testCompletionData?.assertions.find(val => val.stackTrace === testCompletionData.stackTrace)?.failure;
+        testData.failure_type = testCompletionData?.stackTrace.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
       }
     }
 

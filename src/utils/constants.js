@@ -17,3 +17,4 @@ exports.IPC_EVENTS = {
   LOG_INIT: 'testObservability:log:init',
   SCREENSHOT: 'testObservability:screenshot'
 };
+exports.ACCESSIBILITY_URL= 'https://accessibility.browserstack.com/api';
