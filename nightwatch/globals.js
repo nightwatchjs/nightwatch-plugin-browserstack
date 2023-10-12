@@ -229,6 +229,13 @@ module.exports = {
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepFinished[args.envelope.testCaseStartedId].testStepId;
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
+        let failure;
+        let failureType;
+        if (testStepFinished.testStepResult?.status.toString().toLowerCase() === 'failed') {
+          failure = (testStepFinished.testStepResult?.exception === undefined) ? testStepFinished.testStepResult?.message : testStepFinished.testStepResult?.exception?.message;
+          failureType = (testStepFinished.testStepResult?.exception === undefined) ? 'UnhandledError' : testStepFinished.testStepResult?.message;
+        }
+
         if (pickleStepId && _tests['testStepId']) {
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
           const testMetaData = _tests[testCaseId] || {steps: []};
@@ -239,8 +246,8 @@ module.exports = {
               finished_at: new Date().toISOString(),
               result: testStepFinished.testStepResult?.status,
               duration: testStepFinished.testStepResult?.duration?.seconds,
-              failure: testStepFinished.testStepResult?.exception?.message,
-              failureType: testStepFinished.testStepResult?.exception?.type
+              failure: failure,
+              failureType: failureType
             }];
           } else {
             testMetaData.steps.forEach((step) => {
@@ -248,13 +255,8 @@ module.exports = {
                 step.finished_at = new Date().toISOString();
                 step.result = testStepFinished.testStepResult?.status;
                 step.duration = testStepFinished.testStepResult?.duration?.seconds;
-                if (testStepFinished.testStepResult?.exception) {
-                  step.failure = testStepFinished.testStepResult?.exception?.message;
-                  step.failureType = testStepFinished.testStepResult?.exception?.type;
-                } else {
-                  step.failure = testStepFinished.testStepResult?.message;
-                  step.failureType = 'UnhandledError';
-                }
+                step.failure = failure;
+                step.failureType = failureType;
               }
             });
           }
