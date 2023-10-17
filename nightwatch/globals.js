@@ -1,6 +1,6 @@
 const LocalTunnel = require('../src/local-tunnel');
 const TestObservability = require('../src/testObservability');
-const {CUSTOM_REPORTER_CALLBACK_TIMEOUT, PID_MAPPING_REGEX, IPC_SERVER_NAME, IPC_EVENTS} = require('../src/utils/constants');
+const {CUSTOM_REPORTER_CALLBACK_TIMEOUT, EVENTS} = require('../src/utils/constants');
 const CrashReporter = require('../src/utils/crashReporter');
 const helper = require('../src/utils/helper');
 const Logger = require('../src/utils/logger');
@@ -8,7 +8,7 @@ const {v4: uuidv4} = require('uuid');
 const ipc = require('node-ipc');
 const path = require('path');
 const AccessibilityAutomation = require('../src/accessibilityAutomation');
-
+const eventHelper = require('../src/utils/eventHelper');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
@@ -17,71 +17,29 @@ const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 const _tests = {};
 const _testCasesData = {};
+let currentTestUUID = '';
+let workerList = {};
+const {consoleHolder} = require('../src/utils/constants');
 
-const pidMapping = (data) => {
-  const {loggingData, pid} = data;
-  _testCasesData[pid] = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-};
+eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
+  const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
+  const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
+  currentTestUUID = _tests[testCaseId]?.uuid;
+});
 
-
-const uploadTestLog = async (data) => {
-  try {
-    const {loggingData, pid} = data;
-    const uuid = getUUIDFromPID(pid);
-    testObservability.appendTestItemLog(loggingData, uuid);
-  } catch (error) {
-    CrashReporter.uploadCrashReport(error.message, error.stack);
+eventHelper.eventEmitter.on(EVENTS.LOG, (loggingData) => {
+  if (currentTestUUID && currentTestUUID !== '') {
+    testObservability.appendTestItemLog(loggingData, currentTestUUID);
   }
-};
-
-const getUUIDFromPID = (pid) => {
-  if (_testCasesData[pid] === undefined) {return}
-  const testCaseStartedId = _testCasesData[pid];
-  const testCaseId = _testCasesData[testCaseStartedId].testCaseId;
-  if (_tests[testCaseId] === undefined) {return}
-
-  return _tests[testCaseId].uuid;
-};
+});
 
 const handleScreenshotUpload = async (data) => {
   try {
-    const {args, pid} = data;
-    const uuid = getUUIDFromPID(pid);
+    const {args, uuid} = data;
     await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());    
   } catch (error) {
     CrashReporter.uploadCrashReport(error.message, error.stack);
   }
-};
-
-const startIPCServer = () => {
-  ipc.config.id = IPC_SERVER_NAME;
-  ipc.config.retry = 1500;
-  ipc.config.silent = true;
-
-  ipc.serve(() => {
-    ipc.server.on(IPC_EVENTS.LOG_INIT, (data, socket) => {
-      if (data.loggingData?.message.slice(1, -1).match(PID_MAPPING_REGEX)) {
-        pidMapping(data);
-      }
-      ipc.server.emit(socket, 'response', 'Received Message at Server');
-    });
-
-    ipc.server.on(IPC_EVENTS.LOG, async (data, socket) => {
-      await uploadTestLog(data);
-      ipc.server.emit(socket, 'response', 'Received Message at Server');
-    });
-
-    ipc.server.on(IPC_EVENTS.SCREENSHOT, async(data, socket) => {
-      if (data.args?.path) {
-        await handleScreenshotUpload(data);
-      }
-      ipc.server.emit(socket, 'response', 'Received Message at Server');
-    });
-  
-    ipc.server.on('socket.disconnected', () => {
-    });
-  });
-  ipc.server.start();
 };
 
 module.exports = {
@@ -121,6 +79,19 @@ module.exports = {
   registerEventHandlers(eventBroadcaster) {
 
     eventBroadcaster.on('TestCaseStarted', async (args) => {
+      Object.values(workerList).forEach((worker) => {
+        worker.process.on('message', async (data) => {
+          if (data.eventType === EVENTS.LOG_INIT) {
+            const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
+            const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
+            const uuid = _tests[testCaseId]?.uuid;
+            await worker.process.send({testCaseStartedId, uuid});
+          }
+        });
+      });
+    });
+
+    eventBroadcaster.on('TestCaseStarted', async (args) => {
       if (!helper.isTestObservabilitySession()) {
         return;
       }
@@ -135,6 +106,7 @@ module.exports = {
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
         const featureData = gherkinDocument.feature;
         const uniqueId = uuidv4();
+        process.env.TEST_OPS_TEST_UUID = uniqueId;
 
         const testMetaData = {
           uuid: uniqueId,
@@ -277,24 +249,8 @@ module.exports = {
     });
 
     eventBroadcaster.on('ScreenshotCreated', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
-        return;
-      }
-
-      const data  = {args: args, pid: process.pid};
-
-      ipc.config.id = IPC_SERVER_NAME;
-      ipc.config.retry = 1500;
-      ipc.config.silent = true;
-
-      try {
-        ipc.connectTo(IPC_SERVER_NAME, async () => {
-          await ipc.of.browserstackTestObservability.emit(IPC_EVENTS.SCREENSHOT, data);
-        });
-      } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
+      if (!helper.isTestObservabilitySession()) {return}
+      handleScreenshotUpload({args: args, uuid: process.env.TEST_OPS_TEST_UUID});
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
@@ -338,12 +294,12 @@ module.exports = {
       testObservability.configure(settings);
       if (helper.isTestObservabilitySession()) {
         if (helper.isCucumberTestSuite(settings)) {
+          cucumberPatcher();
           settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
         if (testObservability._user && testObservability._key) {
           await testObservability.launchTestSession();
-          if (helper.isCucumberTestSuite(settings)) {startIPCServer()}
         }
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
@@ -435,4 +391,26 @@ module.exports = {
     }
 
   }
+};
+
+const cucumberPatcher = () => {
+  const Coordinator = helper.requireModule('@cucumber/cucumber/lib/runtime/parallel/coordinator.js');
+  class CoordinatorPatcher extends Coordinator.default {
+    constructor(...args) {
+      super(...args);
+    }
+    
+    startWorker(...args) {
+      const workerData  = super.startWorker(...args);
+      workerList = this.workers;
+      
+      return workerData;
+    }
+    
+    parseWorkerMessage(...args) {
+      if ([EVENTS.LOG, EVENTS.LOG_INIT].includes(args[1].eventType)) {return}
+      super.parseWorkerMessage(...args);
+    }
+  }
+  Coordinator.default = CoordinatorPatcher;
 };

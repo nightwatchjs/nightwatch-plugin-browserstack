@@ -1,7 +1,15 @@
 const Transport = require('winston-transport');
-const {consoleHolder, PID_MAPPING_REGEX, IPC_SERVER_NAME, IPC_EVENTS} = require('./constants');
+const {consoleHolder, PID_MAPPING_REGEX, IPC_SERVER_NAME, EVENTS} = require('./constants');
 const ipc = require('node-ipc');
 const CrashReporter = require('./crashReporter');
+const TestObservability = require('../testObservability');
+const testObservability = new TestObservability();
+const helper = require('./helper');
+const eve = require('events');
+const eventHelper = require('./eventHelper');
+
+let testLogs = []
+let _uuid = '';
 
 const LOG_LEVELS = {
   INFO: 'INFO',
@@ -14,38 +22,23 @@ const LOG_LEVELS = {
 class LogPatcher extends Transport {
   constructor(opts) {
     super(opts);
-
-    try {
-      ipc.config.id = IPC_SERVER_NAME;
-      ipc.config.retry = 1500;
-      ipc.config.silent = true;
-    
-      ipc.connectTo(IPC_SERVER_NAME, () => {
-        ipc.of.browserstackTestObservability.on('connect', async() => {
-          this.started = true;
-        });      
-      });
-    } catch (error) {
-      CrashReporter.uploadCrashReport(error.message, error.stack);
-    }
   }
 
-  localLogProcessListener = async (eventType, data) => {
-    try {
-      if (this.started) {
-        await ipc.of.browserstackTestObservability.emit(eventType, data);
-      }
-    } catch (error) {
-      CrashReporter.uploadCrashReport(error.message, error.stack);
-    }
-  };
+  flushAllLogs = () => {
+    if (testLogs.length === 0) {return}
+    testLogs.forEach((logObj) => {
+      if(logObj.eventType === EVENTS.LOG)
+        testObservability.appendTestItemLog(logObj.loggingData, _uuid);
+    })
+    testLogs = [];
+  }
   
   logToTestOps = (level = LOG_LEVELS.INFO, message = ['']) => {
-    let eventType = IPC_EVENTS.LOG;
+    let eventType = EVENTS.LOG;
     if (!message[0].match(PID_MAPPING_REGEX)) {
       consoleHolder[level.toLowerCase()](...message);
     } else {
-      eventType = IPC_EVENTS.LOG_INIT;
+      eventType = EVENTS.LOG_INIT;
     }
     const pid = process.pid;
     const loggingData = {
@@ -55,7 +48,33 @@ class LogPatcher extends Transport {
       kind: 'TEST_LOG',
       http_response: {}
     };
-    this.localLogProcessListener(eventType, {loggingData: loggingData, pid: pid});
+
+    if (_uuid !== '') {
+      testObservability.appendTestItemLog(loggingData, _uuid)
+      this.flushAllLogs();
+    } else {
+      testLogs.push({eventType, loggingData})
+    }
+
+    // for non parallel execution
+    eventHelper.emitLogEvent(eventType, loggingData);
+
+    // for parallel execution
+    if (process.send && eventType === EVENTS.LOG_INIT){
+      process.send({ eventType: eventType, loggingData: loggingData, pid: pid });
+    }
+
+    process.on('message', (data) => {
+      if (data.uuid !== undefined){
+        _uuid = data.uuid
+        process.env.TEST_OPS_TEST_UUID = _uuid
+      }
+    });
+    process.on('disconnect', async () => {
+      this.flushAllLogs();
+      await helper.uploadPending();
+      await helper.shutDownRequestHandler();
+    });
   };
 
   /* Patching this would show user an extended trace on their cli */

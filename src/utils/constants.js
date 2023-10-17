@@ -12,7 +12,7 @@ exports.consoleHolder = Object.assign({}, console);
 // Regex = TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-ea78bf4a-d02b-40bc-8f52-7b53a4350b2c
 exports.PID_MAPPING_REGEX = /^TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 exports.IPC_SERVER_NAME = 'browserstackTestObservability';
-exports.IPC_EVENTS = {
+exports.EVENTS = {
   LOG: 'testObservability:log',
   LOG_INIT: 'testObservability:log:init',
   SCREENSHOT: 'testObservability:screenshot'
