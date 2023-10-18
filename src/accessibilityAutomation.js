@@ -395,7 +395,7 @@ class AccessibilityAutomation {
                 fn();
               `);
               } else {
-                await browser.executeScript(`
+                await browser.executeAsyncScript(`
                 const e = new CustomEvent('A11Y_FORCE_STOP');
                 window.dispatchEvent(e);
               `);
