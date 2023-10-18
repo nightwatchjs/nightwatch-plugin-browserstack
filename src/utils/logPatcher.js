@@ -55,7 +55,7 @@ class LogPatcher extends Transport {
     }
 
     // for non parallel execution
-    eventHelper.emitLogEvent(eventType, loggingData);
+    // eventHelper.emitLogEvent(eventType, loggingData);
 
     // for parallel execution
     if (process.send && eventType === EVENTS.LOG_INIT){

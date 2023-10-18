@@ -7,7 +7,7 @@ const helper = require('./utils/helper');
 const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
-const {API_URL} = require('./utils/constants');
+const {API_URL, consoleHolder} = require('./utils/constants');
 
 class TestObservability {
   configure(settings = {}) {
@@ -423,7 +423,8 @@ class TestObservability {
         }
       }
     } catch (error) {
-      CrashReporter.uploadCrashReport(error.message, error.stack);
+      consoleHolder.log(`Error while parsing caps::${JSON.stringify(error)}`);
+      // CrashReporter.uploadCrashReport(error.message, error.stack);
     }
 
     if (reportData.testCaseFinished && steps) {

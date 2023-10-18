@@ -20,24 +20,24 @@ let currentTestUUID = '';
 let workerList = {};
 const {consoleHolder} = require('../src/utils/constants');
 
-eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
-  const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-  const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-  currentTestUUID = _tests[testCaseId]?.uuid;
-});
+// eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
+//   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
+//   const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
+//   currentTestUUID = _tests[testCaseId]?.uuid;
+// });
 
-eventHelper.eventEmitter.on(EVENTS.LOG, (loggingData) => {
-  if (currentTestUUID && currentTestUUID !== '') {
-    testObservability.appendTestItemLog(loggingData, currentTestUUID);
-  }
-});
+// eventHelper.eventEmitter.on(EVENTS.LOG, (loggingData) => {
+//   if (currentTestUUID && currentTestUUID !== '') {
+//     testObservability.appendTestItemLog(loggingData, currentTestUUID);
+//   }
+// });
 
 const handleScreenshotUpload = async (data) => {
   try {
     const {args, uuid} = data;
     await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());    
   } catch (error) {
-    CrashReporter.uploadCrashReport(error.message, error.stack);
+    // CrashReporter.uploadCrashReport(error.message, error.stack);
   }
 };
 
@@ -69,7 +69,7 @@ module.exports = {
       await Promise.all(promises);
       done();
     } catch (error) {
-      CrashReporter.uploadCrashReport(error.message, error.stack);
+      // CrashReporter.uploadCrashReport(error.message, error.stack);
       Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
     }
     done(results);
@@ -125,7 +125,7 @@ module.exports = {
         _tests[testCaseId] = testMetaData;
         await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
       } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
+        // CrashReporter.uploadCrashReport(error.message, error.stack);
         Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
       }
     });
@@ -148,7 +148,7 @@ module.exports = {
           await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
         }
       } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
+        // CrashReporter.uploadCrashReport(error.message, error.stack);
         Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
       }
     });
@@ -180,7 +180,7 @@ module.exports = {
           _tests[testCaseId] = testMetaData;
         }
       } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
+        // CrashReporter.uploadCrashReport(error.message, error.stack);
         Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
       }
     });
@@ -240,7 +240,7 @@ module.exports = {
           }
         }
       } catch (error) {
-        CrashReporter.uploadCrashReport(error.message, error.stack);
+        // CrashReporter.uploadCrashReport(error.message, error.stack);
         Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
       }
     });
