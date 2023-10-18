@@ -6,7 +6,7 @@ const request = require('request');
 function createKeepAliveAgent(protocol) {
   return new protocol.Agent({
     keepAlive: true,
-    timeout: 60000,
+    timeout: 45000,
     maxSockets: 2,
     maxTotalSockets: 2
   });

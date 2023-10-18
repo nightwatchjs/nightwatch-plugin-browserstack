@@ -1,6 +1,5 @@
 const Transport = require('winston-transport');
 const {consoleHolder, PID_MAPPING_REGEX, IPC_SERVER_NAME, EVENTS} = require('./constants');
-const ipc = require('node-ipc');
 const CrashReporter = require('./crashReporter');
 const TestObservability = require('../testObservability');
 const testObservability = new TestObservability();

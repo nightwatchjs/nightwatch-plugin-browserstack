@@ -5,7 +5,6 @@ const CrashReporter = require('../src/utils/crashReporter');
 const helper = require('../src/utils/helper');
 const Logger = require('../src/utils/logger');
 const {v4: uuidv4} = require('uuid');
-const ipc = require('node-ipc');
 const path = require('path');
 const AccessibilityAutomation = require('../src/accessibilityAutomation');
 const eventHelper = require('../src/utils/eventHelper');
