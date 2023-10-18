@@ -79,19 +79,6 @@ module.exports = {
   registerEventHandlers(eventBroadcaster) {
 
     eventBroadcaster.on('TestCaseStarted', async (args) => {
-      Object.values(workerList).forEach((worker) => {
-        worker.process.on('message', async (data) => {
-          if (data.eventType === EVENTS.LOG_INIT) {
-            const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-            const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-            const uuid = _tests[testCaseId]?.uuid;
-            await worker.process.send({testCaseStartedId, uuid});
-          }
-        });
-      });
-    });
-
-    eventBroadcaster.on('TestCaseStarted', async (args) => {
       if (!helper.isTestObservabilitySession()) {
         return;
       }
@@ -107,6 +94,17 @@ module.exports = {
         const featureData = gherkinDocument.feature;
         const uniqueId = uuidv4();
         process.env.TEST_OPS_TEST_UUID = uniqueId;
+
+        Object.values(workerList).forEach((worker) => {
+          worker.process.on('message', async (data) => {
+            if (data.eventType === EVENTS.LOG_INIT) {
+              const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
+              const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
+              const uuid = _tests[testCaseId]?.uuid;
+              await worker.process.send({testCaseStartedId, uuid});
+            }
+          });
+        });  
 
         const testMetaData = {
           uuid: uniqueId,

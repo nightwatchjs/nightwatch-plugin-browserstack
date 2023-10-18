@@ -8,7 +8,7 @@ const helper = require('./helper');
 const eve = require('events');
 const eventHelper = require('./eventHelper');
 
-let testLogs = []
+let testLogs = [];
 let _uuid = '';
 
 const LOG_LEVELS = {
@@ -27,11 +27,10 @@ class LogPatcher extends Transport {
   flushAllLogs = () => {
     if (testLogs.length === 0) {return}
     testLogs.forEach((logObj) => {
-      if(logObj.eventType === EVENTS.LOG)
-        testObservability.appendTestItemLog(logObj.loggingData, _uuid);
-    })
+      if (logObj.eventType === EVENTS.LOG) {testObservability.appendTestItemLog(logObj.loggingData, _uuid)}
+    });
     testLogs = [];
-  }
+  };
   
   logToTestOps = (level = LOG_LEVELS.INFO, message = ['']) => {
     let eventType = EVENTS.LOG;
@@ -50,10 +49,10 @@ class LogPatcher extends Transport {
     };
 
     if (_uuid !== '') {
-      testObservability.appendTestItemLog(loggingData, _uuid)
+      testObservability.appendTestItemLog(loggingData, _uuid);
       this.flushAllLogs();
     } else {
-      testLogs.push({eventType, loggingData})
+      testLogs.push({eventType, loggingData});
     }
 
     // for non parallel execution
@@ -61,13 +60,13 @@ class LogPatcher extends Transport {
 
     // for parallel execution
     if (process.send && eventType === EVENTS.LOG_INIT){
-      process.send({ eventType: eventType, loggingData: loggingData, pid: pid });
+      process.send({eventType: eventType, loggingData: loggingData, pid: pid});
     }
 
     process.on('message', (data) => {
       if (data.uuid !== undefined){
-        _uuid = data.uuid
-        process.env.TEST_OPS_TEST_UUID = _uuid
+        _uuid = data.uuid;
+        process.env.TEST_OPS_TEST_UUID = _uuid;
       }
     });
     process.on('disconnect', async () => {
