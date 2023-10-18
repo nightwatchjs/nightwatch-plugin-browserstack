@@ -419,7 +419,7 @@ class TestObservability {
           const provider = helper.getCloudProvider(currentSessionCapabilities.host);
           testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId);
         } else {
-          Logger.error('Failed to upload integrations data');
+          Logger.debug('Failed to upload integrations data');
         }
       }
     } catch (error) {
