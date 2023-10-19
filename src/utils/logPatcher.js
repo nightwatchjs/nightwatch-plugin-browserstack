@@ -4,8 +4,7 @@ const CrashReporter = require('./crashReporter');
 const TestObservability = require('../testObservability');
 const testObservability = new TestObservability();
 const helper = require('./helper');
-const eve = require('events');
-const eventHelper = require('./eventHelper');
+// const eventHelper = require('./eventHelper');
 
 let testLogs = [];
 let _uuid = '';

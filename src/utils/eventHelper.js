@@ -1,8 +1,8 @@
-const EventEmitter = require('events');
-const eventEmitter = new EventEmitter();
+// const EventEmitter = require('events');
+// const eventEmitter = new EventEmitter();
 
-const emitLogEvent = (eventType, data) => {
-  eventEmitter.emit(eventType, data);
-};
+// const emitLogEvent = (eventType, data) => {
+//   eventEmitter.emit(eventType, data);
+// };
 
-module.exports = {emitLogEvent, eventEmitter};
+// module.exports = {emitLogEvent, eventEmitter};
