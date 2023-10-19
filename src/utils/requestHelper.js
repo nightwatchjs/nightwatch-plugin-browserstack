@@ -36,7 +36,6 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse
   };
 
   return new Promise((resolve, reject) => {
-    consoleHolder.log(`BEFORE TEST OPS REQUEST :: ${JSON.stringify(options.body)}`);
     request(options, function callback(error, response, body) {
       if (error) {
         reject(error);
@@ -50,7 +49,6 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse
             reject('Not a JSON response from BrowserStack Server');
           }
         }
-        consoleHolder.log(`AFTER TEST OPS REQUEST :: ${JSON.stringify(options.body)}`);
         resolve({
           data: body
         });

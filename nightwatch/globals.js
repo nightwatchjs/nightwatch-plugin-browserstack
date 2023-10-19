@@ -41,6 +41,174 @@ const {consoleHolder} = require('../src/utils/constants');
 //   }
 // };
 
+const onTestCaseStarted = async (args) => {
+  if (!helper.isTestObservabilitySession()) {
+    return;
+  }
+  try {
+    _testCasesData[args.envelope.id] = {
+      ...args.envelope
+    };
+    const reportData = args.report;
+    const testCaseId = reportData.testCaseStarted[args.envelope.id].testCaseId;
+    const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
+    const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
+    const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
+    const featureData = gherkinDocument.feature;
+    const uniqueId = uuidv4();
+    process.env.TEST_OPS_TEST_UUID = uniqueId;
+
+    // Object.values(workerList).forEach((worker) => {
+    //   worker.process.on('message', async (data) => {
+    //     if (data.eventType === EVENTS.LOG_INIT) {
+    //       const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
+    //       const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
+    //       const uuid = _tests[testCaseId]?.uuid;
+    //       await worker.process.send({testCaseStartedId, uuid});
+    //     }
+    //   });
+    // });  
+
+    const testMetaData = {
+      uuid: uniqueId,
+      startedAt: new Date().toISOString()
+    };
+    if (pickleData) {
+      testMetaData.scenario = {
+        name: pickleData.name
+      };
+    }
+
+    if (gherkinDocument && featureData) {
+      testMetaData.feature = {
+        path: gherkinDocument.uri,
+        name: featureData.name,
+        description: featureData.description
+      };
+    }
+    _tests[testCaseId] = testMetaData;
+    await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
+  } catch (error) {
+    // CrashReporter.uploadCrashReport(error.message, error.stack);
+    Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+  }
+};
+
+const onTestCaseFinished = async (args) => {
+  if (!helper.isTestObservabilitySession()) {
+    return;
+  }
+  try {
+    const reportData = args.report;
+    const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+
+    const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
+    const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
+    const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
+    const testMetaData = _tests[testCaseId];
+    if (testMetaData) {
+      delete _tests[testCaseId];
+      testMetaData.finishedAt = new Date().toISOString();
+      // await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+    }
+  } catch (error) {
+    // CrashReporter.uploadCrashReport(error.message, error.stack);
+    Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+  }
+};
+
+const onTestStepStarted = async(args) => {
+  if (!helper.isTestObservabilitySession()) {
+    return;
+  }
+  try {
+    const reportData = args.report;
+    const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+    const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
+    const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
+    const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
+    const testStepId = reportData.testStepStarted[args.envelope.testCaseStartedId].testStepId;
+    const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
+    if (pickleStepId && _tests['testStepId'] !== testStepId) {
+      _tests['testStepId'] = testStepId;
+      const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
+      const testMetaData = _tests[testCaseId] || {steps: []};
+      if (testMetaData && !testMetaData.steps) {
+        testMetaData.steps = [];
+      }
+      testMetaData.steps?.push({
+        id: pickleStepData.id,
+        text: pickleStepData.text,
+        started_at: new Date().toISOString()
+      });
+      _tests[testCaseId] = testMetaData;
+    }
+  } catch (error) {
+    // CrashReporter.uploadCrashReport(error.message, error.stack);
+    Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+  }
+};
+
+const onTestStepFinished = async(args) => {
+  if (!helper.isTestObservabilitySession()) {
+    return;
+  }
+  try {
+    const reportData = args.report;
+    const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+    const testStepFinished = reportData.testStepFinished[args.envelope.testCaseStartedId];
+    const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
+    const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
+    const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
+    const testStepId = reportData.testStepFinished[args.envelope.testCaseStartedId].testStepId;
+    const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
+    let failure;
+    let failureType;
+    if (testStepFinished.testStepResult?.status.toString().toLowerCase() === 'failed') {
+      failure = (testStepFinished.testStepResult?.exception === undefined) ? testStepFinished.testStepResult?.message : testStepFinished.testStepResult?.exception?.message;
+      failureType = (testStepFinished.testStepResult?.exception === undefined) ? 'UnhandledError' : testStepFinished.testStepResult?.message;
+    }
+
+    if (pickleStepId && _tests['testStepId']) {
+      const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
+      const testMetaData = _tests[testCaseId] || {steps: []};
+      if (!testMetaData.steps) {
+        testMetaData.steps = [{
+          id: pickleStepData.id,
+          text: pickleStepData.text,
+          finished_at: new Date().toISOString(),
+          result: testStepFinished.testStepResult?.status,
+          duration: testStepFinished.testStepResult?.duration?.seconds,
+          failure: failure,
+          failureType: failureType
+        }];
+      } else {
+        testMetaData.steps.forEach((step) => {
+          if (step.id === pickleStepData.id) {
+            step.finished_at = new Date().toISOString();
+            step.result = testStepFinished.testStepResult?.status;
+            step.duration = testStepFinished.testStepResult?.duration?.seconds;
+            step.failure = failure;
+            step.failureType = failureType;
+          }
+        });
+      }
+      _tests[testCaseId] = testMetaData;
+      delete _tests['testStepId'];
+      if (testStepFinished.httpOutput && testStepFinished.httpOutput.length > 0) {
+        for (const [index, output] of testStepFinished.httpOutput.entries()) {
+          if (index % 2 === 0) {
+            // await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], testMetaData.uuid);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    // CrashReporter.uploadCrashReport(error.message, error.stack);
+    Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+  }
+};
+
 module.exports = {
 
   reporter: async function(results, done) {
@@ -77,178 +245,6 @@ module.exports = {
 
   registerEventHandlers(eventBroadcaster) {
 
-    eventBroadcaster.on('TestCaseStarted', async (args) => {
-      consoleHolder.log('Listening on TestCaseStarted event');
-      if (!helper.isTestObservabilitySession()) {
-        return;
-      }
-      try {
-        _testCasesData[args.envelope.id] = {
-          ...args.envelope
-        };
-        const reportData = args.report;
-        const testCaseId = reportData.testCaseStarted[args.envelope.id].testCaseId;
-        const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
-        const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
-        const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
-        const featureData = gherkinDocument.feature;
-        const uniqueId = uuidv4();
-        process.env.TEST_OPS_TEST_UUID = uniqueId;
-
-        // Object.values(workerList).forEach((worker) => {
-        //   worker.process.on('message', async (data) => {
-        //     if (data.eventType === EVENTS.LOG_INIT) {
-        //       const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-        //       const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-        //       const uuid = _tests[testCaseId]?.uuid;
-        //       await worker.process.send({testCaseStartedId, uuid});
-        //     }
-        //   });
-        // });  
-
-        const testMetaData = {
-          uuid: uniqueId,
-          startedAt: new Date().toISOString()
-        };
-        if (pickleData) {
-          testMetaData.scenario = {
-            name: pickleData.name
-          };
-        }
-
-        if (gherkinDocument && featureData) {
-          testMetaData.feature = {
-            path: gherkinDocument.uri,
-            name: featureData.name,
-            description: featureData.description
-          };
-        }
-        _tests[testCaseId] = testMetaData;
-        // await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
-      } catch (error) {
-        // CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
-    });
-
-    eventBroadcaster.on('TestCaseFinished', async (args) => {
-      consoleHolder.log('Listening on TestCaseFinished event');
-      if (!helper.isTestObservabilitySession()) {
-        return;
-      }
-      try {
-        const reportData = args.report;
-        const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
-
-        const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
-        const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
-        const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
-        const testMetaData = _tests[testCaseId];
-        if (testMetaData) {
-          delete _tests[testCaseId];
-          testMetaData.finishedAt = new Date().toISOString();
-          // await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
-        }
-      } catch (error) {
-        // CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
-    });
-
-    eventBroadcaster.on('TestStepStarted', (args) => {
-      consoleHolder.log('Listening on TestStepStarted event');
-      if (!helper.isTestObservabilitySession()) {
-        return;
-      }
-      try {
-        const reportData = args.report;
-        const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
-        const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
-        const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
-        const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
-        const testStepId = reportData.testStepStarted[args.envelope.testCaseStartedId].testStepId;
-        const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
-        if (pickleStepId && _tests['testStepId'] !== testStepId) {
-          _tests['testStepId'] = testStepId;
-          const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
-          const testMetaData = _tests[testCaseId] || {steps: []};
-          if (testMetaData && !testMetaData.steps) {
-            testMetaData.steps = [];
-          }
-          testMetaData.steps?.push({
-            id: pickleStepData.id,
-            text: pickleStepData.text,
-            started_at: new Date().toISOString()
-          });
-          _tests[testCaseId] = testMetaData;
-        }
-      } catch (error) {
-        // CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
-    });
-
-    eventBroadcaster.on('TestStepFinished', async (args) => {
-      consoleHolder.log('Listening on TestStepFinished event');
-      if (!helper.isTestObservabilitySession()) {
-        return;
-      }
-      try {
-        const reportData = args.report;
-        const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
-        const testStepFinished = reportData.testStepFinished[args.envelope.testCaseStartedId];
-        const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
-        const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
-        const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
-        const testStepId = reportData.testStepFinished[args.envelope.testCaseStartedId].testStepId;
-        const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
-        let failure;
-        let failureType;
-        if (testStepFinished.testStepResult?.status.toString().toLowerCase() === 'failed') {
-          failure = (testStepFinished.testStepResult?.exception === undefined) ? testStepFinished.testStepResult?.message : testStepFinished.testStepResult?.exception?.message;
-          failureType = (testStepFinished.testStepResult?.exception === undefined) ? 'UnhandledError' : testStepFinished.testStepResult?.message;
-        }
-
-        if (pickleStepId && _tests['testStepId']) {
-          const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
-          const testMetaData = _tests[testCaseId] || {steps: []};
-          if (!testMetaData.steps) {
-            testMetaData.steps = [{
-              id: pickleStepData.id,
-              text: pickleStepData.text,
-              finished_at: new Date().toISOString(),
-              result: testStepFinished.testStepResult?.status,
-              duration: testStepFinished.testStepResult?.duration?.seconds,
-              failure: failure,
-              failureType: failureType
-            }];
-          } else {
-            testMetaData.steps.forEach((step) => {
-              if (step.id === pickleStepData.id) {
-                step.finished_at = new Date().toISOString();
-                step.result = testStepFinished.testStepResult?.status;
-                step.duration = testStepFinished.testStepResult?.duration?.seconds;
-                step.failure = failure;
-                step.failureType = failureType;
-              }
-            });
-          }
-          _tests[testCaseId] = testMetaData;
-          delete _tests['testStepId'];
-          if (testStepFinished.httpOutput && testStepFinished.httpOutput.length > 0) {
-            for (const [index, output] of testStepFinished.httpOutput.entries()) {
-              if (index % 2 === 0) {
-                // await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], testMetaData.uuid);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        // CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
-      }
-    });
-
     eventBroadcaster.on('ScreenshotCreated', async (args) => {
       if (!helper.isTestObservabilitySession()) {return}
       // handleScreenshotUpload({args: args, uuid: process.env.TEST_OPS_TEST_UUID});
@@ -260,6 +256,21 @@ module.exports = {
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
       await accessibilityAutomation.afterEachExecution(test);
+    });
+
+    eventBroadcaster.on('TestEvent', async (args) => {
+      if (args.eventType === 'TestCaseStarted') {
+        await onTestCaseStarted(args);
+      }
+      if (args.eventType === 'TestCaseFinished') {
+        await onTestCaseFinished(args);
+      }
+      if (args.eventType === 'TestStepStarted') {
+        await onTestStepStarted(args);
+      }
+      if (args.eventType === 'TestStepFinished') {
+        await onTestStepFinished(args);
+      }
     });
   },
 
