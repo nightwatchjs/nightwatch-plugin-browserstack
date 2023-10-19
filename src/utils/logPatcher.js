@@ -47,32 +47,32 @@ class LogPatcher extends Transport {
       http_response: {}
     };
 
-    if (_uuid !== '') {
-      testObservability.appendTestItemLog(loggingData, _uuid);
-      this.flushAllLogs();
-    } else {
-      testLogs.push({eventType, loggingData});
-    }
+    // if (_uuid !== '') {
+    //   testObservability.appendTestItemLog(loggingData, _uuid);
+    //   this.flushAllLogs();
+    // } else {
+    //   testLogs.push({eventType, loggingData});
+    // }
 
     // for non parallel execution
     // eventHelper.emitLogEvent(eventType, loggingData);
 
     // for parallel execution
-    if (process.send && eventType === EVENTS.LOG_INIT){
-      process.send({eventType: eventType, loggingData: loggingData, pid: pid});
-    }
+    // if (process.send && eventType === EVENTS.LOG_INIT){
+    //   process.send({eventType: eventType, loggingData: loggingData, pid: pid});
+    // }
 
-    process.on('message', (data) => {
-      if (data.uuid !== undefined){
-        _uuid = data.uuid;
-        process.env.TEST_OPS_TEST_UUID = _uuid;
-      }
-    });
-    process.on('disconnect', async () => {
-      this.flushAllLogs();
-      await helper.uploadPending();
-      await helper.shutDownRequestHandler();
-    });
+    // process.on('message', (data) => {
+    //   if (data.uuid !== undefined){
+    //     _uuid = data.uuid;
+    //     process.env.TEST_OPS_TEST_UUID = _uuid;
+    //   }
+    // });
+    // process.on('disconnect', async () => {
+    //   this.flushAllLogs();
+    //   await helper.uploadPending();
+    //   await helper.shutDownRequestHandler();
+    // });
   };
 
   /* Patching this would show user an extended trace on their cli */

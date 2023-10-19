@@ -32,14 +32,14 @@ const {consoleHolder} = require('../src/utils/constants');
 //   }
 // });
 
-const handleScreenshotUpload = async (data) => {
-  try {
-    const {args, uuid} = data;
-    await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());    
-  } catch (error) {
-    // CrashReporter.uploadCrashReport(error.message, error.stack);
-  }
-};
+// const handleScreenshotUpload = async (data) => {
+//   try {
+//     const {args, uuid} = data;
+//     await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());    
+//   } catch (error) {
+//     // CrashReporter.uploadCrashReport(error.message, error.stack);
+//   }
+// };
 
 module.exports = {
 
@@ -94,16 +94,16 @@ module.exports = {
         const uniqueId = uuidv4();
         process.env.TEST_OPS_TEST_UUID = uniqueId;
 
-        Object.values(workerList).forEach((worker) => {
-          worker.process.on('message', async (data) => {
-            if (data.eventType === EVENTS.LOG_INIT) {
-              const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-              const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-              const uuid = _tests[testCaseId]?.uuid;
-              await worker.process.send({testCaseStartedId, uuid});
-            }
-          });
-        });  
+        // Object.values(workerList).forEach((worker) => {
+        //   worker.process.on('message', async (data) => {
+        //     if (data.eventType === EVENTS.LOG_INIT) {
+        //       const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
+        //       const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
+        //       const uuid = _tests[testCaseId]?.uuid;
+        //       await worker.process.send({testCaseStartedId, uuid});
+        //     }
+        //   });
+        // });  
 
         const testMetaData = {
           uuid: uniqueId,
@@ -247,7 +247,7 @@ module.exports = {
 
     eventBroadcaster.on('ScreenshotCreated', async (args) => {
       if (!helper.isTestObservabilitySession()) {return}
-      handleScreenshotUpload({args: args, uuid: process.env.TEST_OPS_TEST_UUID});
+      // handleScreenshotUpload({args: args, uuid: process.env.TEST_OPS_TEST_UUID});
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
