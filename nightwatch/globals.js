@@ -47,6 +47,21 @@ module.exports = {
     done(results);
   },
   registerEventHandlers(eventBroadcaster) {
+    eventBroadcaster.on('TestCaseStarted', async (test) => {
+      console.log('TestCaseStarted');
+    });
+    eventBroadcaster.on('TestCaseFinished', async (test) => {
+      console.log('TestCaseFinished');
+    });
+    eventBroadcaster.on('TestStepStarted', async (test) => {
+      console.log('TestStepStarted');
+    });
+    eventBroadcaster.on('TestStepFinished', async (test) => {
+      console.log('TestStepFinished');
+    });
+    eventBroadcaster.on('ScreenshotCreated', async (test) => {
+      console.log('ScreenshotCreated');
+    });
     eventBroadcaster.on('TestRunStarted', async (test) => {
       await accessibilityAutomation.beforeEachExecution(test);
     });
