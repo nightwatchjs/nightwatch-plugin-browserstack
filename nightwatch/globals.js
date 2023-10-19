@@ -123,7 +123,7 @@ module.exports = {
           };
         }
         _tests[testCaseId] = testMetaData;
-        await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
+        // await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
       } catch (error) {
         // CrashReporter.uploadCrashReport(error.message, error.stack);
         Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
@@ -145,7 +145,7 @@ module.exports = {
         if (testMetaData) {
           delete _tests[testCaseId];
           testMetaData.finishedAt = new Date().toISOString();
-          await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+          // await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
         }
       } catch (error) {
         // CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -234,7 +234,7 @@ module.exports = {
           if (testStepFinished.httpOutput && testStepFinished.httpOutput.length > 0) {
             for (const [index, output] of testStepFinished.httpOutput.entries()) {
               if (index % 2 === 0) {
-                await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], testMetaData.uuid);
+                // await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], testMetaData.uuid);
               }
             }
           }
