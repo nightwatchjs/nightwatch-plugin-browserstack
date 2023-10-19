@@ -78,6 +78,7 @@ module.exports = {
   registerEventHandlers(eventBroadcaster) {
 
     eventBroadcaster.on('TestCaseStarted', async (args) => {
+      consoleHolder.log('Listening on TestCaseStarted event');
       if (!helper.isTestObservabilitySession()) {
         return;
       }
@@ -131,6 +132,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestCaseFinished', async (args) => {
+      consoleHolder.log('Listening on TestCaseFinished event');
       if (!helper.isTestObservabilitySession()) {
         return;
       }
@@ -154,6 +156,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepStarted', (args) => {
+      consoleHolder.log('Listening on TestStepStarted event');
       if (!helper.isTestObservabilitySession()) {
         return;
       }
@@ -186,6 +189,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepFinished', async (args) => {
+      consoleHolder.log('Listening on TestStepFinished event');
       if (!helper.isTestObservabilitySession()) {
         return;
       }
