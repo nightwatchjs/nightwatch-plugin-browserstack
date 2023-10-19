@@ -109,7 +109,7 @@ const onTestCaseFinished = async (args) => {
     if (testMetaData) {
       delete _tests[testCaseId];
       testMetaData.finishedAt = new Date().toISOString();
-      // await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+      await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
     }
   } catch (error) {
     // CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -198,7 +198,7 @@ const onTestStepFinished = async(args) => {
       if (testStepFinished.httpOutput && testStepFinished.httpOutput.length > 0) {
         for (const [index, output] of testStepFinished.httpOutput.entries()) {
           if (index % 2 === 0) {
-            // await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], testMetaData.uuid);
+            await testObservability.createHttpLogEvent(output, testStepFinished.httpOutput[index + 1], testMetaData.uuid);
           }
         }
       }
