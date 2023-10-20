@@ -22,15 +22,9 @@ class LogPatcher extends Transport {
     super(opts);
   }
 
-  logToTestOps = async (level = LOG_LEVELS.INFO, message = ['']) => {
+  logToTestOps = (level = LOG_LEVELS.INFO, message = ['']) => {
     try {
       const start = Date.now();
-      let eventType = EVENTS.LOG;
-      if (!message[0].match(PID_MAPPING_REGEX)) {
-        consoleHolder[level.toLowerCase()](...message);
-      } else {
-        eventType = EVENTS.LOG_INIT;
-      }
       const pid = process.pid;
       const loggingData = {
         timestamp: new Date().toISOString(),
@@ -42,7 +36,7 @@ class LogPatcher extends Transport {
   
       const end = Date.now();
       const diff = end - start;
-      consoleHolder.log(loggingData?.message, '-- printing console log', 'TIME DIFF-', diff);
+      consoleHolder.log('LOGGING MESSAGE', loggingData?.message, '-- printing console log', 'TIME DIFF-', diff);
     } catch (error) {
       consoleHolder.log('ERROR FOUND IN LOG PATCHER', error);
     }
