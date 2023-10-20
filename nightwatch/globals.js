@@ -215,24 +215,24 @@ module.exports = {
   registerEventHandlers(eventBroadcaster) {
     
     eventBroadcaster.on('TestCaseStarted', async (args) => {
-      console.log('TestCaseStarted');
+      consoleHolder.log('TestCaseStarted');
       onTestCaseStarted(args);
     });
     eventBroadcaster.on('TestCaseFinished', async (args) => {
-      console.log('TestCaseFinished');
+      consoleHolder.log('TestCaseFinished');
       onTestCaseFinished(args);
     });
     eventBroadcaster.on('TestStepStarted', async (args) => {
-      console.log('TestStepStarted');
+      consoleHolder.log('TestStepStarted');
       onTestStepStarted(args);
     });
     eventBroadcaster.on('TestStepFinished', async (args) => {
-      console.log('TestStepFinished');
+      consoleHolder.log('TestStepFinished');
       onTestStepFinished(args);
 
     });
     eventBroadcaster.on('ScreenshotCreated', async (test) => {
-      console.log('ScreenshotCreated');
+      consoleHolder.log('ScreenshotCreated');
     });
 
     eventBroadcaster.on('ScreenshotCreated', async (args) => {

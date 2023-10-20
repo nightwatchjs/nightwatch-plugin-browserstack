@@ -11,15 +11,15 @@ const {makeRequest} = require('./requestHelper');
 const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS, consoleHolder} = require('./constants');
 const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
-// const LogPatcher = require('./logPatcher');
-// const BSTestOpsPatcher = new LogPatcher({});
+const LogPatcher = require('./logPatcher');
+const BSTestOpsPatcher = new LogPatcher({});
 
-// console = {};
-// Object.keys(consoleHolder).forEach(method => {
-//   console[method] = (...args) => {
-//     BSTestOpsPatcher[method](...args);
-//   };
-// });
+console = {};
+Object.keys(consoleHolder).forEach(method => {
+  console[method] = (...args) => {
+    BSTestOpsPatcher[method](...args);
+  };
+});
 
 exports.debug = (text) => {
   if (process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === 'true' || process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === '1') {
