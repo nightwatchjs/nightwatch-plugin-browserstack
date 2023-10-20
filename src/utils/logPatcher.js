@@ -32,47 +32,51 @@ class LogPatcher extends Transport {
   };
   
   logToTestOps = (level = LOG_LEVELS.INFO, message = ['']) => {
-    let eventType = EVENTS.LOG;
-    if (!message[0].match(PID_MAPPING_REGEX)) {
-      consoleHolder[level.toLowerCase()](...message);
-    } else {
-      eventType = EVENTS.LOG_INIT;
-    }
-    const pid = process.pid;
-    const loggingData = {
-      timestamp: new Date().toISOString(),
-      level: level.toUpperCase(),
-      message: `"${message.join(', ')}"`,
-      kind: 'TEST_LOG',
-      http_response: {}
-    };
-
-    if (_uuid !== '') {
-      testObservability.appendTestItemLog(loggingData, _uuid);
-      this.flushAllLogs();
-    } else {
-      testLogs.push({eventType, loggingData});
-    }
-
-    // for non parallel execution
-    eventHelper.emitLogEvent(eventType, loggingData);
-
-    // for parallel execution
-    if (process.send && eventType === EVENTS.LOG_INIT){
-      process.send({eventType: eventType, loggingData: loggingData, pid: pid});
-    }
-
-    process.on('message', (data) => {
-      if (data.uuid !== undefined){
-        _uuid = data.uuid;
-        process.env.TEST_OPS_TEST_UUID = _uuid;
+    try {
+      let eventType = EVENTS.LOG;
+      if (!message[0].match(PID_MAPPING_REGEX)) {
+        consoleHolder[level.toLowerCase()](...message);
+      } else {
+        eventType = EVENTS.LOG_INIT;
       }
-    });
-    process.on('disconnect', async () => {
-      this.flushAllLogs();
-      await helper.uploadPending();
-      await helper.shutDownRequestHandler();
-    });
+      const pid = process.pid;
+      const loggingData = {
+        timestamp: new Date().toISOString(),
+        level: level.toUpperCase(),
+        message: `"${message.join(', ')}"`,
+        kind: 'TEST_LOG',
+        http_response: {}
+      };
+
+      if (_uuid !== '') {
+        testObservability.appendTestItemLog(loggingData, _uuid);
+        this.flushAllLogs();
+      } else {
+        testLogs.push({eventType, loggingData});
+      }
+
+      // for non parallel execution
+      eventHelper.emitLogEvent(eventType, loggingData);
+
+      // for parallel execution
+      if (process.send && eventType === EVENTS.LOG_INIT){
+        process.send({eventType: eventType, loggingData: loggingData, pid: pid});
+      }
+
+      process.on('message', (data) => {
+        if (data.uuid !== undefined){
+          _uuid = data.uuid;
+          process.env.TEST_OPS_TEST_UUID = _uuid;
+        }
+      });
+      process.on('disconnect', async () => {
+        this.flushAllLogs();
+        await helper.uploadPending();
+        await helper.shutDownRequestHandler();
+      });
+    } catch (error) {
+      consoleHolder.log('Error in patching logs', error);
+    }
   };
 
   /* Patching this would show user an extended trace on their cli */
