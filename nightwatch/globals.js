@@ -20,26 +20,6 @@ let currentTestUUID = '';
 let workerList = {};
 const {consoleHolder} = require('../src/utils/constants');
 
-// eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
-//   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-//   const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-//   currentTestUUID = _tests[testCaseId]?.uuid;
-// });
-
-// eventHelper.eventEmitter.on(EVENTS.LOG, (loggingData) => {
-//   if (currentTestUUID && currentTestUUID !== '') {
-//     testObservability.appendTestItemLog(loggingData, currentTestUUID);
-//   }
-// });
-
-// const handleScreenshotUpload = async (data) => {
-//   try {
-//     const {args, uuid} = data;
-//     await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());    
-//   } catch (error) {
-//     // CrashReporter.uploadCrashReport(error.message, error.stack);
-//   }
-// };
 
 const onTestCaseStarted = async (args) => {
   if (!helper.isTestObservabilitySession()) {
@@ -57,17 +37,6 @@ const onTestCaseStarted = async (args) => {
     const featureData = gherkinDocument.feature;
     const uniqueId = uuidv4();
     process.env.TEST_OPS_TEST_UUID = uniqueId;
-
-    // Object.values(workerList).forEach((worker) => {
-    //   worker.process.on('message', async (data) => {
-    //     if (data.eventType === EVENTS.LOG_INIT) {
-    //       const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-    //       const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-    //       const uuid = _tests[testCaseId]?.uuid;
-    //       await worker.process.send({testCaseStartedId, uuid});
-    //     }
-    //   });
-    // });  
 
     const testMetaData = {
       uuid: uniqueId,
@@ -244,6 +213,27 @@ module.exports = {
   },
 
   registerEventHandlers(eventBroadcaster) {
+    
+    eventBroadcaster.on('TestCaseStarted', async (args) => {
+      console.log('TestCaseStarted');
+      onTestCaseStarted(args);
+    });
+    eventBroadcaster.on('TestCaseFinished', async (args) => {
+      console.log('TestCaseFinished');
+      onTestCaseFinished(args);
+    });
+    eventBroadcaster.on('TestStepStarted', async (args) => {
+      console.log('TestStepStarted');
+      onTestStepStarted(args);
+    });
+    eventBroadcaster.on('TestStepFinished', async (args) => {
+      console.log('TestStepFinished');
+      onTestStepFinished(args);
+
+    });
+    eventBroadcaster.on('ScreenshotCreated', async (test) => {
+      console.log('ScreenshotCreated');
+    });
 
     eventBroadcaster.on('ScreenshotCreated', async (args) => {
       if (!helper.isTestObservabilitySession()) {return}
@@ -256,21 +246,6 @@ module.exports = {
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
       await accessibilityAutomation.afterEachExecution(test);
-    });
-
-    eventBroadcaster.on('TestEvent', async (args) => {
-      if (args.eventType === 'TestCaseStarted') {
-        await onTestCaseStarted(args);
-      }
-      if (args.eventType === 'TestCaseFinished') {
-        await onTestCaseFinished(args);
-      }
-      if (args.eventType === 'TestStepStarted') {
-        await onTestStepStarted(args);
-      }
-      if (args.eventType === 'TestStepFinished') {
-        await onTestStepFinished(args);
-      }
     });
   },
 
@@ -306,8 +281,7 @@ module.exports = {
       testObservability.configure(settings);
       if (helper.isTestObservabilitySession()) {
         if (helper.isCucumberTestSuite(settings)) {
-          cucumberPatcher();
-          settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
+          // settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
         if (testObservability._user && testObservability._key) {
@@ -403,26 +377,4 @@ module.exports = {
     }
 
   }
-};
-
-const cucumberPatcher = () => {
-  const Coordinator = helper.requireModule('@cucumber/cucumber/lib/runtime/parallel/coordinator.js');
-  class CoordinatorPatcher extends Coordinator.default {
-    constructor(...args) {
-      super(...args);
-    }
-    
-    startWorker(...args) {
-      const workerData  = super.startWorker(...args);
-      workerList = this.workers;
-      
-      return workerData;
-    }
-    
-    parseWorkerMessage(...args) {
-      if ([EVENTS.LOG, EVENTS.LOG_INIT].includes(args[1].eventType)) {return}
-      super.parseWorkerMessage(...args);
-    }
-  }
-  Coordinator.default = CoordinatorPatcher;
 };
