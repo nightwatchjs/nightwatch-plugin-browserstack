@@ -18,7 +18,6 @@ const _tests = {};
 const _testCasesData = {};
 let currentTestUUID = '';
 let workerList = {};
-const {consoleHolder} = require('../src/utils/constants');
 
 eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
@@ -391,23 +390,27 @@ module.exports = {
 };
 
 const cucumberPatcher = () => {
-  const Coordinator = helper.requireModule('@cucumber/cucumber/lib/runtime/parallel/coordinator.js');
-  class CoordinatorPatcher extends Coordinator.default {
-    constructor(...args) {
-      super(...args);
-    }
-    
-    startWorker(...args) {
-      const workerData  = super.startWorker(...args);
-      workerList = this.workers;
+  try {
+    const Coordinator = helper.requireModule('@cucumber/cucumber/lib/runtime/parallel/coordinator.js');
+    class CoordinatorPatcher extends Coordinator.default {
+      constructor(...args) {
+        super(...args);
+      }
       
-      return workerData;
+      startWorker(...args) {
+        const workerData  = super.startWorker(...args);
+        workerList = this.workers;
+        
+        return workerData;
+      }
+      
+      parseWorkerMessage(...args) {
+        if ([EVENTS.LOG, EVENTS.LOG_INIT].includes(args[1]?.eventType)) {return}
+        return super.parseWorkerMessage(...args);
+      }
     }
-    
-    parseWorkerMessage(...args) {
-      if ([EVENTS.LOG, EVENTS.LOG_INIT].includes(args[1].eventType)) {return}
-      super.parseWorkerMessage(...args);
-    }
+    Coordinator.default = CoordinatorPatcher;
+  } catch (error) {
+    Logger.debug(`Error while patching cucumber ${error}`);
   }
-  Coordinator.default = CoordinatorPatcher;
 };

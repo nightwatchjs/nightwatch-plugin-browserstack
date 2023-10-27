@@ -2,10 +2,9 @@ const Transport = require('winston-transport');
 const {consoleHolder, PID_MAPPING_REGEX, IPC_SERVER_NAME, EVENTS} = require('./constants');
 const CrashReporter = require('./crashReporter');
 const TestObservability = require('../testObservability');
-const testObservability = new TestObservability();
 const helper = require('./helper');
-const eve = require('events');
 const eventHelper = require('./eventHelper');
+const testObservability = new TestObservability();
 
 let testLogs = [];
 let _uuid = '';
