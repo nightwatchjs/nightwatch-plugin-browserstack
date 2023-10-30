@@ -526,7 +526,7 @@ exports.shutDownRequestHandler = async () => {
 };
 
 exports.getScenarioExamples = (gherkinDocument, scenario) => {
-  if ((scenario.astNodeIds && scenario.astNodeIds.length <= 1) || scenario.astNodeIds === undefined) {
+  if (!(scenario.astNodeIds?.length > 1)) {
     return;
   }
 
