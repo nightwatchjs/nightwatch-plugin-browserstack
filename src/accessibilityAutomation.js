@@ -361,10 +361,10 @@ class AccessibilityAutomation {
 
       if (this.isAccessibilityAutomationSession() && browser && helper.isAccessibilitySession() && this._isAccessibilitySession) {
         try {
-          let session = await browser.session();
+          const session = await browser.session();
           if (session) {
             let pageOpen = true;
-            let currentURL = await browser.driver.getCurrentUrl();
+            const currentURL = await browser.driver.getCurrentUrl();
 
             let url = {};
             try {
@@ -434,7 +434,7 @@ class AccessibilityAutomation {
           },
           platform: await this.fetchPlatformDetails(browser)
         };
-        let final_res = await browser.executeAsyncScript(
+        const final_res = await browser.executeAsyncScript(
           `
             const callback = arguments[arguments.length - 1];
 
@@ -473,7 +473,7 @@ class AccessibilityAutomation {
       return {};
     }
     try {
-      let results = await browser.executeScript(`
+      const results = await browser.executeScript(`
         return new Promise(function (resolve, reject) {
           try {
             const event = new CustomEvent('A11Y_TAP_GET_RESULTS');
@@ -506,7 +506,7 @@ class AccessibilityAutomation {
       return {};
     }
     try {
-      let summaryResults = await browser.executeScript(`
+      const summaryResults = await browser.executeScript(`
         return new Promise(function (resolve, reject) {
           try{
             const event = new CustomEvent('A11Y_TAP_GET_RESULTS_SUMMARY');

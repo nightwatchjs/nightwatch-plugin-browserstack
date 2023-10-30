@@ -406,6 +406,7 @@ const cucumberPatcher = () => {
       
       parseWorkerMessage(...args) {
         if ([EVENTS.LOG, EVENTS.LOG_INIT].includes(args[1]?.eventType)) {return}
+
         return super.parseWorkerMessage(...args);
       }
     }

@@ -568,7 +568,7 @@ exports.isCucumberTestSuite = (settings) => {
 exports.getPlatformVersion = (driver) => {
   let platformVersion = null;
   try {
-    let caps = driver.desiredCapabilities || {};
+    const caps = driver.desiredCapabilities || {};
     if (!this.isUndefined(caps['bstack:options']) && !this.isUndefined(caps['bstack:options']['osVersion'])){
       platformVersion = caps['bstack:options']['osVersion'];
     } else if (!this.isUndefined(caps['os_version'])){
