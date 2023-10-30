@@ -1,3 +1,4 @@
+const helper = require('../../../src/utils/helper');
 const TestObservability = require('../../../src/testObservability');
 const sinon = require('sinon');
 
