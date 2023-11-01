@@ -3,7 +3,7 @@
     "eslint:recommended"
   ],
   "parserOptions": {
-    "ecmaVersion": 2020,
+    "ecmaVersion": 2022,
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": false
@@ -46,6 +46,7 @@
     "no-extra-semi": 0,
     "comma-dangle": 2,
     "no-underscore-dangle": 0,
+    "no-global-assign": 0,
     "no-lone-blocks": 0,
     "array-bracket-spacing": 2,
     "object-curly-spacing": 2,

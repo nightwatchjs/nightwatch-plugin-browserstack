@@ -6,7 +6,7 @@ const request = require('request');
 function createKeepAliveAgent(protocol) {
   return new protocol.Agent({
     keepAlive: true,
-    timeout: 60000,
+    timeout: 45000,
     maxSockets: 2,
     maxTotalSockets: 2
   });
@@ -17,7 +17,7 @@ const httpsKeepAliveAgent = createKeepAliveAgent(https);
 const httpScreenshotsKeepAliveAgent = createKeepAliveAgent(http);
 const httpsScreenshotsKeepAliveAgent = createKeepAliveAgent(https);
 
-exports.makeRequest = (type, url, data, config, requestUrl=API_URL) => {
+exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse = true) => {
   const isHttps = requestUrl.includes('https');
   let agent;
   if (url === SCREENSHOT_EVENT_URL) {
@@ -42,10 +42,12 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL) => {
       } else if (response.statusCode !== 200 && response.statusCode !== 201) {
         reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
       } else {
-        try {
-          if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
-        } catch (e) {
-          reject('Not a JSON response from BrowserStack Server');
+        if (jsonResponse) {
+          try {
+            if (body && typeof(body) !== 'object') {body = JSON.parse(body)}
+          } catch (e) {
+            reject('Not a JSON response from BrowserStack Server');
+          }
         }
         resolve({
           data: body

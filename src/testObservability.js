@@ -124,7 +124,7 @@ class TestObservability {
     await helper.uploadPending();
     await helper.shutDownRequestHandler();
     try {
-      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
+      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config, API_URL, false);
       if (response.data?.error) {
         throw {message: response.data.error};
       } else {
@@ -371,6 +371,115 @@ class TestObservability {
       uploadData['test_run'] = testData;
     }
     await helper.uploadEventData(uploadData);
+  }
+
+  async sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, eventType, testMetaData, args = {}) {
+    const {feature, scenario, steps, uuid, startedAt, finishedAt} = testMetaData || {};
+    const examples = helper.getScenarioExamples(gherkinDocument, pickleData);
+    const fullNameWithExamples = examples
+      ? pickleData.name + ' (' + examples.join(', ')  + ')'
+      : pickleData.name;
+    const testData = {
+      uuid: uuid,
+      started_at: startedAt,
+      finished_at: finishedAt,
+      type: 'test',
+      body: {
+        lang: 'nightwatch',
+        code: null
+      },
+      name: fullNameWithExamples,
+      scope: fullNameWithExamples,
+      scopes: [feature?.name || ''],
+      tags: pickleData.tags?.map(({name}) => (name)),
+      identifier: scenario?.name,
+      file_name: path.relative(process.cwd(), feature.path),
+      location: path.relative(process.cwd(), feature.path),
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, feature.path) : null,
+      framework: 'nightwatch',
+      result: 'pending',
+      meta: {
+        feature: feature,
+        scenario: scenario,
+        steps: steps,
+        examples: examples
+      }
+    };
+
+    try {
+      if (eventType === 'TestRunFinished') {
+        const currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
+        if (currentSessionCapabilities.error) {
+          throw new Error(`Error in driver capabilities: ${JSON.stringify(currentSessionCapabilities.error)}`);
+        }
+
+        const sessionCapabilities = currentSessionCapabilities.capabilities;
+        if ((sessionCapabilities) && (args.envelope.testCaseStartedId === currentSessionCapabilities.testCaseStartedId)) {
+          testData.integrations = {};
+          const provider = helper.getCloudProvider(currentSessionCapabilities.host);
+          testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId);
+        } else {
+          Logger.debug('Failed to upload integrations data');
+        }
+      }
+    } catch (error) {
+      CrashReporter.uploadCrashReport(error.message, error.stack);
+    }
+
+    if (reportData.testCaseFinished && steps) {
+      const testCaseResult = reportData.testCaseFinished[args.envelope.testCaseStartedId];
+      let result = 'passed';
+      steps.every((step) => {
+        if (step.result === 'FAILED'){
+          result = 'failed';
+          testCaseResult.failure = step.failure;
+          testCaseResult.failureType = step.failureType;
+
+          return false;
+        } else if (step.result === 'SKIPPED') {
+          result = 'skipped';
+
+          return false;
+        } 
+
+        return true;
+      });
+
+      testData.finished_at = new Date().toISOString();
+      testData.result = result;
+      testData.duration_in_ms = testCaseResult.timestamp.nanos / 1000000;
+      if (result === 'failed') {
+        testData.failure = [
+          {
+            'backtrace': [testCaseResult?.failure ? stripAnsi(testCaseResult?.failure) : 'unknown']
+          }
+        ],
+        testData.failure_reason = testCaseResult?.failure ? stripAnsi(testCaseResult?.failure) : testCaseResult.message;
+        if (testCaseResult?.failureType) {
+          testData.failure_type = testCaseResult.failureType.match(/AssertError/)
+            ? 'AssertionError'
+            : 'UnhandledError';
+        }
+      }
+    }
+
+    const uploadData = {
+      event_type: eventType,
+      test_run: testData
+    };
+    await helper.uploadEventData(uploadData);
+
+  }
+
+  async appendTestItemLog (log, testUuid) {
+    try {
+      if (testUuid) {
+        log.test_run_uuid = testUuid;
+        await helper.uploadEventData({event_type: 'LogCreated', logs: [log]});
+      }
+    } catch (error) {
+      Logger.error(`Exception in uploading log data to Observability with error : ${error}`);
+    }
   }
 }
 

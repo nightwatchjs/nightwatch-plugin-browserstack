@@ -1,6 +1,7 @@
 const helper = require('./helper');
 const {makeRequest} = require('./requestHelper');
 const Logger = require('./logger');
+const {API_URL} = require('./constants');
 
 class CrashReporter {
 
@@ -63,7 +64,7 @@ class CrashReporter {
         },
         config: this.userConfigForReporting || {}
       };
-      await makeRequest('POST', 'api/v1/analytics', data, config);
+      await makeRequest('POST', 'api/v1/analytics', data, config, API_URL, false);
     } catch (error) {
       Logger.error(`[Crash_Report_Upload] Failed due to ${error}`);
     }

@@ -8,10 +8,24 @@ const gitconfig = require('gitconfiglocal');
 const pGitconfig = promisify(gitconfig);
 const gitLastCommit = require('git-last-commit');
 const {makeRequest} = require('./requestHelper');
-const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS} = require('./constants');
-
+const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS, consoleHolder} = require('./constants');
 const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
+const LogPatcher = require('./logPatcher');
+const BSTestOpsPatcher = new LogPatcher({});
+
+console = {};
+Object.keys(consoleHolder).forEach(method => {
+  console[method] = (...args) => {
+    BSTestOpsPatcher[method](...args);
+  };
+});
+
+exports.debug = (text) => {
+  if (process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === 'true' || process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === '1') {
+    consoleHolder.log(`\n[${(new Date()).toISOString()}][ OBSERVABILITY ] ${text}\n`);
+  }
+};
 
 exports.generateLocalIdentifier = () => {
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
@@ -561,7 +575,7 @@ exports.getUserName = (settings) => {
 };
 
 exports.getCloudProvider = (hostname) => {
-  if (hostname.includes('browserstack')) {
+  if (hostname && hostname.includes('browserstack')) {
     return 'browserstack';
   }
 
@@ -625,10 +639,50 @@ exports.shutDownRequestHandler = async () => {
   await requestQueueHandler.shutdown();
 };
 
+exports.getScenarioExamples = (gherkinDocument, scenario) => {
+  if (!(scenario.astNodeIds?.length > 1)) {
+    return;
+  }
+
+  const pickleId = scenario.astNodeIds[0];
+  const examplesId = scenario.astNodeIds[1];
+  const gherkinDocumentChildren = gherkinDocument.feature?.children;
+
+  let examples = [];
+
+  gherkinDocumentChildren?.forEach(child => {
+    if (child.rule) {
+      child.rule.children.forEach(childLevel2 => {
+        if (childLevel2.scenario && childLevel2.scenario.id === pickleId && childLevel2.scenario.examples) {
+          const passedExamples = childLevel2.scenario.examples.flatMap((val) => (val.tableBody)).find((item) => item.id === examplesId)?.cells.map((val) => (val.value));
+          if (passedExamples) {
+            examples = passedExamples;
+          }
+        }
+      });
+    } else if (child.scenario && child.scenario.id === pickleId && child.scenario.examples) {
+      const passedExamples = child.scenario.examples.flatMap((val) => (val.tableBody)).find((item) => item.id === examplesId)?.cells.map((val) => (val.value));
+      if (passedExamples) {
+        examples = passedExamples;
+      }
+    }
+  });
+
+  if (examples.length) {
+    return examples;
+  }
+
+  return;
+};
+
+exports.isCucumberTestSuite = (settings) => {
+  return settings?.test_runner?.type === 'cucumber';
+};
+
 exports.getPlatformVersion = (driver) => {
   let platformVersion = null;
   try {
-    let caps = driver.desiredCapabilities || {};
+    const caps = driver.desiredCapabilities || {};
     if (!this.isUndefined(caps['bstack:options']) && !this.isUndefined(caps['bstack:options']['osVersion'])){
       platformVersion = caps['bstack:options']['osVersion'];
     } else if (!this.isUndefined(caps['os_version'])){
