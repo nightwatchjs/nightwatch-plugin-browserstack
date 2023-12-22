@@ -164,8 +164,8 @@ module.exports = {
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepStarted[args.envelope.testCaseStartedId].testStepId;
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
-        if (pickleStepId && _tests['testStepId'] !== testStepId) {
-          _tests['testStepId'] = testStepId;
+        if (pickleStepId && _tests[testCaseId]?.['testStepId'] !== testStepId) {
+          _tests[testCaseId]['testStepId'] = testStepId;
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
           const testMetaData = _tests[testCaseId] || {steps: []};
           if (testMetaData && !testMetaData.steps) {
@@ -204,7 +204,7 @@ module.exports = {
           failureType = (testStepFinished.testStepResult?.exception === undefined) ? 'UnhandledError' : testStepFinished.testStepResult?.message;
         }
 
-        if (pickleStepId && _tests['testStepId']) {
+        if (pickleStepId && _tests[testCaseId]['testStepId']) {
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
           const testMetaData = _tests[testCaseId] || {steps: []};
           if (!testMetaData.steps) {
@@ -229,7 +229,7 @@ module.exports = {
             });
           }
           _tests[testCaseId] = testMetaData;
-          delete _tests['testStepId'];
+          delete _tests[testCaseId]['testStepId'];
           if (testStepFinished.httpOutput && testStepFinished.httpOutput.length > 0) {
             for (const [index, output] of testStepFinished.httpOutput.entries()) {
               if (index % 2 === 0) {
