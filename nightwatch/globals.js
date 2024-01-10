@@ -95,6 +95,9 @@ module.exports = {
 
         Object.values(workerList).forEach((worker) => {
           worker.process.on('message', async (data) => {
+            if (data.POST_SESSION_EVENT) {
+              helper.storeSessionsData(data);
+            }
             if (data.eventType === EVENTS.LOG_INIT) {
               const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
               const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
@@ -190,6 +193,7 @@ module.exports = {
       }
       try {
         const reportData = args.report;
+        helper.storeSessionsData(args);
         const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
         const testStepFinished = reportData.testStepFinished[args.envelope.testCaseStartedId];
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;

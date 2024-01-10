@@ -13,6 +13,7 @@ const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
 const LogPatcher = require('./logPatcher');
 const BSTestOpsPatcher = new LogPatcher({});
+const sessions = {};
 
 console = {};
 Object.keys(consoleHolder).forEach(method => {
@@ -693,4 +694,41 @@ exports.getPlatformVersion = (driver) => {
   }
 
   return platformVersion;
+};
+
+exports.generateCapabilityDetails = (args) => {
+  if (typeof(browser) !== 'undefined') {
+    return {
+      host: browser.options.webdriver.host,
+      port: browser.options.webdriver.port,
+      capabilities: browser.capabilities,
+      sessionId: browser.sessionId,
+      testCaseStartedId: args.envelope.testCaseStartedId
+    };
+  }
+  if (sessions[args.envelope.testCaseStartedId]) {
+    return sessions[args.envelope.testCaseStartedId];
+  }
+};
+
+exports.storeSessionsData = (data) => {
+  if (data.POST_SESSION_EVENT) {
+    const sessionDetails = JSON.parse(data.POST_SESSION_EVENT);
+    if (!sessionDetails.session) {
+      return;
+    }
+    if (!Object.keys(sessions).includes(sessionDetails.session.testCaseStartedId)) {
+      sessions[sessionDetails.session.testCaseStartedId] = sessionDetails.session;
+    }
+  } else {
+    if (!data.report.session) {
+      return;
+    }
+    
+    Object.keys(data.report.session).forEach(key => {
+      if (!Object.keys(sessions).includes(key)) {
+        sessions[key] = data.report.session[key];
+      }
+    });
+  }
 };
