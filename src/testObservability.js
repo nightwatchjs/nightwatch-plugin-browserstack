@@ -27,10 +27,16 @@ class TestObservability {
     if (settings && settings.desiredCapabilities && settings.desiredCapabilities['bstack:options']) {
       this._bstackOptions = settings.desiredCapabilities['bstack:options'];
     }
-    
+
     if (this._settings.test_observability || this._bstackOptions) {
       this._user = helper.getObservabilityUser(this._settings.test_observability, this._bstackOptions);
       this._key = helper.getObservabilityKey(this._settings.test_observability, this._bstackOptions);
+      if (!this._user || !this._key) {
+        Logger.error('Could not start Test Observability : Missing authentication token');
+        process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
+
+        return;
+      }
       CrashReporter.setCredentialsForCrashReportUpload(this._user, this._key);
       CrashReporter.setConfigDetails(settings);
     }
@@ -349,7 +355,7 @@ class TestObservability {
       const provider = helper.getCloudProvider(testFileReport.host);
       testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
     }
-    
+
     if (eventType === 'TestRunStarted') {
       testData.type = 'test';
       testData.integrations = {};
@@ -440,7 +446,7 @@ class TestObservability {
           result = 'skipped';
 
           return false;
-        } 
+        }
 
         return true;
       });
