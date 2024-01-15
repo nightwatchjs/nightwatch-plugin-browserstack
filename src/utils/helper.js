@@ -52,11 +52,11 @@ exports.isTestObservabilitySession = () => {
 };
 
 exports.getObservabilityUser = (config, bstackOptions={}) => {
-  return process.env.BROWSERSTACK_USERNAME || config.user  || bstackOptions.userName;
+  return process.env.BROWSERSTACK_USERNAME || config?.user  || bstackOptions?.userName;
 };
 
 exports.getObservabilityKey = (config, bstackOptions={}) => {
-  return process.env.BROWSERSTACK_ACCESS_KEY || config.key || bstackOptions.accessKey;
+  return process.env.BROWSERSTACK_ACCESS_KEY || config?.key || bstackOptions?.accessKey;
 };
 
 exports.isAccessibilitySession = () => {
@@ -73,7 +73,7 @@ exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
   }
 
   return '';
-  
+
 };
 
 exports.getBuildName = (options, bstackOptions={}, fromProduct={}) => {
@@ -218,7 +218,7 @@ exports.getCiInfo = () => {
       build_number: env.APPVEYOR_BUILD_NUMBER
     };
   }
-  // Azure CI 
+  // Azure CI
   if (env.AZURE_HTTP_USER_AGENT && env.TF_BUILD) {
     return {
       name: 'Azure CI',
@@ -477,7 +477,7 @@ exports.uploadEventData = async (eventData) => {
   if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
     requestQueueHandler.pending_test_uploads += 1;
   }
-  
+
   if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
     if (process.env.BS_TESTOPS_JWT === 'null') {
       Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : missing authentication token`);
@@ -487,10 +487,10 @@ exports.uploadEventData = async (eventData) => {
         status: 'error',
         message: 'Token/buildID is undefined, build creation might have failed'
       };
-    } 
-    let data = eventData; 
+    }
+    let data = eventData;
     let event_api_url = 'api/v1/event';
-      
+
     requestQueueHandler.start();
     const {
       shouldProceed,
@@ -511,7 +511,7 @@ exports.uploadEventData = async (eventData) => {
         'X-BSTACK-TESTOPS': 'true'
       }
     };
-  
+
     try {
       const response = await makeRequest('POST', event_api_url, data, config);
       if (response.data.error) {
@@ -540,8 +540,12 @@ exports.uploadEventData = async (eventData) => {
   }
 };
 
-exports.getAccessKey = (settings) => {
-  let accessKey = null;
+exports.getAccessKey = (settings, nwConfig) => {
+  let accessKey = process.env.BROWSERSTACK_ACCESS_KEY || nwConfig?.accessKey;
+  if (!this.isUndefined(accessKey)) {
+    return accessKey;
+  }
+
   if (this.isObject(settings.desiredCapabilities)) {
     if (settings.desiredCapabilities['browserstack.key']) {
       accessKey = settings.desiredCapabilities['browserstack.key'];
@@ -550,25 +554,21 @@ exports.getAccessKey = (settings) => {
     }
   }
 
-  if (this.isUndefined(accessKey)) {
-    accessKey = process.env.BROWSERSTACK_ACCESS_KEY;
-  }
-
   return accessKey;
 };
 
-exports.getUserName = (settings) => {
-  let userName = null;
+exports.getUserName = (settings, nwConfig) => {
+  let userName = process.env.BROWSERSTACK_USERNAME || nwConfig?.userName;
+  if (!this.isUndefined(userName)) {
+    return userName;
+  }
+
   if (this.isObject(settings.desiredCapabilities)) {
     if (settings.desiredCapabilities['browserstack.user']) {
       userName = settings.desiredCapabilities['browserstack.user'];
     } else if (this.isObject(settings.desiredCapabilities['bstack:options'])) {
       userName = settings.desiredCapabilities['bstack:options'].userName;
     }
-  }
-
-  if (this.isUndefined(userName)) {
-    userName = process.env.BROWSERSTACK_USERNAME;
   }
 
   return userName;
@@ -624,7 +624,7 @@ const sleep = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 
 exports.uploadPending = async (
   waitTimeout = DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS,
-  waitInterval = DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS 
+  waitInterval = DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS
 ) => {
   if (requestQueueHandler.pending_test_uploads <= 0 || waitTimeout <= 0) {
     return;

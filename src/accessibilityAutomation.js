@@ -34,8 +34,8 @@ class AccessibilityAutomation {
     }
 
     if (this._settings.accessibility || this._bstackOptions) {
-      this._user = helper.getUserName(this._settings);
-      this._key = helper.getAccessKey(this._settings);
+      this._user = helper.getUserName(settings, this._settings);
+      this._key = helper.getAccessKey(settings, this._settings);
     }
   }
 
@@ -99,6 +99,7 @@ class AccessibilityAutomation {
 
       return [responseData.accessibilityToken, responseData.id];
     } catch (error) {
+      process.env.BROWSERSTACK_ACCESSIBILITY = 'false';
       if (error.response) {
         Logger.error(
           `Exception while creating test run for BrowserStack Accessibility Automation: ${
@@ -316,7 +317,7 @@ class AccessibilityAutomation {
     try {
       const capabilityConfig = driver.desiredCapabilities || {};
       const deviceName = driver.capabilities.deviceName || (capabilityConfig['bstack:options'] ? capabilityConfig['bstack:options'].deviceName : capabilityConfig.device) || '';
-  
+
       if (deviceName !== '') {
         Logger.warn('Accessibility Automation will run only on Desktop browsers.');
 
@@ -334,7 +335,7 @@ class AccessibilityAutomation {
 
         return false;
       }
-  
+
       const chromeOptions = capabilityConfig.chromeOptions || capabilityConfig['goog:chromeOptions'] || {};
       if (chromeOptions.args?.includes('--headless') || chromeOptions.args?.includes('headless')) {
         Logger.warn('Accessibility Automation will not run on legacy headless mode. Switch to new headless mode or avoid using headless mode.');
