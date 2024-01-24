@@ -29,14 +29,14 @@ class LogPatcher extends Transport {
     });
     testLogs = [];
   };
-  
+
   logToTestOps = (level = LOG_LEVELS.INFO, message = ['']) => {
     try {
       let eventType = EVENTS.LOG;
-      if (!message[0].match(PID_MAPPING_REGEX)) {
-        consoleHolder[level.toLowerCase()](...message);
-      } else {
+      if (typeof message[0] === 'string' && message[0].match(PID_MAPPING_REGEX)) {
         eventType = EVENTS.LOG_INIT;
+      } else {
+        consoleHolder[level.toLowerCase()](...message);
       }
       const pid = process.pid;
       const loggingData = {

@@ -34,7 +34,7 @@ eventHelper.eventEmitter.on(EVENTS.LOG, (loggingData) => {
 const handleScreenshotUpload = async (data) => {
   try {
     const {args, uuid} = data;
-    await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());    
+    await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());
   } catch (error) {
     CrashReporter.uploadCrashReport(error.message, error.stack);
   }
@@ -105,7 +105,7 @@ module.exports = {
               await worker.process.send({testCaseStartedId, uuid});
             }
           });
-        });  
+        });
 
         const testMetaData = {
           uuid: uniqueId,
@@ -305,7 +305,7 @@ module.exports = {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
           await helper.handleNightwatchRerun(specs);
         }
-      } 
+      }
     } catch (error) {
       Logger.error(`Could not configure or launch test observability - ${error}`);
     }
@@ -317,7 +317,9 @@ module.exports = {
           const [jwtToken, testRunId] = await accessibilityAutomation.createAccessibilityTestRun();
           process.env.BS_A11Y_JWT = jwtToken;
           process.env.BS_A11Y_TEST_RUN_ID = testRunId;
-          accessibilityAutomation.setAccessibilityCapabilities(settings);
+          if (helper.isAccessibilitySession()) {
+            accessibilityAutomation.setAccessibilityCapabilities(settings);
+          }
         }
       }
     } catch (error) {
@@ -350,7 +352,7 @@ module.exports = {
       } catch (error) {
         Logger.error(`Exception in stop accessibility test run: ${error}`);
       }
-      
+
     }
   },
 
@@ -359,7 +361,7 @@ module.exports = {
     browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     // await accessibilityAutomation.beforeEachExecution(browser);
   },
-  
+
   // This will be run after each test suite is finished
   async afterEach(settings) {
     // await accessibilityAutomation.afterEachExecution(browser);
@@ -400,14 +402,14 @@ const cucumberPatcher = () => {
       constructor(...args) {
         super(...args);
       }
-      
+
       startWorker(...args) {
         const workerData  = super.startWorker(...args);
         workerList = this.workers;
-        
+
         return workerData;
       }
-      
+
       parseWorkerMessage(...args) {
         if ([EVENTS.LOG, EVENTS.LOG_INIT].includes(args[1]?.eventType)) {return}
 
