@@ -732,3 +732,22 @@ exports.storeSessionsData = (data) => {
     });
   }
 };
+
+exports.deepClone = (obj) => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(exports.deepClone);
+  }
+
+  const cloned = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      cloned[key] = exports.deepClone(obj[key]);
+    }
+  }
+
+  return cloned;
+};

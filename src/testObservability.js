@@ -8,6 +8,7 @@ const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
 const {API_URL} = require('./utils/constants');
+const hooksMap = {};
 
 class TestObservability {
   configure(settings = {}) {
@@ -469,12 +470,155 @@ class TestObservability {
       }
     }
 
+    if (eventType === 'TestRunFinished') {
+      const hooksList = this.getHooksListForTest(args);
+      if (hooksList && hooksList.length > 0) {
+        testData.hooks = hooksList;
+        this.updateTestStatus(args, testData);
+      }
+    }
+
     const uploadData = {
       event_type: eventType,
       test_run: testData
     };
     await helper.uploadEventData(uploadData);
 
+  }
+
+  updateTestStatus(args, testData) {
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    const hookList = hooksMap[testCaseStartedId];
+    if (hookList instanceof Array) {
+      for (const hook of hookList) {
+        if (hook.result === 'failed') {
+          testData.result = hook.result;
+          testData.failure = hook.failure_data;
+          testData.failure_reason = (hook.failure_data instanceof Array) ? hook.failure_data[0]?.backtrace.join('\n') : '';
+          testData.failure_type = hook.failure_type;
+          
+          return testData;
+        }
+      }
+    };
+  }
+
+  getHooksListForTest(args) {
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    const hookList = [];
+    hooksMap[testCaseStartedId].map(hookDetail => hookList.push(hookDetail.uuid));
+    
+    return hookList;
+  }
+
+  getHookRunEventData(args, eventType, hookData, testMetaData, hookType) {
+    if (eventType === 'HookRunFinished') {
+      const finishedAt = new Date().toISOString();
+      const testCaseStartedId = args.envelope.testCaseStartedId;
+      const hookList = hooksMap[testCaseStartedId];
+      if (!hookList) {
+        return;
+      }
+
+      const hookEventData = hookList.find(hook => hook.uuid === hookData.id);
+      if (!hookEventData) {
+        return;
+      }
+      const result = this.getHookResult(args);
+      hookEventData.result = result.status;
+      hookEventData.finished_at = finishedAt;
+      hookEventData.failure_type = result.failureType;
+      hookEventData.failure_data = [{backtrace: result.failureData}];
+
+      return hookEventData;
+    }
+    const hookDetails = args.report.hooks.find(hookDetail => hookDetail.id === hookData.hookId);
+    const relativeFilePath = hookDetails?.sourceReference?.uri;
+    if (!relativeFilePath) {
+      return;
+    } else if (relativeFilePath.includes('setup_cucumber_runner')) {
+      return;
+    }
+    const startedAt = new Date().toISOString();
+    const result = 'pending';
+    const hookTagsList = hookDetails.tagExpression ? hookDetails.tagExpression.split(' ').filter(val => val.includes('@')) : null;
+    
+    const hookEventData = {
+      uuid: hookData.id,
+      type: 'hook',
+      hook_type: hookType,
+      name: hookDetails?.name || '',
+      body: {
+        lang: 'NodeJs',
+        code: null
+      },
+      tags: hookTagsList,
+      scope: testMetaData?.feature?.name,
+      scopes: [testMetaData?.feature?.name || ''],
+      file_name: relativeFilePath,
+      location: relativeFilePath,
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, relativeFilePath) : null,
+      result: result.status,
+      started_at: startedAt,
+      framework: 'nightwatch'
+    };
+
+    return hookEventData;
+  }
+
+  async sendHook(args, eventType, testSteps, testStepId, testMetaData) {
+    const hookData = testSteps.find((testStep) => testStep.id === testStepId);
+    if (!hookData.hookId) {
+      return;
+    }
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    const hookType = this.getCucumberHookType(testSteps, hookData);
+    const hookRunEvent = this.getHookRunEventData(args, eventType, hookData, testMetaData, hookType);
+    if (!hookRunEvent) {
+      return;
+    }
+    if (eventType === 'HookRunStarted') {
+      if (hooksMap[testCaseStartedId]) {
+        hooksMap[testCaseStartedId].push(hookRunEvent);
+      } else {
+        hooksMap[testCaseStartedId] = [hookRunEvent];
+      }
+    }
+    const hookEventUploadData = {
+      event_type: eventType,
+      hook_run: hookRunEvent
+    };
+    await helper.uploadEventData(hookEventUploadData);
+  }
+
+  getHookResult(args) {
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    const hookResult = args.report.testStepFinished[testCaseStartedId].testStepResult;
+    let failure;
+    let failureType;
+    if (hookResult?.status.toString().toLowerCase() === 'failed') {
+      failure = (hookResult?.exception === undefined) ? hookResult?.message : hookResult?.exception?.message;
+      failureType = (hookResult?.exception === undefined) ? 'UnhandledError' : hookResult?.message.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+    }
+
+    return {
+      status: hookResult.status.toLowerCase(),
+      failureType: failureType || null,
+      failureData: (!failure) ? null : [failure]
+    };
+  }
+
+  // BEFORE_ALL and AFTER_ALL are not implemented for TO
+  getCucumberHookType(testSteps, hookData) {
+    let isStep = false;
+    for (const step of testSteps) {
+      if (step.pickleStepId) {
+        isStep = true;
+      }
+      if (hookData.id === step.id) {
+        return (isStep) ? 'AFTER_EACH' : 'BEFORE_EACH';
+      }
+    }
   }
 
   async appendTestItemLog (log, testUuid) {

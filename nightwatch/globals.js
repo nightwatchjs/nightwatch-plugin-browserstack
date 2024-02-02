@@ -155,7 +155,7 @@ module.exports = {
       }
     });
 
-    eventBroadcaster.on('TestStepStarted', (args) => {
+    eventBroadcaster.on('TestStepStarted', async (args) => {
       if (!helper.isTestObservabilitySession()) {
         return;
       }
@@ -166,6 +166,7 @@ module.exports = {
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepStarted[args.envelope.testCaseStartedId].testStepId;
+        await testObservability.sendHook(args, 'HookRunStarted', testSteps, testStepId, _tests[testCaseId]);
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
         if (pickleStepId && _tests[testCaseId]?.['testStepId'] !== testStepId) {
           _tests[testCaseId]['testStepId'] = testStepId;
@@ -200,6 +201,7 @@ module.exports = {
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepFinished[args.envelope.testCaseStartedId].testStepId;
+        await testObservability.sendHook(args, 'HookRunFinished', testSteps, testStepId, _tests[testCaseId]);
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
         let failure;
         let failureType;
