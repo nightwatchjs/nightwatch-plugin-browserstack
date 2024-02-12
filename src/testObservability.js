@@ -505,10 +505,11 @@ class TestObservability {
 
   getHooksListForTest(args) {
     const testCaseStartedId = args.envelope.testCaseStartedId;
-    const hookList = [];
-    hooksMap[testCaseStartedId].map(hookDetail => hookList.push(hookDetail.uuid));
-    
-    return hookList;
+    if (hooksMap[testCaseStartedId]) {
+      return hooksMap[testCaseStartedId].map(hookDetail => hookDetail.uuid);
+    }
+
+    return [];
   }
 
   getHookRunEventData(args, eventType, hookData, testMetaData, hookType) {
