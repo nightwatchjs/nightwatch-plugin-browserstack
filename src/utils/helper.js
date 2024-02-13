@@ -697,7 +697,7 @@ exports.getPlatformVersion = (driver) => {
 };
 
 exports.generateCapabilityDetails = (args) => {
-  if (this.isUndefined(browser)) {
+  if (!this.isUndefined(browser)) {
     return {
       host: browser.options.webdriver.host,
       port: browser.options.webdriver.port,
