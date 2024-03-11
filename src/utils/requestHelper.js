@@ -1,7 +1,7 @@
 const {API_URL, SCREENSHOT_EVENT_URL} = require('./constants');
 const http = require('node:http');
 const https = require('node:https');
-const request = require('request');
+const request = require('@cypress/request');
 
 function createKeepAliveAgent(protocol) {
   return new protocol.Agent({
