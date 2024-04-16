@@ -4,6 +4,7 @@ const {makeRequest} = require('./utils/requestHelper');
 const Logger = require('./utils/logger');
 const {ACCESSIBILITY_URL} = require('./utils/constants');
 const util = require('util');
+const scripts = require('./utils/scripts');
 
 class AccessibilityAutomation {
   configure(settings = {}) {
@@ -73,7 +74,10 @@ class AccessibilityAutomation {
         source: {
           frameworkName: helper.getFrameworkName(this._testRunner),
           frameworkVersion: helper.getPackageVersion('nightwatch'),
-          sdkVersion: helper.getAgentVersion()
+          sdkVersion: helper.getAgentVersion(),
+          language: 'javascript',
+          testFramework: 'selenium',
+          testFrameworkVersion: helper.getPackageVersion('selenium-webdriver')
         },
         settings: accessibilityOptions,
         versionControl: await helper.getGitMetaData(),
@@ -91,9 +95,11 @@ class AccessibilityAutomation {
         }
       };
 
-      const response = await makeRequest('POST', 'test_runs', data, config, ACCESSIBILITY_URL);
+      const response = await makeRequest('POST', 'v2/test_runs', data, config, ACCESSIBILITY_URL);
       const responseData = response.data.data || {};
 
+      scripts.parseFromJson(responseData);
+      scripts.toJson();
       accessibilityOptions.scannerVersion = responseData.scannerVersion;
       process.env.BROWSERSTACK_ACCESSIBILITY_OPTIONS = JSON.stringify(accessibilityOptions);
 
@@ -381,25 +387,6 @@ class AccessibilityAutomation {
                 Logger.info(
                   'Setup for Accessibility testing has started. Automate test case execution will begin momentarily.'
                 );
-
-                await browser.executeAsyncScript(`
-                const callback = arguments[arguments.length - 1];
-                const fn = () => {
-                  window.addEventListener('A11Y_TAP_STARTED', fn2);
-                  const e = new CustomEvent('A11Y_FORCE_START');
-                  window.dispatchEvent(e);
-                };
-                const fn2 = () => {
-                  window.removeEventListener('A11Y_TAP_STARTED', fn);
-                  callback();
-                }
-                fn();
-              `);
-              } else {
-                await browser.executeAsyncScript(`
-                const e = new CustomEvent('A11Y_FORCE_STOP');
-                window.dispatchEvent(e);
-              `);
               }
             }
             this.currentTest.accessibilityScanStarted =
@@ -435,29 +422,10 @@ class AccessibilityAutomation {
           },
           platform: await this.fetchPlatformDetails(browser)
         };
-        const final_res = await browser.executeAsyncScript(
-          `
-            const callback = arguments[arguments.length - 1];
-
-            this.res = null;
-            if (arguments[0].saveResults) {
-              window.addEventListener('A11Y_TAP_TRANSPORTER', (event) => {
-                window.tapTransporterData = event.detail;
-                this.res = window.tapTransporterData;
-                callback(this.res);
-              });
-            }
-            const e = new CustomEvent('A11Y_TEST_END', {detail: arguments[0]});
-            window.dispatchEvent(e);
-            if (arguments[0].saveResults !== true ) {
-              callback();
-            }
-          `,
-          dataForExtension
-        );
-        if (this.currentTest.shouldScanTestForAccessibility) {
-          Logger.info('Accessibility testing for this test case has ended.');
-        }
+        Logger.debug('Performing scan before saving results');
+        Logger.debug(util.format(await browser.executeAsyncScript(scripts.performScan, {method: testMetaData.testcase})));
+        await browser.executeAsyncScript(scripts.saveTestResults, dataForExtension);
+        Logger.info('Accessibility testing for this test case has ended.');
       }
     } catch (er) {
       Logger.error(
