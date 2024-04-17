@@ -18,7 +18,15 @@ const sessions = {};
 console = {};
 Object.keys(consoleHolder).forEach(method => {
   console[method] = (...args) => {
-    BSTestOpsPatcher[method](...args);
+    try {
+      if (!Object.keys(BSTestOpsPatcher).includes(method)) {
+        consoleHolder[method](...args);
+      } else {
+        BSTestOpsPatcher[method](...args);
+      }
+    } catch (error) {
+      consoleHolder[method](...args);
+    }
   };
 });
 
