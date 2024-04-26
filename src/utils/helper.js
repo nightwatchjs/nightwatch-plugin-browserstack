@@ -685,7 +685,7 @@ exports.getScenarioExamples = (gherkinDocument, scenario) => {
 };
 
 exports.isCucumberTestSuite = (settings) => {
-  return settings?.test_runner?.type === 'cucumber';
+  return settings?.test_runner?.type === 'cucumber' || exports.isTrue(process.env.CUCUMBER_SUITE);
 };
 
 exports.getPlatformVersion = (driver) => {
@@ -758,4 +758,8 @@ exports.deepClone = (obj) => {
   }
 
   return cloned;
+};
+
+exports.shouldSendLogs = () => {
+  return exports.isTestObservabilitySession() && exports.isCucumberTestSuite();
 };
