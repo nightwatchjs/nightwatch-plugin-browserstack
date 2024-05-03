@@ -317,6 +317,7 @@ module.exports = {
       if (helper.isTestObservabilitySession()) {
         if (helper.isCucumberTestSuite(settings)) {
           cucumberPatcher();
+          process.env.CUCUMBER_SUITE = 'true';
           settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;

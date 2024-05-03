@@ -38,6 +38,9 @@ class LogPatcher extends Transport {
       } else {
         consoleHolder[level.toLowerCase()](...message);
       }
+
+      if (!helper.shouldSendLogs()) {return}
+
       const pid = process.pid;
       const loggingData = {
         timestamp: new Date().toISOString(),

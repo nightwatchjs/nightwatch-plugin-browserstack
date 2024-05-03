@@ -18,7 +18,15 @@ const sessions = {};
 console = {};
 Object.keys(consoleHolder).forEach(method => {
   console[method] = (...args) => {
-    BSTestOpsPatcher[method](...args);
+    try {
+      if (!Object.keys(BSTestOpsPatcher).includes(method)) {
+        consoleHolder[method](...args);
+      } else {
+        BSTestOpsPatcher[method](...args);
+      }
+    } catch (error) {
+      consoleHolder[method](...args);
+    }
   };
 });
 
@@ -677,7 +685,7 @@ exports.getScenarioExamples = (gherkinDocument, scenario) => {
 };
 
 exports.isCucumberTestSuite = (settings) => {
-  return settings?.test_runner?.type === 'cucumber';
+  return settings?.test_runner?.type === 'cucumber' || exports.isTrue(process.env.CUCUMBER_SUITE);
 };
 
 exports.getPlatformVersion = (driver) => {
@@ -750,6 +758,10 @@ exports.deepClone = (obj) => {
   }
 
   return cloned;
+};
+
+exports.shouldSendLogs = () => {
+  return exports.isTestObservabilitySession() && exports.isCucumberTestSuite();
 };
 
 exports.homedir = () => {
