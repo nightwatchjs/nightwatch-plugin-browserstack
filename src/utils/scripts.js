@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 
-const helper = require('./helper');
+const os = require('os');
 
 class Scripts {
   constructor() {
@@ -10,7 +10,7 @@ class Scripts {
     this.getResultsSummary = null;
     this.saveTestResults = null;
 
-    this.browserstackFolderPath = path.join(helper.homedir(), '.browserstack');
+    this.browserstackFolderPath = path.join(os.homedir(), '.browserstack');
     this.commandsPath = path.join(this.browserstackFolderPath, 'commands.json');
 
     this.fromJson();

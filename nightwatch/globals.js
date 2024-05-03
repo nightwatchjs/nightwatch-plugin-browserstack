@@ -12,6 +12,11 @@ const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
 
+const ElementCommand = helper.requireModule('nightwatch/lib/element/command.js')
+const ScopedElement = helper.requireModule('nightwatch/lib/api/web-element/scoped-element.js')
+const Transport = helper.requireModule('nightwatch/lib/transport/selenium-webdriver/index.js')
+const fs = require('fs');
+
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 const _tests = {};
@@ -133,7 +138,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestCaseFinished', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession) {
         return;
       }
       try {
@@ -147,7 +152,22 @@ module.exports = {
         if (testMetaData) {
           delete _tests[testCaseId];
           testMetaData.finishedAt = new Date().toISOString();
-          await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+          if (helper.isTestObservabilitySession()) {
+            await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+          }
+          // WIP for cucumber
+          if (helper.isAccessibilitySession()) {
+            console.log(testMetaData)
+            const test = {
+              testcase: testMetaData.scenario?.name,
+              metadata: {
+                name: testMetaData.feature?.name,
+                modulePath: path.relative(process.cwd(), testMetaData.feature?.path),
+                tags: pickleData.tags?.map(({name}) => (name)),
+              }
+            }
+            await accessibilityAutomation.afterEachExecution(test);
+          }
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -359,6 +379,30 @@ module.exports = {
   },
 
   async beforeEach(settings) {
+    // WIP for command wrap
+    const origExecuteProtocolAction = ElementCommand.prototype.executeProtocolAction;
+    ElementCommand.prototype.executeProtocolAction = function(actionName, args=[]) {
+      fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `Action: ${actionName}\n`)
+      // browser.executeScript(scripts.performScan);
+      return origExecuteProtocolAction.apply(this, [actionName, args]);
+    }
+    const origRunQueuedCommand = ScopedElement.prototype.runQueuedCommand;
+    ScopedElement.prototype.runQueuedCommand = function(actionName, args={}) {
+      fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `Action: ${actionName}\n`)
+      // browser.executeScript(scripts.performScan);
+      return origRunQueuedCommand.apply(this, [actionName, args]);
+    }
+    const origTExecuteProtocolAction = Transport.prototype.executeProtocolAction;
+    Transport.prototype.executeProtocolAction = function(protocolAction, args) {
+      if (typeof protocolAction == "object" && protocolAction.actionName) {
+        fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `transport obj action: ${protocolAction.actionName}\n`)
+      } else {
+        fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `transport action: ${protocolAction}\n`)
+      }
+      // browser.executeScript(scripts.performScan);
+      return origTExecuteProtocolAction.apply(this, [protocolAction, args]);
+    }
+
     browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
     browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     // await accessibilityAutomation.beforeEachExecution(browser);

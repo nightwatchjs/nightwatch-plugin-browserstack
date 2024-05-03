@@ -406,14 +406,20 @@ class AccessibilityAutomation {
 
   async afterEachExecution(testMetaData) {
     try {
-      if (this.currentTest.accessibilityScanStarted && this.isAccessibilityAutomationSession() && this._isAccessibilitySession) {
-        if (this.currentTest.shouldScanTestForAccessibility) {
+      // WIP for cucumber
+      const shouldScanTestForAccessibility = this.currentTest ? this.currentTest.shouldScanTestForAccessibility : this.shouldScanTestForAccessibility(
+        testMetaData
+      );
+      const accessibilityScanStarted = this.currentTest ? this.currentTest.accessibilityScanStarted : true;
+      this._isAccessibilitySession = this.setExtension(browser);
+      if (accessibilityScanStarted && this.isAccessibilityAutomationSession() && this._isAccessibilitySession) {
+        if (shouldScanTestForAccessibility) {
           Logger.info(
             'Automate test case execution has ended. Processing for accessibility testing is underway. '
           );
         }
         const dataForExtension = {
-          saveResults: this.currentTest.shouldScanTestForAccessibility,
+          saveResults: shouldScanTestForAccessibility,
           testDetails: {
             name: testMetaData.testcase,
             testRunId: process.env.BS_A11Y_TEST_RUN_ID,
@@ -429,7 +435,7 @@ class AccessibilityAutomation {
       }
     } catch (er) {
       Logger.error(
-        `Accessibility results could not be processed for the test case ${this.currentTest.module}. Error :`,
+        `Accessibility results could not be processed for the test case. Error :`,
         er
       );
     }
