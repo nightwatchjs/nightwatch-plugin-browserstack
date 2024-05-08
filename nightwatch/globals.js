@@ -77,7 +77,7 @@ module.exports = {
   registerEventHandlers(eventBroadcaster) {
 
     eventBroadcaster.on('TestCaseStarted', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -133,7 +133,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestCaseFinished', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -147,7 +147,9 @@ module.exports = {
         if (testMetaData) {
           delete _tests[testCaseId];
           testMetaData.finishedAt = new Date().toISOString();
-          await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+          if (helper.isTestObservabilitySession()) {
+            await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+          }
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -156,7 +158,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepStarted', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -189,7 +191,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepFinished', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -298,7 +300,6 @@ module.exports = {
         if (helper.isCucumberTestSuite(settings)) {
           cucumberPatcher();
           process.env.CUCUMBER_SUITE = 'true';
-          settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
         if (testObservability._user && testObservability._key) {
@@ -329,6 +330,9 @@ module.exports = {
       Logger.error(`Could not configure or launch accessibility automation - ${error}`);
     }
 
+    if ((helper.isAccessibilitySession() || helper.isTestObservabilitySession()) && helper.isCucumberTestSuite(settings)) {
+      settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
+    }
   },
 
   async after() {
@@ -347,7 +351,6 @@ module.exports = {
       } catch (error) {
         Logger.error(`Something went wrong in stopping build session for test observability - ${error}`);
       }
-      process.exit();
     }
     if (helper.isAccessibilitySession()){
       try {
@@ -355,13 +358,18 @@ module.exports = {
       } catch (error) {
         Logger.error(`Exception in stop accessibility test run: ${error}`);
       }
-
     }
+    process.exit();
   },
 
   async beforeEach(settings) {
-    browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
-    browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
+    if (helper.isAccessibilitySession()) {
+      helper.modifySeleniumCommands();
+      helper.modifyNightwatchCommands();
+      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
+      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
+    }
+
     // await accessibilityAutomation.beforeEachExecution(browser);
   },
 
