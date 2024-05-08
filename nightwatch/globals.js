@@ -12,9 +12,6 @@ const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
 
-const ElementCommand = helper.requireModule('nightwatch/lib/element/command.js')
-const ScopedElement = helper.requireModule('nightwatch/lib/api/web-element/scoped-element.js')
-const Transport = helper.requireModule('nightwatch/lib/transport/selenium-webdriver/index.js')
 const fs = require('fs');
 
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
@@ -82,7 +79,7 @@ module.exports = {
   registerEventHandlers(eventBroadcaster) {
 
     eventBroadcaster.on('TestCaseStarted', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -138,7 +135,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestCaseFinished', async (args) => {
-      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -155,19 +152,6 @@ module.exports = {
           if (helper.isTestObservabilitySession()) {
             await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
           }
-          // WIP for cucumber
-          if (helper.isAccessibilitySession()) {
-            console.log(testMetaData)
-            const test = {
-              testcase: testMetaData.scenario?.name,
-              metadata: {
-                name: testMetaData.feature?.name,
-                modulePath: path.relative(process.cwd(), testMetaData.feature?.path),
-                tags: pickleData.tags?.map(({name}) => (name)),
-              }
-            }
-            await accessibilityAutomation.afterEachExecution(test);
-          }
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -176,7 +160,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepStarted', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -209,7 +193,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepFinished', async (args) => {
-      if (!helper.isTestObservabilitySession()) {
+      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
         return;
       }
       try {
@@ -318,7 +302,6 @@ module.exports = {
         if (helper.isCucumberTestSuite(settings)) {
           cucumberPatcher();
           process.env.CUCUMBER_SUITE = 'true';
-          settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
         if (testObservability._user && testObservability._key) {
@@ -349,6 +332,9 @@ module.exports = {
       Logger.error(`Could not configure or launch accessibility automation - ${error}`);
     }
 
+    if ((helper.isAccessibilitySession() || helper.isTestObservabilitySession()) && helper.isCucumberTestSuite(settings)) {
+      settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
+    }
   },
 
   async after() {
@@ -367,7 +353,6 @@ module.exports = {
       } catch (error) {
         Logger.error(`Something went wrong in stopping build session for test observability - ${error}`);
       }
-      process.exit();
     }
     if (helper.isAccessibilitySession()){
       try {
@@ -375,37 +360,18 @@ module.exports = {
       } catch (error) {
         Logger.error(`Exception in stop accessibility test run: ${error}`);
       }
-
     }
+    process.exit();
   },
 
   async beforeEach(settings) {
-    // WIP for command wrap
-    const origExecuteProtocolAction = ElementCommand.prototype.executeProtocolAction;
-    ElementCommand.prototype.executeProtocolAction = function(actionName, args=[]) {
-      fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `Action: ${actionName}\n`)
-      // browser.executeScript(scripts.performScan);
-      return origExecuteProtocolAction.apply(this, [actionName, args]);
-    }
-    const origRunQueuedCommand = ScopedElement.prototype.runQueuedCommand;
-    ScopedElement.prototype.runQueuedCommand = function(actionName, args={}) {
-      fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `Action: ${actionName}\n`)
-      // browser.executeScript(scripts.performScan);
-      return origRunQueuedCommand.apply(this, [actionName, args]);
-    }
-    const origTExecuteProtocolAction = Transport.prototype.executeProtocolAction;
-    Transport.prototype.executeProtocolAction = function(protocolAction, args) {
-      if (typeof protocolAction == "object" && protocolAction.actionName) {
-        fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `transport obj action: ${protocolAction.actionName}\n`)
-      } else {
-        fs.appendFileSync("/Users/aditya/nightwatch-browserstack/patch.log", `transport action: ${protocolAction}\n`)
-      }
-      // browser.executeScript(scripts.performScan);
-      return origTExecuteProtocolAction.apply(this, [protocolAction, args]);
+    if (helper.isAccessibilitySession()) {
+      helper.modifySeleniumCommands();
+      helper.modifyNightwatchCommands();
+      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
+      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     }
 
-    browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
-    browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     // await accessibilityAutomation.beforeEachExecution(browser);
   },
 

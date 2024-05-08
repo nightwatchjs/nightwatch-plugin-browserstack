@@ -359,11 +359,13 @@ class AccessibilityAutomation {
 
   async beforeEachExecution(testMetaData) {
     try {
-      this.currentTest = browser.currentTest;
+      this.currentTest = browser.currentTest || {};
       this.currentTest.shouldScanTestForAccessibility = this.shouldScanTestForAccessibility(
         testMetaData
       );
+      global.shouldScanTestForAccessibility = this.currentTest.shouldScanTestForAccessibility;
       this.currentTest.accessibilityScanStarted = true;
+      global.isAccessibilityPlatform = true;
       this._isAccessibilitySession = this.setExtension(browser);
 
       if (this.isAccessibilityAutomationSession() && browser && helper.isAccessibilitySession() && this._isAccessibilitySession) {
@@ -406,7 +408,6 @@ class AccessibilityAutomation {
 
   async afterEachExecution(testMetaData) {
     try {
-      // WIP for cucumber
       const shouldScanTestForAccessibility = this.currentTest ? this.currentTest.shouldScanTestForAccessibility : this.shouldScanTestForAccessibility(
         testMetaData
       );
