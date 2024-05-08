@@ -12,8 +12,6 @@ const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
 
-const fs = require('fs');
-
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 const _tests = {};
