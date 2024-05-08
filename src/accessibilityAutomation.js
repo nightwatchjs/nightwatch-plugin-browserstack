@@ -434,10 +434,7 @@ class AccessibilityAutomation {
         Logger.info('Accessibility testing for this test case has ended.');
       }
     } catch (er) {
-      Logger.error(
-        `Accessibility results could not be processed for the test case. Error :`,
-        er
-      );
+      Logger.error('Accessibility results could not be processed for the test case. Error: ' + er.toString());
     }
   }
 
