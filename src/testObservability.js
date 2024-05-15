@@ -405,6 +405,9 @@ class TestObservability {
       vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, feature.path) : null,
       framework: 'nightwatch',
       result: 'pending',
+      product_map: {
+        'accessibility': helper.isAccessibilitySession()
+      },
       meta: {
         feature: feature,
         scenario: scenario,

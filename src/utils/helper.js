@@ -14,6 +14,8 @@ const Logger = require('./logger');
 const LogPatcher = require('./logPatcher');
 const BSTestOpsPatcher = new LogPatcher({});
 const sessions = {};
+const scripts = require('./scripts');
+const {shouldUploadEventToTestHub} = require('../testHub/utils');
 
 console = {};
 Object.keys(consoleHolder).forEach(method => {
@@ -483,6 +485,8 @@ exports.uploadEventData = async (eventData) => {
     ['HookRunFinished']: 'Hook_End_Upload'
   }[eventData.event_type];
 
+  if (!shouldUploadEventToTestHub(eventData.event_type)) { return }
+
   if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
     requestQueueHandler.pending_test_uploads += 1;
   }
@@ -762,4 +766,127 @@ exports.deepClone = (obj) => {
 
 exports.shouldSendLogs = () => {
   return exports.isTestObservabilitySession() && exports.isCucumberTestSuite();
+};
+
+exports.homedir = () => {
+  if (typeof os.homedir === 'function') {return os.homedir()}
+
+  var env = process.env;
+  var home = env.HOME;
+  var user = env.LOGNAME || env.USER || env.LNAME || env.USERNAME;
+
+  if (process.platform === 'win32') {
+    return env.USERPROFILE || env.HOMEDRIVE + env.HOMEPATH || home || null;
+  }
+
+  if (process.platform === 'darwin') {
+    return home || (user ? '/Users/' + user : null);
+  }
+
+  if (process.platform === 'linux') {
+    return home || (process.getuid() === 0 ? '/root' : (user ? '/home/' + user : null));
+  }
+
+  return home || null;
+};
+
+exports.isBrowserStackCommandExecutor = (parameters) => {
+  if (parameters && parameters.script && typeof parameters.script === 'string') {
+    return parameters.script.includes('browserstack_executor');
+  }
+
+  return false;
+};
+
+exports.modifySeleniumCommands = () => {
+  try {
+    let Executor = exports.requireModule('selenium-webdriver/lib/webdriver.js').WebDriver;
+    if (!Executor.prototype || !Executor.prototype.execute) {
+      Executor = exports.requireModule('selenium-webdriver/lib/http.js').Executor;
+    }
+
+    if (Executor.prototype && Executor.prototype.execute) {
+      const originalExecute = Executor.prototype.execute;
+      Logger.debug('Modifying webdriver execute');
+
+      Executor.prototype.execute = async function() {
+        exports.performAccessibilityScan({commandType: 'selenium', arguments});
+
+        return originalExecute.apply(this, arguments);
+      };
+    }
+  } catch (err) {
+    Logger.debug('Unable to find executor class ' + err);
+  }
+};
+
+exports.modifyNightwatchCommands = () => {
+  const modifyClientCommand = (commandMeta) => {
+    try {
+      const CommandClass = exports.requireModule(commandMeta.packagePath);
+      if (CommandClass?.prototype?.performAction) {
+        const originalCommandClass = CommandClass.prototype.performAction;
+    
+        CommandClass.prototype.performAction = function(...args) {  
+          exports.performAccessibilityScan({commandType: 'nightwatch', methodName: commandMeta.commandName});
+
+          return originalCommandClass.apply(this, ...args);
+        };
+      }
+    } catch (err) {
+      Logger.debug(`Unable to find executor class from method ${commandMeta.commandName}, Error: ` + err);
+    }
+  };
+
+  const commandsToModify = [
+    {
+      commandName: 'registerBasicAuth',
+      packagePath: 'nightwatch/lib/api/client-commands/registerBasicAuth.js'
+    },
+    {
+      commandName: 'setDeviceDimensions',
+      packagePath: 'nightwatch/lib/api/client-commands/setDeviceDimensions.js'
+    },
+    {
+      commandName: 'setGeolocation',
+      packagePath: 'nightwatch/lib/api/client-commands/setGeolocation.js'
+    }
+  ];
+  commandsToModify.forEach(commandMeta => {
+    modifyClientCommand(commandMeta);
+  });
+};
+
+exports.performAccessibilityScan = (data) => {
+  let shouldScanCommand = false;
+  let methodName = '';
+  if (data.commandType === 'selenium') {
+    methodName = data.arguments[0].name_;
+    shouldScanCommand = !global.bstackAllyScanning && global.isAccessibilityPlatform && global.shouldScanTestForAccessibility && scripts.shouldWrapCommand(methodName) && !exports.isBrowserStackCommandExecutor(data.arguments[0].parameters_);
+  } else if (data.commandType === 'nightwatch') {
+    methodName = data.methodName;
+    shouldScanCommand = !global.bstackAllyScanning && global.isAccessibilityPlatform && global.shouldScanTestForAccessibility && scripts.shouldWrapCommand(methodName);
+  }
+
+  try {
+    if (shouldScanCommand) {
+      global.bstackAllyScanning = true,
+      Logger.debug(`Performing scan for ${methodName}`);
+      browser.executeAsyncScript(scripts.performScan);
+    }
+  } catch (er) {
+    Logger.debug(`Failed to perform scan for ${methodName}, Error: ${er}`);
+  }
+  global.bstackAllyScanning = false;
+};
+
+exports.getCucumberTestMetaData = (testCase) => {
+  return {
+    testcase: testCase.pickle?.name,
+    metadata: {
+      name: testCase.gherkinDocument?.feature?.name,
+      modulePath: path.relative(process.cwd(), testCase.pickle?.uri),
+      tags: testCase.pickle?.tags?.map(({name}) => (name))
+    }
+  };
 };
