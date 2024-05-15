@@ -11,6 +11,9 @@ const eventHelper = require('../src/utils/eventHelper');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
+const TestHubHandler = require('../src/testHub/testHubHandler');
+const testHubHandler = new TestHubHandler();
+const testHubUtils = require('../src/testHub/utils');
 
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
@@ -37,6 +40,46 @@ const handleScreenshotUpload = async (data) => {
     await testObservability.createScreenshotLogEvent(uuid, args.path, Date.now());
   } catch (error) {
     CrashReporter.uploadCrashReport(error.message, error.stack);
+  }
+};
+
+const setupAccessibility = async (settings) => {
+  if (helper.isCucumberTestSuite()) { return }
+
+  try {
+    accessibilityAutomation.configure(settings);
+    if (helper.isAccessibilitySession()) {
+      if (accessibilityAutomation._user && accessibilityAutomation._key) {
+        const [jwtToken, testRunId] = await accessibilityAutomation.createAccessibilityTestRun();
+        process.env.BS_A11Y_JWT = jwtToken;
+        process.env.BS_A11Y_TEST_RUN_ID = testRunId;
+        if (helper.isAccessibilitySession()) {
+          accessibilityAutomation.setAccessibilityCapabilities(settings);
+        }
+      }
+    }
+  } catch (error) {
+    Logger.error(`Could not configure or launch accessibility automation - ${error}`);
+  }
+};
+
+const setupTestObservability = async (settings) => {
+  if (helper.isCucumberTestSuite()) { return }
+
+  try {
+    testObservability.configure(settings);
+    if (helper.isTestObservabilitySession()) {
+      settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
+      if (testObservability._user && testObservability._key) {
+        await testObservability.launchTestSession();
+      }
+      if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
+        const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
+        await helper.handleNightwatchRerun(specs);
+      }
+    }
+  } catch (error) {
+    Logger.error(`Could not configure or launch test observability - ${error}`);
   }
 };
 
@@ -77,7 +120,7 @@ module.exports = {
   registerEventHandlers(eventBroadcaster) {
 
     eventBroadcaster.on('TestCaseStarted', async (args) => {
-      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
+      if (!testHubUtils.shouldProcessEventForTestHub()) {
         return;
       }
       try {
@@ -133,7 +176,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestCaseFinished', async (args) => {
-      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
+      if (!testHubUtils.shouldProcessEventForTestHub()) {
         return;
       }
       try {
@@ -147,9 +190,7 @@ module.exports = {
         if (testMetaData) {
           delete _tests[testCaseId];
           testMetaData.finishedAt = new Date().toISOString();
-          if (helper.isTestObservabilitySession()) {
-            await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
-          }
+          await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -158,7 +199,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepStarted', async (args) => {
-      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
+      if (!testHubUtils.shouldProcessEventForTestHub()) {
         return;
       }
       try {
@@ -191,7 +232,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestStepFinished', async (args) => {
-      if (!helper.isTestObservabilitySession() && !helper.isAccessibilitySession()) {
+      if (!testHubUtils.shouldProcessEventForTestHub()) {
         return;
       }
       try {
@@ -295,49 +336,35 @@ module.exports = {
     }
 
     try {
-      testObservability.configure(settings);
-      if (helper.isTestObservabilitySession()) {
-        if (helper.isCucumberTestSuite(settings)) {
-          cucumberPatcher();
-          process.env.CUCUMBER_SUITE = 'true';
-        }
-        settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
-        if (testObservability._user && testObservability._key) {
-          await testObservability.launchTestSession();
-        }
+      testHubHandler.configure(settings);
+      if (testHubUtils.shouldProcessEventForTestHub()) {
+        await testHubHandler.launchBuild();
+        cucumberPatcher();
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
           const specs = process.env.BROWSERSTACK_RERUN_TESTS.split(',');
           await helper.handleNightwatchRerun(specs);
         }
       }
-    } catch (error) {
-      Logger.error(`Could not configure or launch test observability - ${error}`);
-    }
-
-    try {
-      accessibilityAutomation.configure(settings);
       if (helper.isAccessibilitySession()) {
-        if (accessibilityAutomation._user && accessibilityAutomation._key) {
-          const [jwtToken, testRunId] = await accessibilityAutomation.createAccessibilityTestRun();
-          process.env.BS_A11Y_JWT = jwtToken;
-          process.env.BS_A11Y_TEST_RUN_ID = testRunId;
-          if (helper.isAccessibilitySession()) {
-            accessibilityAutomation.setAccessibilityCapabilities(settings);
-          }
-        }
+        accessibilityAutomation.setAccessibilityCapabilities(settings);
       }
+
     } catch (error) {
-      Logger.error(`Could not configure or launch accessibility automation - ${error}`);
+      Logger.error(`Could not configure or launch testHub Build - ${error}`);
     }
 
-    if ((helper.isAccessibilitySession() || helper.isTestObservabilitySession()) && helper.isCucumberTestSuite(settings)) {
+    await setupTestObservability(settings);
+    await setupAccessibility(settings);
+
+    if (testHubUtils.shouldProcessEventForTestHub()) {
       settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
     }
   },
 
   async after() {
     localTunnel.stop();
-    if (helper.isTestObservabilitySession()) {
+    await testHubHandler.stopTestHub();
+    if (helper.isTestObservabilitySession() && !helper.isCucumberTestSuite()) {
       process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
       process.env.NIGHTWATCH_RERUN_REPORT_FILE = nightwatchRerunFile;
       if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
@@ -352,7 +379,7 @@ module.exports = {
         Logger.error(`Something went wrong in stopping build session for test observability - ${error}`);
       }
     }
-    if (helper.isAccessibilitySession()){
+    if (helper.isAccessibilitySession() && !helper.isCucumberTestSuite()){
       try {
         await accessibilityAutomation.stopAccessibilityTestRun();
       } catch (error) {
@@ -369,13 +396,10 @@ module.exports = {
       browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
       browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     }
-
-    // await accessibilityAutomation.beforeEachExecution(browser);
   },
 
-  // This will be run after each test suite is finished
+  // This will be run after each test suite is finished for default nightwatch runner
   async afterEach(settings) {
-    // await accessibilityAutomation.afterEachExecution(browser);
   },
 
   beforeChildProcess(settings) {

@@ -419,16 +419,25 @@ class AccessibilityAutomation {
             'Automate test case execution has ended. Processing for accessibility testing is underway. '
           );
         }
-        const dataForExtension = {
-          saveResults: shouldScanTestForAccessibility,
-          testDetails: {
-            name: testMetaData.testcase,
-            testRunId: process.env.BS_A11Y_TEST_RUN_ID,
-            filePath: testMetaData.metadata.modulePath,
-            scopeList: [testMetaData.metadata.name, testMetaData.testcase]
-          },
-          platform: await this.fetchPlatformDetails(browser)
-        };
+        let dataForExtension = {};
+        if (helper.isCucumberTestSuite()) {
+          dataForExtension = {
+            thTestRunUuid: process.env.TEST_OPS_TEST_UUID,
+            thBuildUuid: process.env.BROWSERSTACK_TESTHUB_UUID,
+            thJwtToken: process.env.BROWSERSTACK_TESTHUB_JWT
+          };
+        } else { 
+          dataForExtension = {
+            saveResults: shouldScanTestForAccessibility,
+            testDetails: {
+              name: testMetaData.testcase,
+              testRunId: process.env.BS_A11Y_TEST_RUN_ID,
+              filePath: testMetaData.metadata.modulePath,
+              scopeList: [testMetaData.metadata.name, testMetaData.testcase]
+            },
+            platform: await this.fetchPlatformDetails(browser)
+          };
+        }
         Logger.debug('Performing scan before saving results');
         Logger.debug(util.format(await browser.executeAsyncScript(scripts.performScan, {method: testMetaData.testcase})));
         await browser.executeAsyncScript(scripts.saveTestResults, dataForExtension);

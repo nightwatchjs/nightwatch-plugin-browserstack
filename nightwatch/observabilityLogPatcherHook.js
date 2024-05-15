@@ -1,19 +1,13 @@
 try {
   const {Before, After} = require('@cucumber/cucumber');
-  const nightwatchPluginHelper = require('@nightwatch/browserstack/src/utils/helper');
-  const AccessibilityAutomation = require('@nightwatch/browserstack/src/accessibilityAutomation');
+  const testhubUtils = require('@nightwatch/browserstack/src/testHub/utils');
 
   Before(async (testCase) => {
-    nightwatchPluginHelper.modifySeleniumCommands();
-    nightwatchPluginHelper.modifyNightwatchCommands();
-    console.log(`TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-${testCase.testCaseStartedId}`);
-    const testMeta = nightwatchPluginHelper.getCucumberTestMetaData(testCase);
-    await AccessibilityAutomation.prototype.beforeEachExecution(testMeta);
+    await testhubUtils.beforeEachCucumberTest(testCase);
   });
 
   After(async (testCase) => {
-    const testMeta = nightwatchPluginHelper.getCucumberTestMetaData(testCase);
-    await AccessibilityAutomation.prototype.afterEachExecution(testMeta);
+    await testhubUtils.afterEachCucumberTest(testCase);
   });
 
 } catch (error) { /* empty */ }

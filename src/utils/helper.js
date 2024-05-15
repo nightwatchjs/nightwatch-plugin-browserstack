@@ -15,6 +15,7 @@ const LogPatcher = require('./logPatcher');
 const BSTestOpsPatcher = new LogPatcher({});
 const sessions = {};
 const scripts = require('./scripts');
+const {shouldUploadEventToTestHub} = require('../testHub/utils');
 
 console = {};
 Object.keys(consoleHolder).forEach(method => {
@@ -483,6 +484,8 @@ exports.uploadEventData = async (eventData) => {
     ['HookRunStarted']: 'Hook_Start_Upload',
     ['HookRunFinished']: 'Hook_End_Upload'
   }[eventData.event_type];
+
+  if (!shouldUploadEventToTestHub(eventData.event_type)) { return }
 
   if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
     requestQueueHandler.pending_test_uploads += 1;
