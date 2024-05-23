@@ -20,9 +20,9 @@ exports.EVENTS = {
 exports.ACCESSIBILITY_URL= 'https://accessibility.browserstack.com/api';
 
 // Maximum size of VCS info which is allowed
-exports.MAX_GIT_META_DATA_SIZE_IN_KB = 64;
+exports.MAX_GIT_META_DATA_SIZE_IN_BYTES = 65536;
 
 /* The value to be appended at the end if git metadata is larger than
-MAX_GIT_META_DATA_SIZE_IN_KB
+MAX_GIT_META_DATA_SIZE_IN_BYTES
 */
 exports.GIT_META_DATA_TRUNCATED = '...[TRUNCATED]';

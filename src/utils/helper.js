@@ -9,7 +9,7 @@ const pGitconfig = promisify(gitconfig);
 const gitLastCommit = require('git-last-commit');
 const {makeRequest} = require('./requestHelper');
 const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS, consoleHolder,
-  MAX_GIT_META_DATA_SIZE_IN_KB, GIT_META_DATA_TRUNCATED} = require('./constants');
+  MAX_GIT_META_DATA_SIZE_IN_BYTES, GIT_META_DATA_TRUNCATED} = require('./constants');
 const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
 const LogPatcher = require('./logPatcher');
@@ -423,7 +423,7 @@ exports.getGitMetaData = () => {
               'remotes': remotes
             };
 
-            gitMetaData = this.checkAndTruncateVCSInfo(gitMetaData);
+            gitMetaData = exports.checkAndTruncateVCSInfo(gitMetaData);
 
             resolve(gitMetaData);
           }, {dst: await findGitConfig(process.cwd())});
@@ -450,7 +450,7 @@ exports.getGitMetaData = () => {
             'remotes': remotes
           };
 
-          gitMetaData = this.checkAndTruncateVCSInfo(gitMetaData);
+          gitMetaData = exports.checkAndTruncateVCSInfo(gitMetaData);
 
           resolve(gitMetaData);
         }
@@ -774,24 +774,24 @@ exports.shouldSendLogs = () => {
 };
 
 exports.checkAndTruncateVCSInfo = (gitMetaData) => {
-  const gitMetaDataSizeInKb = this.getSizeOfJsonObjectInKb(gitMetaData);
+  const gitMetaDataSizeInBytes = exports.getSizeOfJsonObjectInBytes(gitMetaData);
 
-  if (gitMetaDataSizeInKb && gitMetaDataSizeInKb > 0 && gitMetaDataSizeInKb > MAX_GIT_META_DATA_SIZE_IN_KB) {
-    const truncateSize = gitMetaDataSizeInKb - MAX_GIT_META_DATA_SIZE_IN_KB;
-    const truncatedCommitMessage = this.truncateString(gitMetaData.commit_message, truncateSize);
+  if (gitMetaDataSizeInBytes && gitMetaDataSizeInBytes > MAX_GIT_META_DATA_SIZE_IN_BYTES) {
+    const truncateSize = gitMetaDataSizeInBytes - MAX_GIT_META_DATA_SIZE_IN_BYTES;
+    const truncatedCommitMessage = exports.truncateString(gitMetaData.commit_message, truncateSize);
     gitMetaData.commit_message = truncatedCommitMessage;
-    Logger.info(`The commit has been truncated. Size of commit after truncation is ${ this.getSizeOfJsonObjectInKb(gitMetaData) }`);
+    Logger.info(`The commit has been truncated. Size of commit after truncation is ${ exports.getSizeOfJsonObjectInBytes(gitMetaData) /1024 } KB`);
   }
 
   return gitMetaData;
 };
 
-exports.getSizeOfJsonObjectInKb = (jsonData) => {
+exports.getSizeOfJsonObjectInBytes = (jsonData) => {
   try {
     if (jsonData && jsonData instanceof Object) {
       const buffer = Buffer.from(JSON.stringify(jsonData));
 
-      return Math.floor(buffer.length/1024);
+      return buffer.length;
     }
   } catch (error) {
     Logger.debug(`Something went wrong while calculating size of JSON object: ${error}`);
@@ -800,13 +800,13 @@ exports.getSizeOfJsonObjectInKb = (jsonData) => {
   return -1;
 };
 
-exports.truncateString = (field, truncateSizeInKb) => {
+exports.truncateString = (field, truncateSizeInBytes) => {
   try {
     const bufferSizeInBytes = Buffer.from(GIT_META_DATA_TRUNCATED).length;
 
     const fieldBufferObj = Buffer.from(field);
     const lenOfFieldBufferObj = fieldBufferObj.length;
-    const finalLen = Math.round(lenOfFieldBufferObj - (truncateSizeInKb * 1024) - (bufferSizeInBytes));
+    const finalLen = Math.ceil(lenOfFieldBufferObj - truncateSizeInBytes - bufferSizeInBytes);
     if (finalLen > 0) {
       const truncatedString = fieldBufferObj.subarray(0, finalLen).toString() + GIT_META_DATA_TRUNCATED;
 
