@@ -8,7 +8,8 @@ const gitconfig = require('gitconfiglocal');
 const pGitconfig = promisify(gitconfig);
 const gitLastCommit = require('git-last-commit');
 const {makeRequest} = require('./requestHelper');
-const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS, consoleHolder} = require('./constants');
+const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS, consoleHolder,
+  MAX_GIT_META_DATA_SIZE_IN_BYTES, GIT_META_DATA_TRUNCATED} = require('./constants');
 const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
 const LogPatcher = require('./logPatcher');
@@ -403,7 +404,7 @@ exports.getGitMetaData = () => {
             const {remote} = await pGitconfig(info.commonGitDir);
             const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
 
-            resolve({
+            let gitMetaData = {
               'name': 'git',
               'sha': info['sha'],
               'short_sha': info['abbreviatedSha'],
@@ -420,13 +421,17 @@ exports.getGitMetaData = () => {
               'last_tag': info['lastTag'],
               'commits_since_last_tag': info['commitsSinceLastTag'],
               'remotes': remotes
-            });
+            };
+
+            gitMetaData = exports.checkAndTruncateVCSInfo(gitMetaData);
+
+            resolve(gitMetaData);
           }, {dst: await findGitConfig(process.cwd())});
         } else {
           const {remote} = await pGitconfig(info.commonGitDir);
           const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
 
-          resolve({
+          let gitMetaData = {
             'name': 'git',
             'sha': info['sha'],
             'short_sha': info['abbreviatedSha'],
@@ -443,7 +448,11 @@ exports.getGitMetaData = () => {
             'last_tag': info['lastTag'],
             'commits_since_last_tag': info['commitsSinceLastTag'],
             'remotes': remotes
-          });
+          };
+
+          gitMetaData = exports.checkAndTruncateVCSInfo(gitMetaData);
+
+          resolve(gitMetaData);
         }
       } catch (err) {
         Logger.error(`Exception in populating Git metadata with error : ${err}`);
@@ -762,4 +771,50 @@ exports.deepClone = (obj) => {
 
 exports.shouldSendLogs = () => {
   return exports.isTestObservabilitySession() && exports.isCucumberTestSuite();
+};
+
+exports.checkAndTruncateVCSInfo = (gitMetaData) => {
+  const gitMetaDataSizeInBytes = exports.getSizeOfJsonObjectInBytes(gitMetaData);
+
+  if (gitMetaDataSizeInBytes && gitMetaDataSizeInBytes > MAX_GIT_META_DATA_SIZE_IN_BYTES) {
+    const truncateSize = gitMetaDataSizeInBytes - MAX_GIT_META_DATA_SIZE_IN_BYTES;
+    const truncatedCommitMessage = exports.truncateString(gitMetaData.commit_message, truncateSize);
+    gitMetaData.commit_message = truncatedCommitMessage;
+    Logger.info(`The commit has been truncated. Size of commit after truncation is ${ exports.getSizeOfJsonObjectInBytes(gitMetaData) /1024 } KB`);
+  }
+
+  return gitMetaData;
+};
+
+exports.getSizeOfJsonObjectInBytes = (jsonData) => {
+  try {
+    if (jsonData && jsonData instanceof Object) {
+      const buffer = Buffer.from(JSON.stringify(jsonData));
+
+      return buffer.length;
+    }
+  } catch (error) {
+    Logger.debug(`Something went wrong while calculating size of JSON object: ${error}`);
+  }
+
+  return -1;
+};
+
+exports.truncateString = (field, truncateSizeInBytes) => {
+  try {
+    const bufferSizeInBytes = Buffer.from(GIT_META_DATA_TRUNCATED).length;
+
+    const fieldBufferObj = Buffer.from(field);
+    const lenOfFieldBufferObj = fieldBufferObj.length;
+    const finalLen = Math.ceil(lenOfFieldBufferObj - truncateSizeInBytes - bufferSizeInBytes);
+    if (finalLen > 0) {
+      const truncatedString = fieldBufferObj.subarray(0, finalLen).toString() + GIT_META_DATA_TRUNCATED;
+
+      return truncatedString;
+    }
+  } catch (error) {
+    Logger.debug(`Error while truncating field, nothing was truncated here: ${error}`);
+  }
+
+  return field;
 };
