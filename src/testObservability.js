@@ -8,6 +8,7 @@ const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
 const {API_URL} = require('./utils/constants');
+const hooksMap = {};
 
 class TestObservability {
   configure(settings = {}) {
@@ -27,10 +28,16 @@ class TestObservability {
     if (settings && settings.desiredCapabilities && settings.desiredCapabilities['bstack:options']) {
       this._bstackOptions = settings.desiredCapabilities['bstack:options'];
     }
-    
+
     if (this._settings.test_observability || this._bstackOptions) {
       this._user = helper.getObservabilityUser(this._settings.test_observability, this._bstackOptions);
       this._key = helper.getObservabilityKey(this._settings.test_observability, this._bstackOptions);
+      if (!this._user || !this._key) {
+        Logger.error('Could not start Test Observability : Missing authentication token');
+        process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
+
+        return;
+      }
       CrashReporter.setCredentialsForCrashReportUpload(this._user, this._key);
       CrashReporter.setConfigDetails(settings);
     }
@@ -124,7 +131,7 @@ class TestObservability {
     await helper.uploadPending();
     await helper.shutDownRequestHandler();
     try {
-      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config);
+      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config, API_URL, false);
       if (response.data?.error) {
         throw {message: response.data.error};
       } else {
@@ -351,7 +358,7 @@ class TestObservability {
       const provider = helper.getCloudProvider(testFileReport.host);
       testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
     }
-    
+
     if (eventType === 'TestRunStarted') {
       testData.type = 'test';
       testData.integrations = {};
@@ -373,6 +380,259 @@ class TestObservability {
       uploadData['test_run'] = testData;
     }
     await helper.uploadEventData(uploadData);
+  }
+
+  async sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, eventType, testMetaData, args = {}) {
+    const {feature, scenario, steps, uuid, startedAt, finishedAt} = testMetaData || {};
+    const examples = helper.getScenarioExamples(gherkinDocument, pickleData);
+    const fullNameWithExamples = examples
+      ? pickleData.name + ' (' + examples.join(', ')  + ')'
+      : pickleData.name;
+    const testData = {
+      uuid: uuid,
+      started_at: startedAt,
+      finished_at: finishedAt,
+      type: 'test',
+      body: {
+        lang: 'nightwatch',
+        code: null
+      },
+      name: fullNameWithExamples,
+      scope: fullNameWithExamples,
+      scopes: [feature?.name || ''],
+      tags: pickleData.tags?.map(({name}) => (name)),
+      identifier: scenario?.name,
+      file_name: path.relative(process.cwd(), feature.path),
+      location: path.relative(process.cwd(), feature.path),
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, feature.path) : null,
+      framework: 'nightwatch',
+      result: 'pending',
+      meta: {
+        feature: feature,
+        scenario: scenario,
+        steps: steps,
+        examples: examples
+      }
+    };
+
+    try {
+      if (eventType === 'TestRunFinished') {
+        let currentSessionCapabilities = reportData.session[args.envelope.testCaseStartedId];
+        if (currentSessionCapabilities === undefined || currentSessionCapabilities.error) {
+          currentSessionCapabilities = helper.generateCapabilityDetails(args);
+        }
+
+        const sessionCapabilities = currentSessionCapabilities.capabilities;
+        if ((sessionCapabilities) && (args.envelope.testCaseStartedId === currentSessionCapabilities.testCaseStartedId)) {
+          testData.integrations = {};
+          const provider = helper.getCloudProvider(currentSessionCapabilities.host);
+          testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId);
+        } else {
+          Logger.debug('Failed to upload integrations data');
+        }
+      }
+    } catch (error) {
+      CrashReporter.uploadCrashReport(error.message, error.stack);
+    }
+
+    if (reportData.testCaseFinished && steps) {
+      const testCaseResult = reportData.testCaseFinished[args.envelope.testCaseStartedId];
+      let result = 'passed';
+      steps.every((step) => {
+        if (step.result === 'FAILED'){
+          result = 'failed';
+          testCaseResult.failure = step.failure;
+          testCaseResult.failureType = step.failureType;
+
+          return false;
+        } else if (step.result === 'SKIPPED') {
+          result = 'skipped';
+
+          return false;
+        }
+
+        return true;
+      });
+
+      testData.finished_at = new Date().toISOString();
+      testData.result = result;
+      testData.duration_in_ms = testCaseResult.timestamp.nanos / 1000000;
+      if (result === 'failed') {
+        testData.failure = [
+          {
+            'backtrace': [testCaseResult?.failure ? stripAnsi(testCaseResult?.failure) : 'unknown']
+          }
+        ],
+        testData.failure_reason = testCaseResult?.failure ? stripAnsi(testCaseResult?.failure) : testCaseResult.message;
+        if (testCaseResult?.failureType) {
+          testData.failure_type = testCaseResult.failureType.match(/AssertError/)
+            ? 'AssertionError'
+            : 'UnhandledError';
+        }
+      }
+    }
+
+    if (eventType === 'TestRunFinished') {
+      const hooksList = this.getHooksListForTest(args);
+      if (hooksList && hooksList.length > 0) {
+        testData.hooks = hooksList;
+        this.updateTestStatus(args, testData);
+      }
+    }
+
+    const uploadData = {
+      event_type: eventType,
+      test_run: testData
+    };
+    await helper.uploadEventData(uploadData);
+
+  }
+
+  updateTestStatus(args, testData) {
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    const hookList = hooksMap[testCaseStartedId];
+    if (hookList instanceof Array) {
+      for (const hook of hookList) {
+        if (hook.result === 'failed') {
+          testData.result = hook.result;
+          testData.failure = hook.failure_data;
+          testData.failure_reason = (hook.failure_data instanceof Array) ? hook.failure_data[0]?.backtrace.join('\n') : '';
+          testData.failure_type = hook.failure_type;
+          
+          return testData;
+        }
+      }
+    };
+  }
+
+  getHooksListForTest(args) {
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    if (hooksMap[testCaseStartedId]) {
+      return hooksMap[testCaseStartedId].map(hookDetail => hookDetail.uuid);
+    }
+
+    return [];
+  }
+
+  getHookRunEventData(args, eventType, hookData, testMetaData, hookType) {
+    if (eventType === 'HookRunFinished') {
+      const finishedAt = new Date().toISOString();
+      const testCaseStartedId = args.envelope.testCaseStartedId;
+      const hookList = hooksMap[testCaseStartedId];
+      if (!hookList) {
+        return;
+      }
+
+      const hookEventData = hookList.find(hook => hook.uuid === hookData.id);
+      if (!hookEventData) {
+        return;
+      }
+      const result = this.getHookResult(args);
+      hookEventData.result = result.status;
+      hookEventData.finished_at = finishedAt;
+      hookEventData.failure_type = result.failureType;
+      hookEventData.failure_data = [{backtrace: result.failureData}];
+
+      return hookEventData;
+    }
+    const hookDetails = args.report.hooks.find(hookDetail => hookDetail.id === hookData.hookId);
+    const relativeFilePath = hookDetails?.sourceReference?.uri;
+    if (!relativeFilePath) {
+      return;
+    } else if (relativeFilePath.includes('setup_cucumber_runner')) {
+      return;
+    }
+    const startedAt = new Date().toISOString();
+    const result = 'pending';
+    const hookTagsList = hookDetails.tagExpression ? hookDetails.tagExpression.split(' ').filter(val => val.includes('@')) : null;
+    
+    const hookEventData = {
+      uuid: hookData.id,
+      type: 'hook',
+      hook_type: hookType,
+      name: hookDetails?.name || '',
+      body: {
+        lang: 'NodeJs',
+        code: null
+      },
+      tags: hookTagsList,
+      scope: testMetaData?.feature?.name,
+      scopes: [testMetaData?.feature?.name || ''],
+      file_name: relativeFilePath,
+      location: relativeFilePath,
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, relativeFilePath) : null,
+      result: result.status,
+      started_at: startedAt,
+      framework: 'nightwatch'
+    };
+
+    return hookEventData;
+  }
+
+  async sendHook(args, eventType, testSteps, testStepId, testMetaData) {
+    const hookData = testSteps.find((testStep) => testStep.id === testStepId);
+    if (!hookData.hookId) {
+      return;
+    }
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    const hookType = this.getCucumberHookType(testSteps, hookData);
+    const hookRunEvent = this.getHookRunEventData(args, eventType, hookData, testMetaData, hookType);
+    if (!hookRunEvent) {
+      return;
+    }
+    if (eventType === 'HookRunStarted') {
+      if (hooksMap[testCaseStartedId]) {
+        hooksMap[testCaseStartedId].push(hookRunEvent);
+      } else {
+        hooksMap[testCaseStartedId] = [hookRunEvent];
+      }
+    }
+    const hookEventUploadData = {
+      event_type: eventType,
+      hook_run: hookRunEvent
+    };
+    await helper.uploadEventData(hookEventUploadData);
+  }
+
+  getHookResult(args) {
+    const testCaseStartedId = args.envelope.testCaseStartedId;
+    const hookResult = args.report.testStepFinished[testCaseStartedId].testStepResult;
+    let failure;
+    let failureType;
+    if (hookResult?.status.toString().toLowerCase() === 'failed') {
+      failure = (hookResult?.exception === undefined) ? hookResult?.message : hookResult?.exception?.message;
+      failureType = (hookResult?.exception === undefined) ? 'UnhandledError' : hookResult?.message.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+    }
+
+    return {
+      status: hookResult.status.toLowerCase(),
+      failureType: failureType || null,
+      failureData: (!failure) ? null : [failure]
+    };
+  }
+
+  // BEFORE_ALL and AFTER_ALL are not implemented for TO
+  getCucumberHookType(testSteps, hookData) {
+    let isStep = false;
+    for (const step of testSteps) {
+      if (step.pickleStepId) {
+        isStep = true;
+      }
+      if (hookData.id === step.id) {
+        return (isStep) ? 'AFTER_EACH' : 'BEFORE_EACH';
+      }
+    }
+  }
+
+  async appendTestItemLog (log, testUuid) {
+    try {
+      if (testUuid) {
+        log.test_run_uuid = testUuid;
+        await helper.uploadEventData({event_type: 'LogCreated', logs: [log]});
+      }
+    } catch (error) {
+      Logger.error(`Exception in uploading log data to Observability with error : ${error}`);
+    }
   }
 }
 

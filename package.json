@@ -1,6 +1,6 @@
 {
   "name": "@nightwatch/browserstack",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "Nightwatch plugin for integration with browserstack.",
   "main": "index.js",
   "scripts": {
@@ -42,8 +42,9 @@
     "git-last-commit": "^1.0.1",
     "git-repo-info": "^2.1.1",
     "gitconfiglocal": "^2.1.0",
-    "request": "^2.88.2",
+    "@cypress/request": "^3.0.1",
     "strip-ansi": "^6.0.1",
+    "winston-transport": "^4.5.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

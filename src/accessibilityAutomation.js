@@ -34,8 +34,8 @@ class AccessibilityAutomation {
     }
 
     if (this._settings.accessibility || this._bstackOptions) {
-      this._user = helper.getUserName(this._settings);
-      this._key = helper.getAccessKey(this._settings);
+      this._user = helper.getUserName(settings, this._settings);
+      this._key = helper.getAccessKey(settings, this._settings);
     }
   }
 
@@ -99,6 +99,7 @@ class AccessibilityAutomation {
 
       return [responseData.accessibilityToken, responseData.id];
     } catch (error) {
+      process.env.BROWSERSTACK_ACCESSIBILITY = 'false';
       if (error.response) {
         Logger.error(
           `Exception while creating test run for BrowserStack Accessibility Automation: ${
@@ -316,7 +317,7 @@ class AccessibilityAutomation {
     try {
       const capabilityConfig = driver.desiredCapabilities || {};
       const deviceName = driver.capabilities.deviceName || (capabilityConfig['bstack:options'] ? capabilityConfig['bstack:options'].deviceName : capabilityConfig.device) || '';
-  
+
       if (deviceName !== '') {
         Logger.warn('Accessibility Automation will run only on Desktop browsers.');
 
@@ -334,7 +335,7 @@ class AccessibilityAutomation {
 
         return false;
       }
-  
+
       const chromeOptions = capabilityConfig.chromeOptions || capabilityConfig['goog:chromeOptions'] || {};
       if (chromeOptions.args?.includes('--headless') || chromeOptions.args?.includes('headless')) {
         Logger.warn('Accessibility Automation will not run on legacy headless mode. Switch to new headless mode or avoid using headless mode.');
@@ -361,10 +362,10 @@ class AccessibilityAutomation {
 
       if (this.isAccessibilityAutomationSession() && browser && helper.isAccessibilitySession() && this._isAccessibilitySession) {
         try {
-          let session = await browser.session();
+          const session = await browser.session();
           if (session) {
             let pageOpen = true;
-            let currentURL = await browser.driver.getCurrentUrl();
+            const currentURL = await browser.driver.getCurrentUrl();
 
             let url = {};
             try {
@@ -434,7 +435,7 @@ class AccessibilityAutomation {
           },
           platform: await this.fetchPlatformDetails(browser)
         };
-        let final_res = await browser.executeAsyncScript(
+        const final_res = await browser.executeAsyncScript(
           `
             const callback = arguments[arguments.length - 1];
 
@@ -473,7 +474,7 @@ class AccessibilityAutomation {
       return {};
     }
     try {
-      let results = await browser.executeScript(`
+      const results = await browser.executeScript(`
         return new Promise(function (resolve, reject) {
           try {
             const event = new CustomEvent('A11Y_TAP_GET_RESULTS');
@@ -506,7 +507,7 @@ class AccessibilityAutomation {
       return {};
     }
     try {
-      let summaryResults = await browser.executeScript(`
+      const summaryResults = await browser.executeScript(`
         return new Promise(function (resolve, reject) {
           try{
             const event = new CustomEvent('A11Y_TAP_GET_RESULTS_SUMMARY');

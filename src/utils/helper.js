@@ -8,10 +8,34 @@ const gitconfig = require('gitconfiglocal');
 const pGitconfig = promisify(gitconfig);
 const gitLastCommit = require('git-last-commit');
 const {makeRequest} = require('./requestHelper');
-const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS} = require('./constants');
-
+const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS, consoleHolder,
+  MAX_GIT_META_DATA_SIZE_IN_BYTES, GIT_META_DATA_TRUNCATED} = require('./constants');
 const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
+const LogPatcher = require('./logPatcher');
+const BSTestOpsPatcher = new LogPatcher({});
+const sessions = {};
+
+console = {};
+Object.keys(consoleHolder).forEach(method => {
+  console[method] = (...args) => {
+    try {
+      if (!Object.keys(BSTestOpsPatcher).includes(method)) {
+        consoleHolder[method](...args);
+      } else {
+        BSTestOpsPatcher[method](...args);
+      }
+    } catch (error) {
+      consoleHolder[method](...args);
+    }
+  };
+});
+
+exports.debug = (text) => {
+  if (process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === 'true' || process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === '1') {
+    consoleHolder.log(`\n[${(new Date()).toISOString()}][ OBSERVABILITY ] ${text}\n`);
+  }
+};
 
 exports.generateLocalIdentifier = () => {
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
@@ -38,11 +62,11 @@ exports.isTestObservabilitySession = () => {
 };
 
 exports.getObservabilityUser = (config, bstackOptions={}) => {
-  return process.env.BROWSERSTACK_USERNAME || config.user  || bstackOptions.userName;
+  return process.env.BROWSERSTACK_USERNAME || config?.user  || bstackOptions?.userName;
 };
 
 exports.getObservabilityKey = (config, bstackOptions={}) => {
-  return process.env.BROWSERSTACK_ACCESS_KEY || config.key || bstackOptions.accessKey;
+  return process.env.BROWSERSTACK_ACCESS_KEY || config?.key || bstackOptions?.accessKey;
 };
 
 exports.isAccessibilitySession = () => {
@@ -59,7 +83,7 @@ exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
   }
 
   return '';
-  
+
 };
 
 exports.getBuildName = (options, bstackOptions={}, fromProduct={}) => {
@@ -204,7 +228,7 @@ exports.getCiInfo = () => {
       build_number: env.APPVEYOR_BUILD_NUMBER
     };
   }
-  // Azure CI 
+  // Azure CI
   if (env.AZURE_HTTP_USER_AGENT && env.TF_BUILD) {
     return {
       name: 'Azure CI',
@@ -380,7 +404,7 @@ exports.getGitMetaData = () => {
             const {remote} = await pGitconfig(info.commonGitDir);
             const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
 
-            resolve({
+            let gitMetaData = {
               'name': 'git',
               'sha': info['sha'],
               'short_sha': info['abbreviatedSha'],
@@ -397,13 +421,17 @@ exports.getGitMetaData = () => {
               'last_tag': info['lastTag'],
               'commits_since_last_tag': info['commitsSinceLastTag'],
               'remotes': remotes
-            });
+            };
+
+            gitMetaData = exports.checkAndTruncateVCSInfo(gitMetaData);
+
+            resolve(gitMetaData);
           }, {dst: await findGitConfig(process.cwd())});
         } else {
           const {remote} = await pGitconfig(info.commonGitDir);
           const remotes = Object.keys(remote).map(remoteName =>  ({name: remoteName, url: remote[remoteName]['url']}));
 
-          resolve({
+          let gitMetaData = {
             'name': 'git',
             'sha': info['sha'],
             'short_sha': info['abbreviatedSha'],
@@ -420,7 +448,11 @@ exports.getGitMetaData = () => {
             'last_tag': info['lastTag'],
             'commits_since_last_tag': info['commitsSinceLastTag'],
             'remotes': remotes
-          });
+          };
+
+          gitMetaData = exports.checkAndTruncateVCSInfo(gitMetaData);
+
+          resolve(gitMetaData);
         }
       } catch (err) {
         Logger.error(`Exception in populating Git metadata with error : ${err}`);
@@ -463,7 +495,7 @@ exports.uploadEventData = async (eventData) => {
   if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
     requestQueueHandler.pending_test_uploads += 1;
   }
-  
+
   if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
     if (process.env.BS_TESTOPS_JWT === 'null') {
       Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : missing authentication token`);
@@ -473,10 +505,10 @@ exports.uploadEventData = async (eventData) => {
         status: 'error',
         message: 'Token/buildID is undefined, build creation might have failed'
       };
-    } 
-    let data = eventData; 
+    }
+    let data = eventData;
     let event_api_url = 'api/v1/event';
-      
+
     requestQueueHandler.start();
     const {
       shouldProceed,
@@ -497,7 +529,7 @@ exports.uploadEventData = async (eventData) => {
         'X-BSTACK-TESTOPS': 'true'
       }
     };
-  
+
     try {
       const response = await makeRequest('POST', event_api_url, data, config);
       if (response.data.error) {
@@ -526,8 +558,12 @@ exports.uploadEventData = async (eventData) => {
   }
 };
 
-exports.getAccessKey = (settings) => {
-  let accessKey = null;
+exports.getAccessKey = (settings, nwConfig) => {
+  let accessKey = process.env.BROWSERSTACK_ACCESS_KEY || nwConfig?.accessKey;
+  if (!this.isUndefined(accessKey)) {
+    return accessKey;
+  }
+
   if (this.isObject(settings.desiredCapabilities)) {
     if (settings.desiredCapabilities['browserstack.key']) {
       accessKey = settings.desiredCapabilities['browserstack.key'];
@@ -536,15 +572,15 @@ exports.getAccessKey = (settings) => {
     }
   }
 
-  if (this.isUndefined(accessKey)) {
-    accessKey = process.env.BROWSERSTACK_ACCESS_KEY;
-  }
-
   return accessKey;
 };
 
-exports.getUserName = (settings) => {
-  let userName = null;
+exports.getUserName = (settings, nwConfig) => {
+  let userName = process.env.BROWSERSTACK_USERNAME || nwConfig?.userName;
+  if (!this.isUndefined(userName)) {
+    return userName;
+  }
+
   if (this.isObject(settings.desiredCapabilities)) {
     if (settings.desiredCapabilities['browserstack.user']) {
       userName = settings.desiredCapabilities['browserstack.user'];
@@ -553,15 +589,11 @@ exports.getUserName = (settings) => {
     }
   }
 
-  if (this.isUndefined(userName)) {
-    userName = process.env.BROWSERSTACK_USERNAME;
-  }
-
   return userName;
 };
 
 exports.getCloudProvider = (hostname) => {
-  if (hostname.includes('browserstack')) {
+  if (hostname && hostname.includes('browserstack')) {
     return 'browserstack';
   }
 
@@ -610,7 +642,7 @@ const sleep = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 
 exports.uploadPending = async (
   waitTimeout = DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS,
-  waitInterval = DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS 
+  waitInterval = DEFAULT_WAIT_INTERVAL_FOR_PENDING_UPLOADS
 ) => {
   if (requestQueueHandler.pending_test_uploads <= 0 || waitTimeout <= 0) {
     return;
@@ -625,10 +657,50 @@ exports.shutDownRequestHandler = async () => {
   await requestQueueHandler.shutdown();
 };
 
+exports.getScenarioExamples = (gherkinDocument, scenario) => {
+  if (!(scenario.astNodeIds?.length > 1)) {
+    return;
+  }
+
+  const pickleId = scenario.astNodeIds[0];
+  const examplesId = scenario.astNodeIds[1];
+  const gherkinDocumentChildren = gherkinDocument.feature?.children;
+
+  let examples = [];
+
+  gherkinDocumentChildren?.forEach(child => {
+    if (child.rule) {
+      child.rule.children.forEach(childLevel2 => {
+        if (childLevel2.scenario && childLevel2.scenario.id === pickleId && childLevel2.scenario.examples) {
+          const passedExamples = childLevel2.scenario.examples.flatMap((val) => (val.tableBody)).find((item) => item.id === examplesId)?.cells.map((val) => (val.value));
+          if (passedExamples) {
+            examples = passedExamples;
+          }
+        }
+      });
+    } else if (child.scenario && child.scenario.id === pickleId && child.scenario.examples) {
+      const passedExamples = child.scenario.examples.flatMap((val) => (val.tableBody)).find((item) => item.id === examplesId)?.cells.map((val) => (val.value));
+      if (passedExamples) {
+        examples = passedExamples;
+      }
+    }
+  });
+
+  if (examples.length) {
+    return examples;
+  }
+
+  return;
+};
+
+exports.isCucumberTestSuite = (settings) => {
+  return settings?.test_runner?.type === 'cucumber' || exports.isTrue(process.env.CUCUMBER_SUITE);
+};
+
 exports.getPlatformVersion = (driver) => {
   let platformVersion = null;
   try {
-    let caps = driver.desiredCapabilities || {};
+    const caps = driver.desiredCapabilities || {};
     if (!this.isUndefined(caps['bstack:options']) && !this.isUndefined(caps['bstack:options']['osVersion'])){
       platformVersion = caps['bstack:options']['osVersion'];
     } else if (!this.isUndefined(caps['os_version'])){
@@ -639,4 +711,110 @@ exports.getPlatformVersion = (driver) => {
   }
 
   return platformVersion;
+};
+
+exports.generateCapabilityDetails = (args) => {
+  if (!this.isUndefined(browser)) {
+    return {
+      host: browser.options.webdriver.host,
+      port: browser.options.webdriver.port,
+      capabilities: browser.capabilities,
+      sessionId: browser.sessionId,
+      testCaseStartedId: args.envelope.testCaseStartedId
+    };
+  }
+  if (sessions[args.envelope.testCaseStartedId]) {
+    return sessions[args.envelope.testCaseStartedId];
+  }
+};
+
+exports.storeSessionsData = (data) => {
+  if (data.POST_SESSION_EVENT) {
+    const sessionDetails = JSON.parse(data.POST_SESSION_EVENT);
+    if (!sessionDetails.session) {
+      return;
+    }
+    if (!Object.keys(sessions).includes(sessionDetails.session.testCaseStartedId)) {
+      sessions[sessionDetails.session.testCaseStartedId] = sessionDetails.session;
+    }
+  } else {
+    if (!data.report.session) {
+      return;
+    }
+    
+    Object.keys(data.report.session).forEach(key => {
+      if (!Object.keys(sessions).includes(key)) {
+        sessions[key] = data.report.session[key];
+      }
+    });
+  }
+};
+
+exports.deepClone = (obj) => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(exports.deepClone);
+  }
+
+  const cloned = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      cloned[key] = exports.deepClone(obj[key]);
+    }
+  }
+
+  return cloned;
+};
+
+exports.shouldSendLogs = () => {
+  return exports.isTestObservabilitySession() && exports.isCucumberTestSuite();
+};
+
+exports.checkAndTruncateVCSInfo = (gitMetaData) => {
+  const gitMetaDataSizeInBytes = exports.getSizeOfJsonObjectInBytes(gitMetaData);
+
+  if (gitMetaDataSizeInBytes && gitMetaDataSizeInBytes > MAX_GIT_META_DATA_SIZE_IN_BYTES) {
+    const truncateSize = gitMetaDataSizeInBytes - MAX_GIT_META_DATA_SIZE_IN_BYTES;
+    const truncatedCommitMessage = exports.truncateString(gitMetaData.commit_message, truncateSize);
+    gitMetaData.commit_message = truncatedCommitMessage;
+    Logger.info(`The commit has been truncated. Size of commit after truncation is ${ exports.getSizeOfJsonObjectInBytes(gitMetaData) /1024 } KB`);
+  }
+
+  return gitMetaData;
+};
+
+exports.getSizeOfJsonObjectInBytes = (jsonData) => {
+  try {
+    if (jsonData && jsonData instanceof Object) {
+      const buffer = Buffer.from(JSON.stringify(jsonData));
+
+      return buffer.length;
+    }
+  } catch (error) {
+    Logger.debug(`Something went wrong while calculating size of JSON object: ${error}`);
+  }
+
+  return -1;
+};
+
+exports.truncateString = (field, truncateSizeInBytes) => {
+  try {
+    const bufferSizeInBytes = Buffer.from(GIT_META_DATA_TRUNCATED).length;
+
+    const fieldBufferObj = Buffer.from(field);
+    const lenOfFieldBufferObj = fieldBufferObj.length;
+    const finalLen = Math.ceil(lenOfFieldBufferObj - truncateSizeInBytes - bufferSizeInBytes);
+    if (finalLen > 0) {
+      const truncatedString = fieldBufferObj.subarray(0, finalLen).toString() + GIT_META_DATA_TRUNCATED;
+
+      return truncatedString;
+    }
+  } catch (error) {
+    Logger.debug(`Error while truncating field, nothing was truncated here: ${error}`);
+  }
+
+  return field;
 };
