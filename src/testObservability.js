@@ -222,6 +222,8 @@ class TestObservability {
       for (const command of eventData.commands) {
         if (command.name === 'saveScreenshot' && command.args) {
           await this.createScreenshotLogEvent(testUuid, command.args[0], command.startTime);
+        } else if (/^.*(takeElementScreenshot)$/.test(command.name) && command.result && command.result.valuePath) {
+          await this.createScreenshotLogEvent(testUuid, command.result.valuePath, command.startTime, false);
         }
       }
     }
@@ -258,7 +260,7 @@ class TestObservability {
     await helper.uploadEventData(uploadData);
   }
 
-  async createScreenshotLogEvent(testUuid, screenshot, timestamp) {
+  async createScreenshotLogEvent(testUuid, screenshot, timestamp, readInBase64 = true) {
     if (!fs.existsSync(screenshot)) {
       return;
     }
@@ -269,7 +271,7 @@ class TestObservability {
           test_run_uuid: testUuid,
           kind: 'TEST_SCREENSHOT',
           timestamp: new Date(timestamp).toISOString(),
-          message: fs.readFileSync(screenshot, 'base64')
+          message: fs.readFileSync(screenshot, readInBase64 ? 'base64' : 'utf8')
         }
       ]
     };
