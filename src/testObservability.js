@@ -228,9 +228,20 @@ class TestObservability {
     if (process.env.BS_TESTOPS_ALLOW_SCREENSHOTS === 'true') {
       for (const command of eventData.commands) {
         if (command.name === 'saveScreenshot' && command.args) {
-          await this.createScreenshotLogEvent(testUuid, command.args[0], command.startTime);
-        } else if (/^.*(takeElementScreenshot)$/.test(command.name) && command.result && command.result.valuePath) {
-          await this.createScreenshotLogEvent(testUuid, command.result.valuePath, command.startTime, false);
+          const screenshotPath = command.args[0];
+          if (fs.existsSync(screenshotPath)) {
+            const screenshot = fs.readFileSync(screenshotPath, 'base64');
+            await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
+          }
+        } else if (/^.*(takeElementScreenshot)$/.test(command.name) && command.result) {
+          if (command.result.value) {
+            await this.createScreenshotLogEvent(testUuid, command.result.value, command.startTime);
+          } else if (command.result.valuePath) {
+            if (fs.existsSync(command.result.valuePath)) {
+              const screenshot = fs.readFileSync(command.result.valuePath);
+              await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
+            }
+          }
         }
       }
     }
@@ -267,10 +278,7 @@ class TestObservability {
     await helper.uploadEventData(uploadData);
   }
 
-  async createScreenshotLogEvent(testUuid, screenshot, timestamp, readInBase64 = true) {
-    if (!fs.existsSync(screenshot)) {
-      return;
-    }
+  async createScreenshotLogEvent(testUuid, screenshot, timestamp) {
     const eventData = {
       event_type: 'LogCreated',
       logs: [
@@ -278,7 +286,7 @@ class TestObservability {
           test_run_uuid: testUuid,
           kind: 'TEST_SCREENSHOT',
           timestamp: new Date(timestamp).toISOString(),
-          message: fs.readFileSync(screenshot, readInBase64 ? 'base64' : 'utf8')
+          message: screenshot
         }
       ]
     };
