@@ -238,7 +238,7 @@ class TestObservability {
             await this.createScreenshotLogEvent(testUuid, command.result.value, command.startTime);
           } else if (command.result.valuePath) {
             if (fs.existsSync(command.result.valuePath)) {
-              const screenshot = fs.readFileSync(command.result.valuePath);
+              const screenshot = fs.readFileSync(command.result.valuePath, 'utf8');
               await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
             }
           }
