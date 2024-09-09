@@ -1,6 +1,7 @@
 const helper = require('../../../src/utils/helper');
 const TestObservability = require('../../../src/testObservability');
 const sinon = require('sinon');
+const fs = require('fs');
 
 describe('TestObservability - processTestRunData', function () {
   beforeEach(() => {
@@ -28,13 +29,16 @@ describe('TestObservability - processTestRunData', function () {
   it('should create screenshot log events', async () => {
     this.eventData = {
       commands: [
-        {name: 'saveScreenshot', args: ['screenshot-image-base64'], startTime: 'start_time'}
+        {name: 'saveScreenshot', args: ['path/to/screenshot.png'], startTime: 'start_time'}
       ]
     };
+    this.sandbox.stub(fs, 'existsSync').callsFake(() => true);
+    this.sandbox.stub(fs, 'readFileSync').callsFake(() => 'screenshot-base-64');
     const createScreenshotLogEventStub = this.sandbox.stub(this.testObservability, 'createScreenshotLogEvent');
+
     process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = 'true';
     await this.testObservability.processTestRunData(this.eventData, this.sectionName, this.testFileReport, this.hookIds);
     process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = 'false';
-    sinon.assert.calledOnceWithExactly(createScreenshotLogEventStub, sinon.match.string, 'screenshot-image-base64', 'start_time');
+    sinon.assert.calledOnceWithExactly(createScreenshotLogEventStub, sinon.match.string, 'screenshot-base-64', 'start_time');
   });
 });
