@@ -7,7 +7,7 @@ const helper = require('./utils/helper');
 const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
-const {API_URL} = require('./utils/constants');
+const {API_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
 const hooksMap = {};
 
 class TestObservability {
@@ -228,19 +228,27 @@ class TestObservability {
     if (process.env.BS_TESTOPS_ALLOW_SCREENSHOTS === 'true') {
       for (const command of eventData.commands) {
         if (command.name === 'saveScreenshot' && command.args) {
-          const screenshotPath = command.args[0];
-          if (fs.existsSync(screenshotPath)) {
-            const screenshot = fs.readFileSync(screenshotPath, 'base64');
-            await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
-          }
-        } else if (/^.*(takeElementScreenshot)$/.test(command.name) && command.result) {
-          if (command.result.value) {
-            await this.createScreenshotLogEvent(testUuid, command.result.value, command.startTime);
-          } else if (command.result.valuePath) {
-            if (fs.existsSync(command.result.valuePath)) {
-              const screenshot = fs.readFileSync(command.result.valuePath, 'utf8');
+          try {
+            const screenshotPath = command.args[0];
+            if (fs.existsSync(screenshotPath)) {
+              const screenshot = fs.readFileSync(screenshotPath, 'base64');
               await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
             }
+          } catch (err) {
+            Logger.debug(`Failed to upload screenshot from saveScreenshot: ${err.message}`);
+          }
+        } else if (TAKE_SCREENSHOT_REGEX.test(command.name) && command.result) {
+          try {
+            if (command.result.value) {
+              await this.createScreenshotLogEvent(testUuid, command.result.value, command.startTime);
+            } else if (command.result.valuePath) {
+              if (fs.existsSync(command.result.valuePath)) {
+                const screenshot = fs.readFileSync(command.result.valuePath, 'utf8');
+                await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
+              }
+            }
+          } catch (err) {
+            Logger.debug(`Failed to upload screenshot from takeScreenshot: ${err.message}`);
           }
         }
       }
