@@ -228,8 +228,14 @@ class TestObservability {
     if (process.env.BS_TESTOPS_ALLOW_SCREENSHOTS === 'true') {
       for (const command of eventData.commands) {
         if (command.name === 'saveScreenshot' && command.args) {
+          // In newer NW versions, command args are stringified
+          let screenshotPath;
           try {
-            const screenshotPath = command.args[0];
+            screenshotPath = JSON.parse(command.args[0]);
+          } catch {
+            screenshotPath = command.args[0];
+          }
+          try {
             if (fs.existsSync(screenshotPath)) {
               const screenshot = fs.readFileSync(screenshotPath, 'base64');
               await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
