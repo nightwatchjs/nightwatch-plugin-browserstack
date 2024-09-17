@@ -26,3 +26,4 @@ exports.MAX_GIT_META_DATA_SIZE_IN_BYTES = 64 * 1024;
 MAX_GIT_META_DATA_SIZE_IN_BYTES
 */
 exports.GIT_META_DATA_TRUNCATED = '...[TRUNCATED]';
+exports.TAKE_SCREENSHOT_REGEX = /^.*(takeElementScreenshot)$/;
