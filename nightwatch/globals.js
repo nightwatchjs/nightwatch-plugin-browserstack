@@ -295,6 +295,15 @@ module.exports = {
     try {
       testObservability.configure(settings);
       if (helper.isTestObservabilitySession()) {
+        if (settings.reporter_options) {
+          if (settings.reporter_options['save_command_result_value'] != true){
+            settings.reporter_options['save_command_result_value'] = true
+          }
+        } else {
+          settings.reporter_options = {
+            save_command_result_value: true
+          }
+        }
         if (helper.isCucumberTestSuite(settings)) {
           cucumberPatcher();
           process.env.CUCUMBER_SUITE = 'true';
