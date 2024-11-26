@@ -616,7 +616,7 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
   }
 
   return product;
-}
+};
 
 exports.getIntegrationsObject = (capabilities, sessionId, hostname) => {
   return {
