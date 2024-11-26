@@ -339,6 +339,7 @@ module.exports = {
       Logger.error(`Could not configure or launch accessibility automation - ${error}`);
     }
 
+    addProductMapAndbuildUuidCapability(settings);
   },
 
   async after() {
@@ -417,6 +418,7 @@ module.exports = {
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
     }
+    addProductMapAndbuildUuidCapability(settings);
 
   }
 };
@@ -446,4 +448,30 @@ const cucumberPatcher = () => {
   } catch (error) {
     Logger.debug(`Error while patching cucumber ${error}`);
   }
+};
+
+const addProductMapAndbuildUuidCapability = (settings) => {
+  if (!settings?.desiredCapabilities?.['bstack:options']) {
+    return;
+  }
+
+  let automate = false;
+  let app_automate = false;
+  if (settings.desiredCapabilities['appUploadPath'] || settings.desiredCapabilities['appUploadUrl'] || settings.desiredCapabilities['app']) {
+    app_automate = true;
+  } else {
+    automate = true;
+  }
+
+  const buildProductMap = {
+    automate: automate,
+    app_automate: app_automate,
+    observability: helper.isTestObservabilitySession(),
+    accessibility: helper.isAccessibilitySession(),
+    turboscale: false,
+    percy: false
+  };
+
+  settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
+  settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
 };
