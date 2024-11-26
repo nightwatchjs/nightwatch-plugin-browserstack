@@ -600,13 +600,32 @@ exports.getCloudProvider = (hostname) => {
   return 'unknown_grid';
 };
 
-exports.getIntegrationsObject = (capabilities, sessionId) => {
+exports.getObservabilityLinkedProductName = (caps, hostname) => {
+  let product = undefined;
+
+  if (hostname) {
+    if (hostname.includes('browserstack.com') && !hostname.includes('hub-ft')) {
+      if (this.isUndefined(caps.browserName)) {
+        product = 'app-automate';
+      } else {
+        product = 'automate';
+      }
+    } else if (hostname.includes('browserstack-ats.com') || hostname.includes('hub-ft')) {
+      product = 'turboscale';
+    }
+  }
+
+  return product;
+};
+
+exports.getIntegrationsObject = (capabilities, sessionId, hostname) => {
   return {
     capabilities: capabilities,
     session_id: sessionId,
     browser: capabilities.browserName,
     browser_version: capabilities.browserVersion,
-    platform: capabilities.platformName
+    platform: capabilities.platformName,
+    product: this.getObservabilityLinkedProductName(capabilities, hostname)
   };
 };
 
