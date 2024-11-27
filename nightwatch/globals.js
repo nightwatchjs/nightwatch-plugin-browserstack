@@ -458,7 +458,7 @@ const addProductMapAndbuildUuidCapability = (settings) => {
     
     let automate = false;
     let app_automate = false;
-    if (settings.desiredCapabilities['appUploadPath'] || settings.desiredCapabilities['appUploadUrl'] || settings.desiredCapabilities['app']) {
+    if (settings.desiredCapabilities['appUploadPath'] || settings.desiredCapabilities['appUploadUrl'] || settings.desiredCapabilities['app'] || settings.desiredCapabilities['appium:options']) {
       app_automate = true;
     } else {
       automate = true;
