@@ -610,7 +610,7 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
       } else {
         product = 'automate';
       }
-    } else if (hostname.includes('browserstack-ats.com') || hostname.includes('hub-ft')) {
+    } else if (hostname.includes('browserstack-ats.com') || hostname.includes('hub-ft') || hostname.includes('browserstack-turboscale-grid')) {
       product = 'turboscale';
     }
   }
