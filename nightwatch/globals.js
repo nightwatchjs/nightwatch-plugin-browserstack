@@ -452,29 +452,26 @@ const cucumberPatcher = () => {
 
 const addProductMapAndbuildUuidCapability = (settings) => {
   try {
-    if (!settings?.desiredCapabilities?.['bstack:options']) {
+    if (!settings?.desiredCapabilities) {
       return;
     }
     
-    let automate = false;
-    let app_automate = false;
-    if (settings.desiredCapabilities['appUploadPath'] || settings.desiredCapabilities['appUploadUrl'] || settings.desiredCapabilities['app'] || settings.desiredCapabilities['appium:options']) {
-      app_automate = true;
-    } else {
-      automate = true;
-    }
-    
     const buildProductMap = {
-      automate: automate,
-      app_automate: app_automate,
+      automate: helper.getObservabilityLinkedProductName() === 'automate',
+      app_automate: helper.getObservabilityLinkedProductName() === 'app-automate',
       observability: helper.isTestObservabilitySession(),
       accessibility: helper.isAccessibilitySession(),
-      turboscale: false,
+      turboscale: helper.getObservabilityLinkedProductName() === 'turboscale',
       percy: false
     };
     
-    settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
-    settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+    if (settings.desiredCapabilities['bstack:options']) {
+      settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
+      settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+    } else {
+      settings.desiredCapabilities['buildProductMap'] = buildProductMap;
+      settings.desiredCapabilities['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+    }
   } catch (error) {
     Logger.debug(`Error while sending productmap and build capabilities ${error}`);
   }

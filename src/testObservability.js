@@ -16,7 +16,7 @@ class TestObservability {
 
     process.env.BROWSERSTACK_TEST_OBSERVABILITY = true;
 
-    if (this._settings.test_observability && this._settings.test_observability.enabled !== undefined) {
+    if (!helper.isUndefined(this._settings.test_observability) && !helper.isUndefined(this._settings.test_observability.enabled)) {
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.test_observability.enabled;
     }
     if (process.argv.includes('--disable-test-observability')) {
