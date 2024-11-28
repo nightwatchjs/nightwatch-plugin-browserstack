@@ -286,7 +286,7 @@ class TestObservability {
     };
     testData.integrations = {};
     const provider = helper.getCloudProvider(testFileReport.host);
-    testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
+    testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
     const uploadData = {
       event_type: 'TestRunFinished'
     };
@@ -380,14 +380,14 @@ class TestObservability {
     if (eventType === 'HookRunStarted') {
       testData.integrations = {};
       const provider = helper.getCloudProvider(testFileReport.host);
-      testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
+      testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
     }
 
     if (eventType === 'TestRunStarted') {
       testData.type = 'test';
       testData.integrations = {};
       const provider = helper.getCloudProvider(testFileReport.host);
-      testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId);
+      testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
     }
 
     if (eventType === 'TestRunFinished') {
@@ -450,7 +450,7 @@ class TestObservability {
         if ((sessionCapabilities) && (args.envelope.testCaseStartedId === currentSessionCapabilities.testCaseStartedId)) {
           testData.integrations = {};
           const provider = helper.getCloudProvider(currentSessionCapabilities.host);
-          testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId);
+          testData.integrations[provider] = helper.getIntegrationsObject(sessionCapabilities, currentSessionCapabilities.sessionId, currentSessionCapabilities.host);
         } else {
           Logger.debug('Failed to upload integrations data');
         }
