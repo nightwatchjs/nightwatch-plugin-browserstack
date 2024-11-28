@@ -456,12 +456,14 @@ const addProductMapAndbuildUuidCapability = (settings) => {
       return;
     }
     
+    const product = helper.getObservabilityLinkedProductName();
+
     const buildProductMap = {
-      automate: helper.getObservabilityLinkedProductName() === 'automate',
-      app_automate: helper.getObservabilityLinkedProductName() === 'app-automate',
+      automate: product === 'automate',
+      app_automate: product === 'app-automate',
       observability: helper.isTestObservabilitySession(),
       accessibility: helper.isAccessibilitySession(),
-      turboscale: helper.getObservabilityLinkedProductName() === 'turboscale',
+      turboscale: product === 'turboscale',
       percy: false
     };
     
@@ -469,8 +471,8 @@ const addProductMapAndbuildUuidCapability = (settings) => {
       settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
       settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
     } else {
-      settings.desiredCapabilities['buildProductMap'] = buildProductMap;
-      settings.desiredCapabilities['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+      settings.desiredCapabilities['browserstack.buildProductMap'] = buildProductMap;
+      settings.desiredCapabilities['browserstack.testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
     }
   } catch (error) {
     Logger.debug(`Error while sending productmap and build capabilities ${error}`);
