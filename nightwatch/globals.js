@@ -456,7 +456,16 @@ const addProductMapAndbuildUuidCapability = (settings) => {
       return;
     }
 
-    const buildProductMap = getProductMap(settings.desiredCapabilities);
+    const product = helper.getObservabilityLinkedProductName(settings.desiredCapabilities, settings?.selenium?.host);
+
+    const buildProductMap = {
+      automate: product === 'automate',
+      app_automate: product === 'app-automate',
+      observability: helper.isTestObservabilitySession(),
+      accessibility: helper.isAccessibilitySession(),
+      turboscale: product === 'turboscale',
+      percy: false
+    };
 
     if (settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
@@ -467,35 +476,5 @@ const addProductMapAndbuildUuidCapability = (settings) => {
     }
   } catch (error) {
     Logger.debug(`Error while sending productmap and build capabilities ${error}`);
-  }
-};
-
-const getProductMap = (caps) => {
-  try {
-    let automate = false;
-    let app_automate = false;
-    let turboscale = false;
-    
-    if (caps['turboScale']) {
-      turboscale = true;
-    } else if (caps['appUploadPath'] || caps['appUploadUrl'] || caps['app'] || caps['appium:options']) {
-      app_automate = true;
-    } else {
-      automate = true;
-    }
-    
-    const buildProductMap = {
-      automate: automate,
-      app_automate: app_automate,
-      observability: helper.isTestObservabilitySession(),
-      accessibility: helper.isAccessibilitySession(),
-      turboscale: turboscale,
-      percy: false
-    };
-    
-    return buildProductMap;
-  } catch (error) {
-    Logger.debug(`Error while creating productmap ${error}`);
-
   }
 };
