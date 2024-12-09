@@ -339,6 +339,7 @@ module.exports = {
       Logger.error(`Could not configure or launch accessibility automation - ${error}`);
     }
 
+    addProductMapAndbuildUuidCapability(settings);
   },
 
   async after() {
@@ -417,6 +418,7 @@ module.exports = {
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
     }
+    addProductMapAndbuildUuidCapability(settings);
 
   }
 };
@@ -445,5 +447,34 @@ const cucumberPatcher = () => {
     Coordinator.default = CoordinatorPatcher;
   } catch (error) {
     Logger.debug(`Error while patching cucumber ${error}`);
+  }
+};
+
+const addProductMapAndbuildUuidCapability = (settings) => {
+  try {
+    if (!settings?.desiredCapabilities) {
+      return;
+    }
+
+    const product = helper.getObservabilityLinkedProductName(settings.desiredCapabilities, settings?.selenium?.host);
+
+    const buildProductMap = {
+      automate: product === 'automate',
+      app_automate: product === 'app-automate',
+      observability: helper.isTestObservabilitySession(),
+      accessibility: helper.isAccessibilitySession(),
+      turboscale: product === 'turboscale',
+      percy: false
+    };
+
+    if (settings.desiredCapabilities['bstack:options']) {
+      settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
+      settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+    } else {
+      settings.desiredCapabilities['browserstack.buildProductMap'] = buildProductMap;
+      settings.desiredCapabilities['browserstack.testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+    }
+  } catch (error) {
+    Logger.debug(`Error while sending productmap and build capabilities ${error}`);
   }
 };
