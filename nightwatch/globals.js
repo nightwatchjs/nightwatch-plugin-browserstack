@@ -471,26 +471,31 @@ const addProductMapAndbuildUuidCapability = (settings) => {
 };
 
 const getProductMap = (caps) => {
-  let automate = false;
-  let app_automate = false;
-  let turboscale = false;
+  try {
+    let automate = false;
+    let app_automate = false;
+    let turboscale = false;
+    
+    if (caps['turboScale']) {
+      turboscale = true;
+    } else if (caps['appUploadPath'] || caps['appUploadUrl'] || caps['app'] || caps['appium:options']) {
+      app_automate = true;
+    } else {
+      automate = true;
+    }
+    
+    const buildProductMap = {
+      automate: automate,
+      app_automate: app_automate,
+      observability: helper.isTestObservabilitySession(),
+      accessibility: helper.isAccessibilitySession(),
+      turboscale: turboscale,
+      percy: false
+    };
+    
+    return buildProductMap;
+  } catch (error) {
+    Logger.debug(`Error while creating productmap ${error}`);
 
-  if (caps['turboScale']) {
-    turboscale = true;
-  } else if (caps['appUploadPath'] || caps['appUploadUrl'] || caps['app'] || caps['appium:options']) {
-    app_automate = true;
-  } else {
-    automate = true;
   }
-
-  const buildProductMap = {
-    automate: automate,
-    app_automate: app_automate,
-    observability: helper.isTestObservabilitySession(),
-    accessibility: helper.isAccessibilitySession(),
-    turboscale: turboscale,
-    percy: false
-  };
-
-  return buildProductMap;
 };
