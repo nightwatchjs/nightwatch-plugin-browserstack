@@ -477,7 +477,7 @@ const getProductMap = (caps) => {
 
   if (caps['turboScale']) {
     turboscale = true;
-  } else if  (caps['appUploadPath'] || caps['appUploadUrl'] || caps['app'] || caps['appium:options']) {
+  } else if (caps['appUploadPath'] || caps['appUploadUrl'] || caps['app'] || caps['appium:options']) {
     app_automate = true;
   } else {
     automate = true;
