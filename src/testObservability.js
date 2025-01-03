@@ -360,7 +360,7 @@ class TestObservability {
       if (eventData.status === 'fail' && eventData.lastError) {
         testData.failure = [
           {
-            'backtrace': [eventData.lastError.stack]
+            'backtrace': [stripAnsi(eventData.lastError.message) + '\n' + eventData.lastError.stack]
           }
         ];
         testData.failure_reason = eventData.lastError ? stripAnsi(eventData.lastError.message) : null;
