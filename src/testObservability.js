@@ -360,7 +360,7 @@ class TestObservability {
       if (eventData.status === 'fail' && eventData.lastError) {
         testData.failure = [
           {
-            'backtrace': [stripAnsi(eventData.lastError.message) + '\n' + eventData.lastError.stack]
+            'backtrace': [stripAnsi(eventData.lastError.message), eventData.lastError.stack]
           }
         ];
         testData.failure_reason = eventData.lastError ? stripAnsi(eventData.lastError.message) : null;
@@ -403,6 +403,9 @@ class TestObservability {
     } else {
       uploadData['test_run'] = testData;
     }
+
+    Logger.debug('sendTestRunEventForCucumbersendTestRunEventForCucumber123' + JSON.stringify(testData));
+
     await helper.uploadEventData(uploadData);
   }
 
@@ -508,6 +511,9 @@ class TestObservability {
       event_type: eventType,
       test_run: testData
     };
+
+    Logger.debug('sendTestRunEventForCucumbersendTestRunEventForCucumber' + JSON.stringify(uploadData));
+
     await helper.uploadEventData(uploadData);
 
   }
