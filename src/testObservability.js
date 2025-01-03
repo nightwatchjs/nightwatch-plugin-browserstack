@@ -403,9 +403,6 @@ class TestObservability {
     } else {
       uploadData['test_run'] = testData;
     }
-
-    Logger.debug('sendTestRunEventForCucumbersendTestRunEventForCucumber123' + JSON.stringify(testData));
-
     await helper.uploadEventData(uploadData);
   }
 
