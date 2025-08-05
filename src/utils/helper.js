@@ -32,8 +32,9 @@ Object.keys(consoleHolder).forEach(method => {
 });
 
 exports.debug = (text) => {
-  if (process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === 'true' || process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === '1') {
-    consoleHolder.log(`\n[${(new Date()).toISOString()}][ OBSERVABILITY ] ${text}\n`);
+  if (process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === 'true' || process.env.BROWSERSTACK_OBSERVABILITY_DEBUG === '1' ||
+      process.env.BROWSERSTACK_TEST_REPORTING_DEBUG === 'true' || process.env.BROWSERSTACK_TEST_REPORTING_DEBUG === '1') {
+    consoleHolder.log(`\n[${(new Date()).toISOString()}][ TEST REPORTING AND ANALYTICS ] ${text}\n`);
   }
 };
 
@@ -58,7 +59,8 @@ exports.isUndefined = value => (value === undefined || value === null);
 exports.isObject = value => (!this.isUndefined(value) && value.constructor === Object);
 
 exports.isTestObservabilitySession = () => {
-  return process.env.BROWSERSTACK_TEST_OBSERVABILITY === 'true';
+  return process.env.BROWSERSTACK_TEST_OBSERVABILITY === 'true' || 
+         process.env.BROWSERSTACK_TEST_REPORTING === 'true';
 };
 
 exports.getObservabilityUser = (config, bstackOptions={}) => {
@@ -74,8 +76,10 @@ exports.isAccessibilitySession = () => {
 };
 
 exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
-  if (fromProduct.test_observability && options.test_observability && options.test_observability.projectName) {
-    return options.test_observability.projectName;
+  if ((fromProduct.test_observability || fromProduct.test_reporting) && 
+      ((options.test_observability && options.test_observability.projectName) ||
+       (options.test_reporting && options.test_reporting.projectName))) {
+    return options.test_observability?.projectName || options.test_reporting?.projectName;
   } else if (fromProduct.accessibility && options.accessibility && options.accessibility.projectName) {
     return options.accessibility.projectName;
   } else if (bstackOptions.projectName) {
@@ -87,8 +91,10 @@ exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
 };
 
 exports.getBuildName = (options, bstackOptions={}, fromProduct={}) => {
-  if (fromProduct.test_observability && options.test_observability && options.test_observability.buildName) {
-    return options.test_observability.buildName;
+  if ((fromProduct.test_observability || fromProduct.test_reporting) && 
+      ((options.test_observability && options.test_observability.buildName) ||
+       (options.test_reporting && options.test_reporting.buildName))) {
+    return options.test_observability?.buildName || options.test_reporting?.buildName;
   } else if (fromProduct.accessibility && options.accessibility && options.accessibility.buildName) {
     return options.accessibility.buildName;
   } else if (bstackOptions.buildName) {
@@ -99,10 +105,16 @@ exports.getBuildName = (options, bstackOptions={}, fromProduct={}) => {
 };
 
 exports.getObservabilityBuildTags = (options, bstackOptions={}) => {
-  if (options.test_observability && options.test_observability.buildTag) {
-    return options.test_observability.buildTag;
+  if ((options.test_observability && options.test_observability.buildTag) ||
+      (options.test_reporting && options.test_reporting.buildTag)) {
+    return options.test_observability?.buildTag || options.test_reporting?.buildTag;
   } else if (bstackOptions.buildTag) {
     return bstackOptions.buildTag;
+  }
+  
+  // Support new environment variable
+  if (process.env.TEST_REPORTING_BUILD_TAG) {
+    return process.env.TEST_REPORTING_BUILD_TAG.split(',').map(tag => tag.trim());
   }
 
   return [];
@@ -498,7 +510,7 @@ exports.uploadEventData = async (eventData) => {
 
   if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
     if (process.env.BS_TESTOPS_JWT === 'null') {
-      Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST OBSERVABILITY : missing authentication token`);
+      Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST REPORTING AND ANALYTICS : missing authentication token`);
       requestQueueHandler.pending_test_uploads = Math.max(0, requestQueueHandler.pending_test_uploads-1);
 
       return {
@@ -544,9 +556,9 @@ exports.uploadEventData = async (eventData) => {
       }
     } catch (error) {
       if (error.response) {
-        Logger.error(`EXCEPTION IN ${event_api_url !== requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        Logger.error(`EXCEPTION IN ${event_api_url !== requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST REPORTING AND ANALYTICS : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        Logger.error(`EXCEPTION IN ${event_api_url !== requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+        Logger.error(`EXCEPTION IN ${event_api_url !== requestQueueHandler.eventUrl ? log_tag : 'Batch_Queue'} REQUEST TO TEST REPORTING AND ANALYTICS : ${error.message || error}`);
       }
       requestQueueHandler.pending_test_uploads = Math.max(0, requestQueueHandler.pending_test_uploads - (event_api_url === 'api/v1/event' ? 1 : data.length));
 

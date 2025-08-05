@@ -69,7 +69,7 @@ module.exports = {
       done();
     } catch (error) {
       CrashReporter.uploadCrashReport(error.message, error.stack);
-      Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+      Logger.error(`Something went wrong in processing report file for test reporting and analytics - ${error.message} with stacktrace ${error.stack}`);
     }
     done(results);
   },
@@ -128,7 +128,7 @@ module.exports = {
         await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+        Logger.error(`Something went wrong in processing report file for test reporting and analytics - ${error.message} with stacktrace ${error.stack}`);
       }
     });
 
@@ -151,7 +151,7 @@ module.exports = {
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+        Logger.error(`Something went wrong in processing report file for test reporting and analytics - ${error.message} with stacktrace ${error.stack}`);
       }
     });
 
@@ -184,7 +184,7 @@ module.exports = {
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+        Logger.error(`Something went wrong in processing report file for test reporting and analytics - ${error.message} with stacktrace ${error.stack}`);
       }
     });
 
@@ -246,7 +246,7 @@ module.exports = {
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
-        Logger.error(`Something went wrong in processing report file for test observability - ${error.message} with stacktrace ${error.stack}`);
+        Logger.error(`Something went wrong in processing report file for test reporting and analytics - ${error.message} with stacktrace ${error.stack}`);
       }
     });
 
@@ -320,7 +320,7 @@ module.exports = {
         }
       }
     } catch (error) {
-      Logger.error(`Could not configure or launch test observability - ${error}`);
+      Logger.error(`Could not configure or launch test reporting and analytics - ${error}`);
     }
 
     try {
@@ -353,10 +353,10 @@ module.exports = {
       try {
         await testObservability.stopBuildUpstream();
         if (process.env.BS_TESTOPS_BUILD_HASHED_ID) {
-          Logger.info(`\nVisit https://observability.browserstack.com/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID} to view build report, insights, and many more debugging information all at one place!\n`);
+          Logger.info(`\nVisit https://automation.browserstack.com/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID} to view build report, insights, and many more debugging information all at one place!\n`);
         }
       } catch (error) {
-        Logger.error(`Something went wrong in stopping build session for test observability - ${error}`);
+        Logger.error(`Something went wrong in stopping build session for test reporting and analytics - ${error}`);
       }
       process.exit();
     }
