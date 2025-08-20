@@ -108,9 +108,9 @@ class RequestQueueHandler {
       }
     } catch (error) {
       if (error.response) {
-        Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST REPORTING AND ANALYTICS : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+        Logger.error(`EXCEPTION IN ${kind} REQUEST TO TEST REPORTING AND ANALYTICS : ${error.message || error}`);
       }
       this.pending_test_uploads = Math.max(0, this.pending_test_uploads - data.length);
     }

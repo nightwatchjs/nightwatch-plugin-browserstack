@@ -13,14 +13,35 @@ const hooksMap = {};
 class TestObservability {
   configure(settings = {}) {
     this._settings = settings['@nightwatch/browserstack'] || {};
+    this._parentSettings = settings; // Store full settings to access top-level options
 
-    process.env.BROWSERSTACK_TEST_OBSERVABILITY = true;
-
-    if (!helper.isUndefined(this._settings.test_observability) && !helper.isUndefined(this._settings.test_observability.enabled)) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = this._settings.test_observability.enabled;
+    // Initialize environment variables only if they're not already set
+    if (!process.env.BROWSERSTACK_TEST_OBSERVABILITY && !process.env.BROWSERSTACK_TEST_REPORTING) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'true';
+      process.env.BROWSERSTACK_TEST_REPORTING = 'true';
     }
-    if (process.argv.includes('--disable-test-observability')) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
+
+    // Check for top-level testObservability or testReporting flags
+    if (settings.testObservability === true || settings.testReporting === true) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'true';
+      process.env.BROWSERSTACK_TEST_REPORTING = 'true';
+    } else if (settings.testObservability === false || settings.testReporting === false) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
+      process.env.BROWSERSTACK_TEST_REPORTING = 'false';
+    }
+
+    // Check for test_observability or test_reporting configuration  
+    const observabilityConfig = this._settings.test_observability || this._settings.test_reporting;
+    const testReportingOptions = this._settings.testReportingOptions || this._settings.testObservabilityOptions;
+    
+    if (!helper.isUndefined(observabilityConfig) && !helper.isUndefined(observabilityConfig.enabled)) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = observabilityConfig.enabled;
+      process.env.BROWSERSTACK_TEST_REPORTING = observabilityConfig.enabled;
+    }
+    
+    if (process.argv.includes('--disable-test-observability') || process.argv.includes('--disable-test-reporting')) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
+      process.env.BROWSERSTACK_TEST_REPORTING = 'false';
 
       return;
     }
@@ -31,25 +52,47 @@ class TestObservability {
       this._bstackOptions = settings.desiredCapabilities['bstack:options'];
     }
 
-    if (this._settings.test_observability || this._bstackOptions) {
-      this._user = helper.getObservabilityUser(this._settings.test_observability, this._bstackOptions);
-      this._key = helper.getObservabilityKey(this._settings.test_observability, this._bstackOptions);
+    if (observabilityConfig || testReportingOptions || this._bstackOptions) {
+      this._user = helper.getObservabilityUser(observabilityConfig || testReportingOptions, this._bstackOptions);
+      this._key = helper.getObservabilityKey(observabilityConfig || testReportingOptions, this._bstackOptions);
       if (!this._user || !this._key) {
-        Logger.error('Could not start Test Observability : Missing authentication token');
+        Logger.error('Could not start Test Reporting and Analytics : Missing authentication token');
         process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
+        process.env.BROWSERSTACK_TEST_REPORTING = 'false';
 
         return;
       }
       CrashReporter.setCredentialsForCrashReportUpload(this._user, this._key);
       CrashReporter.setConfigDetails(settings);
     }
+    
+    // Also check for top-level testReportingOptions or testObservabilityOptions
+    if (settings.testReportingOptions || settings.testObservabilityOptions) {
+      const topLevelOptions = settings.testReportingOptions || settings.testObservabilityOptions;
+      if (!this._user || !this._key) {
+        this._user = helper.getObservabilityUser(topLevelOptions, this._bstackOptions);
+        this._key = helper.getObservabilityKey(topLevelOptions, this._bstackOptions);
+        if (this._user && this._key) {
+          CrashReporter.setCredentialsForCrashReportUpload(this._user, this._key);
+          CrashReporter.setConfigDetails(settings);
+        }
+      }
+    }
   }
 
   async launchTestSession() {
-    const options = this._settings.test_observability || {};
+    // Support both old and new configuration options at different levels
+    const options = this._settings.test_observability || 
+                   this._settings.test_reporting || 
+                   this._settings.testReportingOptions || 
+                   this._settings.testObservabilityOptions || 
+                   this._parentSettings?.testReportingOptions ||
+                   this._parentSettings?.testObservabilityOptions ||
+                   {};
     this._gitMetadata = await helper.getGitMetaData();
     const fromProduct = {
-      test_observability: true
+      test_observability: true,
+      test_reporting: true
     };
     const data = {
       format: 'json',
@@ -105,6 +148,7 @@ class TestObservability {
       }
       process.env.BS_TESTOPS_BUILD_COMPLETED = false;
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
+      process.env.BROWSERSTACK_TEST_REPORTING = false;
     }
   }
 
@@ -144,9 +188,9 @@ class TestObservability {
       }
     } catch (error) {
       if (error.response) {
-        Logger.error(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+        Logger.error(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST REPORTING AND ANALYTICS : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
       } else {
-        Logger.error(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST OBSERVABILITY : ${error.message || error}`);
+        Logger.error(`EXCEPTION IN stopBuildUpstream REQUEST TO TEST REPORTING AND ANALYTICS : ${error.message || error}`);
       }
 
       return {
@@ -655,7 +699,7 @@ class TestObservability {
         await helper.uploadEventData({event_type: 'LogCreated', logs: [log]});
       }
     } catch (error) {
-      Logger.error(`Exception in uploading log data to Observability with error : ${error}`);
+      Logger.error(`Exception in uploading log data to Test Reporting and Analytics with error : ${error}`);
     }
   }
 }
