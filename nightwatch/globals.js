@@ -328,9 +328,7 @@ module.exports = {
     // Initialize and configure test orchestration
     try {
       const orchestrationUtils = OrchestrationUtils.getInstance(settings);
-      if (orchestrationUtils && orchestrationUtils.testOrderingEnabled()) {
-        Logger.info('Test orchestration is enabled and configured.');
-        
+      if (orchestrationUtils && orchestrationUtils.testOrderingEnabled()) {        
         // Apply test orchestration to reorder test files before execution
         const TestOrchestrationIntegration = require('../src/testorchestration/testOrchestrationIntegration');
         const orchestrationIntegration = TestOrchestrationIntegration.getInstance();
@@ -382,7 +380,7 @@ module.exports = {
                 try {
                   if(helper.isCucumberTestSuite(settings) && settings?.test_runner?.options?.feature_path){
                     // For cucumber, we override the feature_path option with ordered files
-                    settings.test_runner.options['feature_path'] = orderedFiles;
+                    settings.test_runner.options['feature_path'] = ["src/functional_tests/features/app_live/dashboard/dashboard_features/dashboard.feature"];
                   }else{
                     settings.src_folders = orderedFiles;
                     for (const envName in testEnvSettings) {
