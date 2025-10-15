@@ -159,7 +159,7 @@ class TestOrderingServer {
       }
       
       // If still not available, try timeoutUrl
-      if (timeoutUrl && !testFilesJsonList) {
+      if (timeoutUrl && (!testFilesJsonList || testFilesJsonList.length === 0)) {
         this.logger.debug('[getOrderedTestFiles] Fetching ordered tests from timeout URL');
         const response = await RequestUtils.getTestOrchestrationOrderedTests(timeoutUrl, {});
         if (response && response.tests) {
