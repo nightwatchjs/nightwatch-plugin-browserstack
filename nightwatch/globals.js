@@ -380,7 +380,7 @@ module.exports = {
                 try {
                   if(helper.isCucumberTestSuite(settings) && settings?.test_runner?.options?.feature_path){
                     // For cucumber, we override the feature_path option with ordered files
-                    settings.test_runner.options['feature_path'] = ["src/functional_tests/features/app_live/dashboard/dashboard_features/dashboard.feature"];
+                    settings.test_runner.options['feature_path'] = ["src/functional_tests/features/app_automate/apis/api.feature"];
                   }else{
                     settings.src_folders = orderedFiles;
                     for (const envName in testEnvSettings) {
