@@ -34,12 +34,12 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse
     json: config.headers['Content-Type'] === 'application/json',
     agent
   };
-
+  const acceptedStatusCodes = [200, 201, 202];
   return new Promise((resolve, reject) => {
     request(options, function callback(error, response, body) {
       if (error) {
         reject(error);
-      } else if (response.statusCode !== 200 && response.statusCode !== 201) {
+      } else if (!acceptedStatusCodes.includes(response.statusCode)) {
         reject(response && response.body ? response.body : `Received response from BrowserStack Server with status : ${response.statusCode}`);
       } else {
         if (jsonResponse) {
