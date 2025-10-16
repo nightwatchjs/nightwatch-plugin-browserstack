@@ -431,6 +431,7 @@ class OrchestrationUtils {
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0', 10),
         totalNodes: parseInt(process.env.BROWSERSTACK_TOTAL_NODE_COUNT || '1', 10),
         hostInfo: getHostInfo(),
+        frameworkName: "nightwatch"
       };
 
       this.logger.debug(`[collectBuildData] Sending build data payload: ${JSON.stringify(payload)}`);
