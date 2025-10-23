@@ -37,7 +37,7 @@ class RequestUtils {
     
     // Validate JWT token
     if (!jwtToken) {
-      Logger.error('BROWSERSTACK_TESTHUB_JWT environment variable is not set. This is required for test orchestration.');
+      Logger.error('BS_TESTOPS_JWT environment variable is not set. This is required for test orchestration.');
       return null;
     }
     

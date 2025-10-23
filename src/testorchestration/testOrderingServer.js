@@ -1,8 +1,7 @@
 const path = require('path');
 const Logger = require('../utils/logger');
-const { getHostInfo, getGitMetadataForAiSelection } = require('./helpers');
+const { getHostInfo, getGitMetadataForAiSelection, getProjectName, getBuildName } = require('../utils/helper');
 const RequestUtils = require('./requestUtils');
-
 const ORCHESTRATION_API_URL = 'https://collector-observability.browserstack.com';
 
 /**
@@ -21,6 +20,11 @@ class TestOrderingServer {
     this.defaultTimeout = 60;
     this.defaultTimeoutInterval = 5;
     this.splitTestsApiCallCount = 0;
+    this._settings = config['@nightwatch/browserstack'] || {};
+    this._bstackOptions = {};
+    if (config && config.desiredCapabilities && config.desiredCapabilities['bstack:options']) {
+      this._bstackOptions = config.desiredCapabilities['bstack:options'];
+    }
   }
 
   /**
@@ -42,8 +46,8 @@ class TestOrderingServer {
         orchestrationMetadata,
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0'),
         totalNodes: parseInt(process.env.BROWSERSTACK_TOTAL_NODE_COUNT || '1'),
-        projectName: this._getProjectName(),
-        buildName: this._getBuildName(),
+        projectName: getProjectName(this._settings, this._bstackOptions),
+        buildName: getBuildName(this._settings, this._bstackOptions),
         buildRunIdentifier: process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER || '',
         hostInfo: getHostInfo(),
         prDetails
@@ -61,25 +65,6 @@ class TestOrderingServer {
     }
   }
 
-  /**
-   * Get project name from configuration
-   */
-  _getProjectName() {
-    const bsOptions = this.config['@nightwatch/browserstack'];
-    return bsOptions?.test_observability?.projectName || 
-           this.config.desiredCapabilities?.['bstack:options']?.projectName || 
-           '';
-  }
-
-  /**
-   * Get build name from configuration
-   */
-  _getBuildName() {
-    const bsOptions = this.config['@nightwatch/browserstack'];
-    return bsOptions?.test_observability?.buildName || 
-           this.config.desiredCapabilities?.['bstack:options']?.buildName || 
-           path.basename(process.cwd());
-  }
 
   /**
    * Processes the split tests API response and extracts relevant fields.

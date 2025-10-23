@@ -1,5 +1,3 @@
-const path = require('path');
-const {performance} = require('perf_hooks');
 const Logger = require('../utils/logger');
 const TestOrderingServer = require('./testOrderingServer');
 const OrchestrationUtils = require('./orchestrationUtils');

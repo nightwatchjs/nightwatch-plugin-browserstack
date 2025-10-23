@@ -1,11 +1,10 @@
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const { tmpdir } = require('os');
 const Logger = require('../utils/logger');
 const { getHostInfo } = require('../utils/helper');
 const RequestUtils = require('./requestUtils');
-
+const helper = require('../utils/helper');
 // Constants
 const RUN_SMART_SELECTION = 'runSmartSelection';
 const ALLOWED_ORCHESTRATION_KEYS = [RUN_SMART_SELECTION];
@@ -48,6 +47,11 @@ class OrchestrationUtils {
    * @param config Configuration object
    */
   constructor(config) {
+    this._settings = config['@nightwatch/browserstack'] || {};
+    this._bstackOptions = {};
+    if (config && config.desiredCapabilities && config.desiredCapabilities['bstack:options']) {
+      this._bstackOptions = config.desiredCapabilities['bstack:options'];
+    }
     this.logger = Logger;
     this.runSmartSelection = false;
     this.smartSelectionMode = 'relevantFirst';
@@ -66,8 +70,8 @@ class OrchestrationUtils {
       runSmartSelectionOpts.source || null
     );
     
-    // Extract build details from config
-    this._extractBuildDetails(config);
+    // Extract build details
+    this._extractBuildDetails();
   }
 
   /**
@@ -92,22 +96,13 @@ class OrchestrationUtils {
   /**
    * Extract build details from config
    */
-  _extractBuildDetails(config) {
+  _extractBuildDetails() {
     try {
-      const bsOptions = config['@nightwatch/browserstack'];
-      const bstackOptions = config.desiredCapabilities?.['bstack:options'];
-      
-      this.buildName = bsOptions?.test_observability?.buildName || 
-                      bstackOptions?.buildName || 
-                      path.basename(process.cwd());
-      
-      this.projectName = bsOptions?.test_observability?.projectName || 
-                         bstackOptions?.projectName || 
-                         '';
-      
-      this.buildIdentifier = bsOptions?.test_observability?.buildIdentifier || 
-                             bstackOptions?.buildIdentifier || 
-                             '';
+      this.buildName = helper.getBuildName(this._settings, this._bstackOptions) || '';
+
+      this.projectName = helper.getProjectName(this._settings, this._bstackOptions) || '';
+
+      this.buildIdentifier = process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER || '';
       
       this.logger.debug(`[_extractBuildDetails] Extracted - projectName: ${this.projectName}, buildName: ${this.buildName}, buildIdentifier: ${this.buildIdentifier}`);
     } catch (e) {
@@ -427,7 +422,7 @@ class OrchestrationUtils {
       const payload = {
         projectName: this.getProjectName(),
         buildName: this.getBuildName(),
-        buildRunIdentifier: process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER || '',
+        buildRunIdentifier: this.getBuildIdentifier(),
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0', 10),
         totalNodes: parseInt(process.env.BROWSERSTACK_TOTAL_NODE_COUNT || '1', 10),
         hostInfo: getHostInfo(),
