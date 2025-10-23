@@ -79,37 +79,9 @@ class RequestUtils {
       }
 
       return responseObj;
-    } catch (e) {
-      // Enhanced error logging for better diagnosis
-      if (e.code === 'EPIPE') {
-        Logger.error(`❌ Network connection error (EPIPE) when calling orchestration API`);
-        Logger.error(`   URL: ${fullUrl}`);
-        Logger.error(`   This usually indicates a network connectivity issue or the connection was closed unexpectedly`);
-        Logger.error(`   Please check your internet connection and BrowserStack service status`);
-      } else if (e.code === 'ECONNREFUSED') {
-        Logger.error(`❌ Connection refused when calling orchestration API`);
-        Logger.error(`   URL: ${fullUrl}`);
-        Logger.error(`   The BrowserStack orchestration service may be unavailable`);
-      } else if (e.code === 'ENOTFOUND') {
-        Logger.error(`❌ DNS resolution failed for orchestration API`);
-        Logger.error(`   URL: ${fullUrl}`);
-        Logger.error(`   Please check your DNS settings and network connectivity`);
-      } else if (e.response && e.response.status === 401) {
-        Logger.error(`❌ Authentication failed for orchestration API`);
-        Logger.error(`   Please check your BROWSERSTACK_TESTHUB_JWT token`);
-      } else if (e.response && e.response.status === 403) {
-        Logger.error(`❌ Access forbidden for orchestration API`);
-        Logger.error(`   Your account may not have access to test orchestration features`);
-      } else {
-        Logger.error(`❌ Orchestration request failed: ${e.message || e} - ${reqEndpoint}`);
-        if (e.response) {
-          Logger.error(`   Response status: ${e.response.status}`);
-          Logger.error(`   Response data: ${JSON.stringify(e.response.data)}`);
-        }
-      }
-      
+    } catch (e) {      
       // Log stack trace for debugging
-      Logger.debug(`Error stack trace: ${e.stack}`);
+      Logger.debug(`[makeOrchestrationRequest] Error during API Call: ${e.message || e} - ${reqEndpoint}`);
       
       return null;
     }
