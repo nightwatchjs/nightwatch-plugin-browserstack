@@ -1,96 +1,6 @@
-const os = require('os');
-const path = require('path');
 const { execSync } = require('child_process');
-const fs = require('fs');
 const Logger = require('../utils/logger');
 
-// Constants
-const MAX_GIT_META_DATA_SIZE_IN_BYTES = 512 * 1024; // 512 KB
-
-/**
- * Get host information for the test orchestration
- */
-function getHostInfo() {
-  return {
-    hostname: os.hostname(),
-    platform: process.platform,
-    architecture: process.arch,
-    release: os.release(),
-    username: os.userInfo().username
-  };
-}
-
-/**
- * Format git author information
- */
-function gitAuthor(name, email) {
-  if (!name && !email) {
-    return '';
-  }
-  return `${name} (${email})`;
-}
-
-/**
- * Get the size of a JSON object in bytes
- */
-function getSizeOfJsonObjectInBytes(obj) {
-  try {
-    const jsonString = JSON.stringify(obj);
-    return Buffer.byteLength(jsonString, 'utf8');
-  } catch (e) {
-    Logger.error(`Error calculating object size: ${e}`);
-    return 0;
-  }
-}
-
-/**
- * Truncate a string to reduce its size by the specified number of bytes
- */
-function truncateString(str, bytesToTruncate) {
-  if (!str || bytesToTruncate <= 0) {
-    return str;
-  }
-  
-  const originalBytes = Buffer.byteLength(str, 'utf8');
-  const targetBytes = Math.max(0, originalBytes - bytesToTruncate);
-  
-  if (targetBytes >= originalBytes) {
-    return str;
-  }
-  
-  // Perform binary search to find the right truncation point
-  let left = 0;
-  let right = str.length;
-  
-  while (left < right) {
-    const mid = Math.floor((left + right) / 2);
-    const truncated = str.substring(0, mid);
-    const bytes = Buffer.byteLength(truncated, 'utf8');
-    
-    if (bytes <= targetBytes) {
-      left = mid + 1;
-    } else {
-      right = mid;
-    }
-  }
-  
-  return str.substring(0, left - 1) + '...';
-}
-
-/**
- * Check and truncate VCS info if needed
- */
-function checkAndTruncateVcsInfo(gitMetaData) {
-  const gitMetaDataSizeInBytes = getSizeOfJsonObjectInBytes(gitMetaData);
-  
-  if (gitMetaDataSizeInBytes && gitMetaDataSizeInBytes > MAX_GIT_META_DATA_SIZE_IN_BYTES) {
-    const truncateSize = gitMetaDataSizeInBytes - MAX_GIT_META_DATA_SIZE_IN_BYTES;
-    const truncatedCommitMessage = truncateString(gitMetaData.commit_message, truncateSize);
-    gitMetaData.commit_message = truncatedCommitMessage;
-    Logger.info(`The commit has been truncated. Size of commit after truncation is ${getSizeOfJsonObjectInBytes(gitMetaData) / 1024} KB`);
-  }
-  return gitMetaData;
-}
 
 /**
  * Check if a git metadata result is valid
@@ -355,8 +265,5 @@ function getGitMetadataForAiSelection(folders = []) {
 }
 
 module.exports = {
-  getHostInfo,
   getGitMetadataForAiSelection,
-  gitAuthor,
-  checkAndTruncateVcsInfo
 };

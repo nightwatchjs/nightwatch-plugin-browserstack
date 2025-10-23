@@ -27,7 +27,6 @@ class TestOrderingServer {
    * Initiates the split tests request and stores the response data for polling.
    */
   async splitTests(testFiles, orchestrationStrategy, orchestrationMetadata = {}) {
-    this.logger.debug(`[splitTests] Initiating split tests with strategy: ${orchestrationStrategy}`);
     try {
       let prDetails = [];
       const source = orchestrationMetadata['run_smart_selection']?.source;

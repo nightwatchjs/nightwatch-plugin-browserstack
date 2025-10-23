@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const { tmpdir } = require('os');
 const Logger = require('../utils/logger');
-const { getHostInfo, getGitMetadataForAiSelection } = require('./helpers');
+const { getHostInfo } = require('../utils/helper');
 const RequestUtils = require('./requestUtils');
 
 // Constants

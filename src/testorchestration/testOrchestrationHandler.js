@@ -104,7 +104,6 @@ class TestOrchestrationHandler {
       this.logger.info(`Reordering test files with orchestration strategy: ${orchestrationStrategy}`);
 
       // Use server handler approach for test file orchestration
-      this.logger.debug('Using SDK flow for test files orchestration.');
       await this.testOrderingServerHandler.splitTests(testFiles, orchestrationStrategy, orchestrationMetadata);
       const orderedTestFiles = await this.testOrderingServerHandler.getOrderedTestFiles() || [];
 
