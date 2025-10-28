@@ -10,7 +10,8 @@ class RequestUtils {
    */
   static async postCollectBuildData(reqEndpoint, data) {
     Logger.debug('Processing Request for postCollectBuildData');
-    return RequestUtils.makeOrchestrationRequest('POST', reqEndpoint, { data });
+
+    return RequestUtils.makeOrchestrationRequest('POST', reqEndpoint, {data});
   }
 
   /**
@@ -18,7 +19,8 @@ class RequestUtils {
    */
   static async testOrchestrationSplitTests(reqEndpoint, data) {
     Logger.debug('Processing Request for testOrchestrationSplitTests');
-    return RequestUtils.makeOrchestrationRequest('POST', reqEndpoint, { data });
+
+    return RequestUtils.makeOrchestrationRequest('POST', reqEndpoint, {data});
   }
 
   /**
@@ -26,6 +28,7 @@ class RequestUtils {
    */
   static async getTestOrchestrationOrderedTests(reqEndpoint, data) {
     Logger.debug('Processing Request for getTestOrchestrationOrderedTests');
+
     return RequestUtils.makeOrchestrationRequest('GET', reqEndpoint, {});
   }
 
@@ -38,6 +41,7 @@ class RequestUtils {
     // Validate JWT token
     if (!jwtToken) {
       Logger.error('BS_TESTOPS_JWT environment variable is not set. This is required for test orchestration.');
+
       return null;
     }
     

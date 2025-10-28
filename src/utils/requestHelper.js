@@ -35,6 +35,7 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse
     agent
   };
   const acceptedStatusCodes = [200, 201, 202];
+
   return new Promise((resolve, reject) => {
     request(options, function callback(error, response, body) {
       if (error) {

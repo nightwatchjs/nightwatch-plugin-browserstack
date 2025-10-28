@@ -9,7 +9,7 @@ const path = require('path');
 const AccessibilityAutomation = require('../src/accessibilityAutomation');
 const eventHelper = require('../src/utils/eventHelper');
 const OrchestrationUtils = require('../src/testorchestration/orchestrationUtils');
-const { type } = require('os');
+const {type} = require('os');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
@@ -338,9 +338,9 @@ module.exports = {
         let allTestFiles = [];
         
         // Checking either for Feature Path or src_folders, feature path take priority
-        if(helper.isCucumberTestSuite(settings) && settings?.test_runner?.options?.feature_path){
+        if (helper.isCucumberTestSuite(settings) && settings?.test_runner?.options?.feature_path){
           Logger.debug('Getting test files from feature_path configuration...');
-          if(Array.isArray(settings.test_runner.options.feature_path)){
+          if (Array.isArray(settings.test_runner.options.feature_path)){
             settings.test_runner.options.feature_path.forEach(featurePath => {
               const files = helper.collectTestFiles(featurePath, 'feature_path config');
               allTestFiles = allTestFiles.concat(files);
@@ -349,7 +349,7 @@ module.exports = {
             const files = helper.collectTestFiles(settings.test_runner.options.feature_path, 'feature_path config');
             allTestFiles = allTestFiles.concat(files);
           }
-        }else if (settings.src_folders && Array.isArray(settings.src_folders) && settings.src_folders.length > 0) {
+        } else if (settings.src_folders && Array.isArray(settings.src_folders) && settings.src_folders.length > 0) {
           Logger.debug('Getting test files from src_folders configuration...');
           settings.src_folders.forEach(folder => {
             const files = helper.collectTestFiles(folder, 'src_folders config');
@@ -373,29 +373,29 @@ module.exports = {
             if (orderedFiles && orderedFiles.length > 0) {
               Logger.info(`Test files reordered by orchestration: ${orderedFiles.length} files`);
 
-                Logger.info(`Test orchestration recommended order change:`);
-                Logger.info(`Original: ${allTestFiles.join(', ')}`);
-                Logger.info(`Optimized: ${orderedFiles.join(', ')}`);
+              Logger.info('Test orchestration recommended order change:');
+              Logger.info(`Original: ${allTestFiles.join(', ')}`);
+              Logger.info(`Optimized: ${orderedFiles.join(', ')}`);
                                 
-                try {
-                  if(helper.isCucumberTestSuite(settings) && settings?.test_runner?.options?.feature_path){
-                    // For cucumber, we override the feature_path option with ordered files
-                    settings.test_runner.options['feature_path'] = orderedFiles;
-                  }else{
-                    settings.src_folders = orderedFiles;
-                    for (const envName in testEnvSettings) {
-                      testEnvSettings[envName].src_folders = orderedFiles;
-                      testEnvSettings[envName].test_runner.src_folders = orderedFiles;
-                    }
-                    if (settings.test_runner && typeof settings.test_runner === 'object' && !Array.isArray(settings.test_runner)) {
-                      settings.test_runner.src_folders = orderedFiles;
-                    }
+              try {
+                if (helper.isCucumberTestSuite(settings) && settings?.test_runner?.options?.feature_path){
+                  // For cucumber, we override the feature_path option with ordered files
+                  settings.test_runner.options['feature_path'] = orderedFiles;
+                } else {
+                  settings.src_folders = orderedFiles;
+                  for (const envName in testEnvSettings) {
+                    testEnvSettings[envName].src_folders = orderedFiles;
+                    testEnvSettings[envName].test_runner.src_folders = orderedFiles;
                   }
+                  if (settings.test_runner && typeof settings.test_runner === 'object' && !Array.isArray(settings.test_runner)) {
+                    settings.test_runner.src_folders = orderedFiles;
+                  }
+                }
                   
-                } catch (reorderError) {
-                  Logger.error(`Runtime reordering failed: ${reorderError.message}`);
-                  Logger.info(`Falling back to original order for current execution.`);
-                } 
+              } catch (reorderError) {
+                Logger.error(`Runtime reordering failed: ${reorderError.message}`);
+                Logger.info('Falling back to original order for current execution.');
+              } 
             } else {
               Logger.info('Split test API called - no reordering available');
             }

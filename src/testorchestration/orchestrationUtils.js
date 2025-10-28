@@ -1,8 +1,8 @@
 const path = require('path');
 const fs = require('fs');
-const { tmpdir } = require('os');
+const {tmpdir} = require('os');
 const Logger = require('../utils/logger');
-const { getHostInfo } = require('../utils/helper');
+const {getHostInfo} = require('../utils/helper');
 const RequestUtils = require('./requestUtils');
 const helper = require('../utils/helper');
 // Constants
@@ -59,7 +59,7 @@ class OrchestrationUtils {
     this.smartSelectionSource = null; // Store source paths if provided
     
     // Check both possible configuration paths: direct or nested in browserstack options
-    let testOrchOptions = this._getTestOrchestrationOptions(config);
+    const testOrchOptions = this._getTestOrchestrationOptions(config);
     
     // Try to get runSmartSelection options
     const runSmartSelectionOpts = testOrchOptions[RUN_SMART_SELECTION] || {};
@@ -117,6 +117,7 @@ class OrchestrationUtils {
     if (!OrchestrationUtils._instance && config) {
       OrchestrationUtils._instance = new OrchestrationUtils(config);
     }
+
     return OrchestrationUtils._instance;
   }
 
@@ -144,6 +145,7 @@ class OrchestrationUtils {
   static checkAbortBuildFileExists() {
     const buildUuid = process.env.BS_TESTOPS_BUILD_HASHED_ID;
     const filePath = path.join(tmpdir(), `abort_build_${buildUuid}`);
+
     return fs.existsSync(filePath);
   }
 
@@ -222,10 +224,10 @@ class OrchestrationUtils {
       
       // Normalize source to always be a list of paths
       if (source === null) {
-        this.smartSelectionSource = None;
+        this.smartSelectionSource = null;
       } else if (Array.isArray(source)) {
         this.smartSelectionSource = source;
-      } else if(typeof source === 'string' && source.endsWith('.json')) {
+      } else if (typeof source === 'string' && source.endsWith('.json')) {
         this.smartSelectionSource = this._loadSourceFromFile(source) || [];
       }
       
@@ -244,6 +246,7 @@ class OrchestrationUtils {
      */
     if (!fs.existsSync(filePath)) {
       this.logger.error(`Source file '${filePath}' does not exist.`);
+
       return [];
     }
 
@@ -253,6 +256,7 @@ class OrchestrationUtils {
       data = JSON.parse(fileContent);
     } catch (error) {
       this.logger.error(`Error parsing JSON from source file '${filePath}': ${error.message}`);
+
       return [];
     }
 
@@ -276,6 +280,7 @@ class OrchestrationUtils {
               if (key && value) {
                 acc[key.trim()] = value.trim();
               }
+
               return acc;
             }, {});
         }
@@ -284,6 +289,7 @@ class OrchestrationUtils {
       }
       
       this.logger.debug(`Feature branch mappings from env: ${JSON.stringify(envMap)}`);
+
       return envMap;
     };
 
@@ -300,6 +306,7 @@ class OrchestrationUtils {
       if (repoInfo.featureBranch) {
         return repoInfo.featureBranch;
       }
+
       return null;
     };
 
@@ -329,7 +336,7 @@ class OrchestrationUtils {
           continue;
         }
 
-        const repoInfoCopy = { ...repoInfo };
+        const repoInfoCopy = {...repoInfo};
         repoInfoCopy.name = name;
         repoInfoCopy.featureBranch = getFeatureBranch(name, repoInfo);
 
@@ -377,6 +384,7 @@ class OrchestrationUtils {
     if (this.testOrdering.getEnabled()) {
       return this.testOrdering.getName();
     }
+
     return null;
   }
 
@@ -391,6 +399,7 @@ class OrchestrationUtils {
         'source': this.getSmartSelectionSource()
       }
     };
+
     return data;
   }
 
@@ -426,7 +435,7 @@ class OrchestrationUtils {
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0', 10),
         totalNodes: parseInt(process.env.BROWSERSTACK_TOTAL_NODE_COUNT || '1', 10),
         hostInfo: getHostInfo(),
-        frameworkName: "nightwatch" // TODO: Need to remove this after adding support in Test Orchestration Server
+        frameworkName: 'nightwatch' // TODO: Need to remove this after adding support in Test Orchestration Server
       };
 
       this.logger.debug(`[collectBuildData] Sending build data payload: ${JSON.stringify(payload)}`);
@@ -435,13 +444,16 @@ class OrchestrationUtils {
 
       if (response) {
         this.logger.debug(`[collectBuildData] Build data collection response: ${JSON.stringify(response)}`);
+
         return response;
-      } else {
-        this.logger.error(`[collectBuildData] Failed to collect build data for build UUID: ${buildUuid}`);
-        return null;
-      }
+      } 
+      this.logger.error(`[collectBuildData] Failed to collect build data for build UUID: ${buildUuid}`);
+
+      return null;
+      
     } catch (e) {
       this.logger.error(`[collectBuildData] Exception in collecting build data for build UUID ${buildUuid}: ${e}`);
+
       return null;
     }
   }

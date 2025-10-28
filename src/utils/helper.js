@@ -15,7 +15,7 @@ const Logger = require('./logger');
 const LogPatcher = require('./logPatcher');
 const BSTestOpsPatcher = new LogPatcher({});
 const sessions = {};
-const { execSync } = require('child_process');
+const {execSync} = require('child_process');
 
 console = {};
 Object.keys(consoleHolder).forEach(method => {
@@ -864,7 +864,7 @@ exports.findFilesRecursively = (dir, pattern) => {
       return files;
     }
     
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const entries = fs.readdirSync(dir, {withFileTypes: true});
     
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
@@ -924,9 +924,11 @@ exports.matchesGlobPattern = (filePath, pattern) => {
   
   try {
     const regex = new RegExp(regexPattern);
+
     return regex.test(normalizedPath);
   } catch (err) {
     Logger.debug(`Error in glob pattern matching: ${err.message}`);
+
     return false;
   }
 };
@@ -939,6 +941,7 @@ exports.collectTestFiles = (testPath, source = 'unknown') => {
     // Check if it's a glob pattern
     if (exports.isGlobPattern(testPath)) {
       Logger.debug(`Processing glob pattern: ${testPath}`);
+
       return exports.expandGlobPattern(testPath);
     }
     
@@ -952,11 +955,13 @@ exports.collectTestFiles = (testPath, source = 'unknown') => {
       if (stats.isFile()) {
         const relativePath = path.relative(process.cwd(), resolvedPath);
         Logger.debug(`Found test file: ${relativePath}`);
+
         return [relativePath];
       } else if (stats.isDirectory()) {
         // For directories, find all supported test files
         const files = exports.findTestFilesInDirectory(resolvedPath);
         Logger.debug(`Found ${files.length} test files in directory: ${testPath}`);
+
         return files;
       }
     } else {
@@ -965,6 +970,7 @@ exports.collectTestFiles = (testPath, source = 'unknown') => {
   } catch (err) {
     Logger.debug(`Could not collect test files from ${testPath} (${source}): ${err.message}`);
   }
+
   return [];
 };
 
@@ -974,7 +980,7 @@ exports.findTestFilesInDirectory = (dir) => {
   const supportedExtensions = ['.js', '.feature'];
   
   try {
-    const entries = fs.readdirSync(dir, { recursive: true });
+    const entries = fs.readdirSync(dir, {recursive: true});
     
     for (const entry of entries) {
       if (typeof entry === 'string') {
@@ -999,7 +1005,7 @@ exports.expandGlobPattern = (pattern) => {
   Logger.debug(`Expanding glob pattern: ${pattern}`);
   
   // Extract the base directory from the pattern
-  const parts = pattern.split(/[\/\\]/);
+  const parts = pattern.split(/[/\\]/);
   let baseDir = '.';
   let patternStart = 0;
   
@@ -1064,6 +1070,7 @@ function getBaseBranch() {
       if (branches.length > 0) {
         // Remove the '* ' from current branch if present and return first branch
         const firstBranch = branches[0].replace(/^\*\s+/, '').trim();
+
         return firstBranch;
       }
     } catch (e) {
@@ -1290,4 +1297,4 @@ exports.getGitMetadataForAiSelection = (folders = []) => {
   }));
   
   return formattedResults;
-}
+};

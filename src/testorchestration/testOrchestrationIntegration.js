@@ -1,4 +1,4 @@
-const { applyOrchestrationIfEnabled } = require('./applyOrchestration');
+const {applyOrchestrationIfEnabled} = require('./applyOrchestration');
 const OrchestrationUtils = require('./orchestrationUtils');
 const Logger = require('../utils/logger');
 
@@ -17,6 +17,7 @@ class TestOrchestrationIntegration {
     if (!TestOrchestrationIntegration._instance) {
       TestOrchestrationIntegration._instance = new TestOrchestrationIntegration();
     }
+
     return TestOrchestrationIntegration._instance;
   }
 
@@ -42,6 +43,7 @@ class TestOrchestrationIntegration {
   async applyOrchestration(specs, settings) {
     if (!specs || !Array.isArray(specs) || specs.length === 0) {
       Logger.debug('No specs provided for test orchestration.');
+
       return specs;
     }
 
@@ -51,13 +53,16 @@ class TestOrchestrationIntegration {
       
       if (orderedSpecs && orderedSpecs.length > 0 && orderedSpecs !== specs) {
         Logger.info(`Test orchestration applied. Spec order changed from [${specs.join(', ')}] to [${orderedSpecs.join(', ')}]`);
+
         return orderedSpecs;
-      } else {
-        Logger.info('Test orchestration completed. No changes to spec order.');
-        return specs;
-      }
+      } 
+      Logger.info('Test orchestration completed. No changes to spec order.');
+
+      return specs;
+      
     } catch (error) {
       Logger.error(`Error applying test orchestration: ${error}`);
+
       return specs;
     }
   }
@@ -75,11 +80,13 @@ class TestOrchestrationIntegration {
         } else {
           Logger.debug('Build data collection returned no response.');
         }
+
         return response;
       }
     } catch (error) {
       Logger.error(`Error collecting build data: ${error}`);
     }
+
     return null;
   }
 

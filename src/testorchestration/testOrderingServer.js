@@ -1,6 +1,6 @@
 const path = require('path');
 const Logger = require('../utils/logger');
-const { getHostInfo, getGitMetadataForAiSelection, getProjectName, getBuildName } = require('../utils/helper');
+const {getHostInfo, getGitMetadataForAiSelection, getProjectName, getBuildName} = require('../utils/helper');
 const RequestUtils = require('./requestUtils');
 const ORCHESTRATION_API_URL = 'https://collector-observability.browserstack.com';
 
@@ -41,7 +41,7 @@ class TestOrderingServer {
       }
 
       const payload = {
-        tests: testFiles.map(f => ({ filePath: f })),
+        tests: testFiles.map(f => ({filePath: f})),
         orchestrationStrategy,
         orchestrationMetadata,
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0'),
@@ -112,11 +112,12 @@ class TestOrderingServer {
   async getOrderedTestFiles() {
     if (!this.requestData) {
       this.logger.error('[getOrderedTestFiles] No request data available to fetch ordered test files.');
+
       return null;
     }
 
     let testFilesJsonList = null;
-    let testFiles = [];
+    const testFiles = [];
     const startTimeMillis = Date.now();
     const timeoutInterval = parseInt(String(this.requestData.timeoutInterval || this.defaultTimeoutInterval), 10);
     const timeoutMillis = parseInt(String(this.requestData.timeout || this.defaultTimeout), 10) * 1000;
@@ -166,9 +167,11 @@ class TestOrderingServer {
       }
       
       this.logger.debug(`[getOrderedTestFiles] Ordered test files received: ${JSON.stringify(testFiles)}`);
+
       return testFiles;
     } catch (e) {
       this.logger.error(`[getOrderedTestFiles] Exception in fetching ordered test files: ${e}`);
+
       return null;
     }
   }

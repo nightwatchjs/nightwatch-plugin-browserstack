@@ -1,5 +1,4 @@
-const path = require('path');
-const { performance } = require('perf_hooks');
+const {performance} = require('perf_hooks');
 const Logger = require('../utils/logger');
 const TestOrchestrationHandler = require('./testOrchestrationHandler');
 
@@ -14,6 +13,7 @@ async function applyOrchestrationIfEnabled(specs, config) {
   
   if (!orchestrationHandler) {
     Logger.warn('Orchestration handler is not initialized. Skipping orchestration.');
+
     return specs;
   }
 
@@ -23,6 +23,7 @@ async function applyOrchestrationIfEnabled(specs, config) {
   
   if (!runSmartSelectionEnabled) {
     Logger.info('runSmartSelection is not enabled in config. Skipping orchestration.');
+
     return specs;
   }
 
@@ -53,13 +54,13 @@ async function applyOrchestrationIfEnabled(specs, config) {
     );
     
     return orderedFiles;
-  } else {
-    Logger.info('No test files were reordered by orchestration.');
-    orchestrationHandler.addToOrderingInstrumentationData(
-      'timeTakenToApply', 
-      Math.floor(performance.now() - startTime) // Time in milliseconds
-    );
-  }
+  } 
+  Logger.info('No test files were reordered by orchestration.');
+  orchestrationHandler.addToOrderingInstrumentationData(
+    'timeTakenToApply', 
+    Math.floor(performance.now() - startTime) // Time in milliseconds
+  );
+  
   
   return specs;
 }

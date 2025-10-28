@@ -27,6 +27,7 @@ class TestOrchestrationHandler {
     if (TestOrchestrationHandler._instance === null && config !== null) {
       TestOrchestrationHandler._instance = new TestOrchestrationHandler(config);
     }
+
     return TestOrchestrationHandler._instance;
   }
 
@@ -88,6 +89,7 @@ class TestOrchestrationHandler {
     try {
       if (!testFiles || testFiles.length === 0) {
         this.logger.debug('[reorderTestFiles] No test files provided for ordering.');
+
         return null;
       }
 
@@ -96,6 +98,7 @@ class TestOrchestrationHandler {
 
       if (orchestrationStrategy === null) {
         this.logger.error('Orchestration strategy is None. Cannot proceed with test orchestration session.');
+
         return null;
       }
 
@@ -115,6 +118,7 @@ class TestOrchestrationHandler {
     } catch (e) {
       this.logger.debug(`[reorderTestFiles] Error in ordering test classes: ${e}`);
     }
+
     return null;
   }
 
