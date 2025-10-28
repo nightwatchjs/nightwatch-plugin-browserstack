@@ -98,9 +98,12 @@ class OrchestrationUtils {
    */
   _extractBuildDetails() {
     try {
-      this.buildName = helper.getBuildName(this._settings, this._bstackOptions) || '';
+      const fromProduct = {
+        test_observability: true
+      };
+      this.buildName = helper.getBuildName(this._settings, this._bstackOptions, fromProduct) || '';
 
-      this.projectName = helper.getProjectName(this._settings, this._bstackOptions) || '';
+      this.projectName = helper.getProjectName(this._settings, this._bstackOptions, fromProduct) || '';
 
       this.buildIdentifier = process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER || '';
       
