@@ -25,7 +25,11 @@ class TestOrderingServer {
     if (config && config.desiredCapabilities && config.desiredCapabilities['bstack:options']) {
       this._bstackOptions = config.desiredCapabilities['bstack:options'];
     }
+    this.fromProduct = {
+      test_observability: true
+    };
   }
+ 
 
   /**
    * Initiates the split tests request and stores the response data for polling.
@@ -46,8 +50,8 @@ class TestOrderingServer {
         orchestrationMetadata,
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0'),
         totalNodes: parseInt(process.env.BROWSERSTACK_TOTAL_NODE_COUNT || '1'),
-        projectName: getProjectName(this._settings, this._bstackOptions),
-        buildName: getBuildName(this._settings, this._bstackOptions),
+        projectName: getProjectName(this._settings, this._bstackOptions, this.fromProduct),
+        buildName: getBuildName(this._settings, this._bstackOptions, this.fromProduct),
         buildRunIdentifier: process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER || '',
         hostInfo: getHostInfo(),
         prDetails
