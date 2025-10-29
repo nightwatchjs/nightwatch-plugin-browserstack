@@ -1134,7 +1134,11 @@ function getChangedFilesFromCommits(commitHashes) {
  * @param multiRepoSource Array of repository paths for multi-repo setup
  */
 exports.getGitMetadataForAiSelection = (folders = []) => {
+  
   if (folders && folders.length === 0) {
+    return [];
+  }
+  if (folders === null){
     folders = [process.cwd()];
   }
   

@@ -328,7 +328,7 @@ module.exports = {
     // Initialize and configure test orchestration
     try {
       const orchestrationUtils = OrchestrationUtils.getInstance(settings);
-      if (orchestrationUtils && orchestrationUtils.testOrderingEnabled()) {        
+      if (orchestrationUtils && orchestrationUtils.testOrderingEnabled() && helper.isTestObservabilitySession()) {        
         // Apply test orchestration to reorder test files before execution
         const TestOrchestrationIntegration = require('../src/testorchestration/testOrchestrationIntegration');
         const orchestrationIntegration = TestOrchestrationIntegration.getInstance();
