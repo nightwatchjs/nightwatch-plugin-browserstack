@@ -9,7 +9,6 @@ const path = require('path');
 const AccessibilityAutomation = require('../src/accessibilityAutomation');
 const eventHelper = require('../src/utils/eventHelper');
 const OrchestrationUtils = require('../src/testorchestration/orchestrationUtils');
-const {type} = require('os');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
@@ -435,7 +434,7 @@ module.exports = {
     // Collect build data for test orchestration if enabled
     try {
       const orchestrationUtils = OrchestrationUtils.getInstance();
-      if (orchestrationUtils && orchestrationUtils.testOrderingEnabled()) {
+      if (orchestrationUtils && orchestrationUtils.testOrderingEnabled() && helper.isTestObservabilitySession()) {
         Logger.info('Collecting build data for test orchestration...');
         await orchestrationUtils.collectBuildData(this.settings || {});
       }
