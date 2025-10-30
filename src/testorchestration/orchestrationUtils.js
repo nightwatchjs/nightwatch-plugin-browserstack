@@ -67,7 +67,7 @@ class OrchestrationUtils {
     this._setRunSmartSelection(
       runSmartSelectionOpts.enabled || false,
       runSmartSelectionOpts.mode || 'relevantFirst',
-      runSmartSelectionOpts.source || null
+      runSmartSelectionOpts.source
     );
     
     // Extract build details
@@ -98,9 +98,12 @@ class OrchestrationUtils {
    */
   _extractBuildDetails() {
     try {
-      this.buildName = helper.getBuildName(this._settings, this._bstackOptions) || '';
+      const fromProduct = {
+        test_observability: true
+      };
+      this.buildName = helper.getBuildName(this._settings, this._bstackOptions, fromProduct) || '';
 
-      this.projectName = helper.getProjectName(this._settings, this._bstackOptions) || '';
+      this.projectName = helper.getProjectName(this._settings, this._bstackOptions, fromProduct) || '';
 
       this.buildIdentifier = process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER || '';
       
@@ -217,8 +220,13 @@ class OrchestrationUtils {
   _setRunSmartSelection(enabled, mode, source = null) {
     try {
       this.runSmartSelection = Boolean(enabled);
-      this.smartSelectionMode = mode;
+      if (['relevantFirst', 'relevantOnly'].includes(mode)) {
+        this.smartSelectionMode = mode;
+      } else {
+        this.smartSelectionMode = 'relevantFirst';
+      }
       
+      this.smartSelectionSource = [];
       // Log the configuration for debugging
       this.logger.debug(`Setting runSmartSelection: enabled=${this.runSmartSelection}, mode=${this.smartSelectionMode}`);
       

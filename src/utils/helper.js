@@ -1057,7 +1057,7 @@ function getBaseBranch() {
     try {
       const originHeadOutput = execSync('git symbolic-ref refs/remotes/origin/HEAD').toString().trim();
       if (originHeadOutput.startsWith('refs/remotes/origin/')) {
-        return originHeadOutput.replace('refs/remotes/', '');
+        return originHeadOutput.replace('refs/remotes/origin/', '');
       }
     } catch (e) {
       // Symbolic ref might not exist
@@ -1134,7 +1134,11 @@ function getChangedFilesFromCommits(commitHashes) {
  * @param multiRepoSource Array of repository paths for multi-repo setup
  */
 exports.getGitMetadataForAiSelection = (folders = []) => {
+  
   if (folders && folders.length === 0) {
+    return [];
+  }
+  if (folders === null){
     folders = [process.cwd()];
   }
   

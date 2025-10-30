@@ -9,7 +9,6 @@ const TestOrchestrationHandler = require('./testOrchestrationHandler');
 async function applyOrchestrationIfEnabled(specs, config) {
   // Initialize orchestration handler
   const orchestrationHandler = TestOrchestrationHandler.getInstance(config);
-  Logger.info('Orchestration handler is initialized');
   
   if (!orchestrationHandler) {
     Logger.warn('Orchestration handler is not initialized. Skipping orchestration.');
@@ -32,13 +31,10 @@ async function applyOrchestrationIfEnabled(specs, config) {
   orchestrationHandler.addToOrderingInstrumentationData('enabled', orchestrationHandler.testOrderingEnabled());
   
   const startTime = performance.now();
-  
-  Logger.info('Test orchestration is enabled. Attempting to reorder test files.');
-  
+    
   // Get the test files from the specs
   const testFiles = specs;
   testOrderingApplied = true;
-  Logger.info(`Test files to be reordered: ${testFiles.join(', ')}`);
   
   // Reorder the test files
   const orderedFiles = await orchestrationHandler.reorderTestFiles(testFiles);
