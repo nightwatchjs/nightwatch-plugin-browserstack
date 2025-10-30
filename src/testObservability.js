@@ -8,7 +8,7 @@ const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
 const {API_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
-const OrchestrationUtils = require('./testorchestration/orchestrationUtils')
+const OrchestrationUtils = require('./testorchestration/orchestrationUtils');
 const hooksMap = {};
 
 class TestObservability {
@@ -154,7 +154,8 @@ class TestObservability {
     }
   }
   getTestOrchestrationBuildStartData(settings) {
-    const orchestrationUtils = OrchestrationUtils.getInstance(settings); 
+    const orchestrationUtils = OrchestrationUtils.getInstance(settings);
+ 
     return orchestrationUtils.getBuildStartData();
   }
 
