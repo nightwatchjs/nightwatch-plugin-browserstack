@@ -364,7 +364,7 @@ module.exports = {
 
 
           if (allTestFiles.length > 0) {
-            Logger.info(`Applying test orchestration to reorder test files... Found ${allTestFiles.length} test files`);
+            Logger.debug(`Applying test orchestration to reorder test files... Found ${allTestFiles.length} test files`);
             Logger.debug(`Test files: ${JSON.stringify(allTestFiles)}`);
             
             // Apply orchestration to get ordered test files (synchronously)
@@ -372,10 +372,6 @@ module.exports = {
               const orderedFiles = await orchestrationIntegration.applyOrchestration(allTestFiles, settings);
               if (orderedFiles && orderedFiles.length > 0) {
                 Logger.info(`Test files reordered by orchestration: ${orderedFiles.length} files`);
-
-                Logger.info('Test orchestration recommended order change:');
-                Logger.info(`Original: ${allTestFiles.join(', ')}`);
-                Logger.info(`Optimized: ${orderedFiles.join(', ')}`);
                                   
                 try {
                   if (helper.isCucumberTestSuite(settings) && settings?.test_runner?.options?.feature_path){
