@@ -220,7 +220,12 @@ class OrchestrationUtils {
   _setRunSmartSelection(enabled, mode, source = null) {
     try {
       this.runSmartSelection = Boolean(enabled);
-      this.smartSelectionMode = mode;
+      if (['relevantFirst', 'relevantOnly'].includes(mode)) {
+        this.smartSelectionMode = mode;
+      } else {
+        this.smartSelectionMode = 'relevantFirst';
+      }
+      
       this.smartSelectionSource = [];
       // Log the configuration for debugging
       this.logger.debug(`Setting runSmartSelection: enabled=${this.runSmartSelection}, mode=${this.smartSelectionMode}`);
