@@ -2,7 +2,6 @@ const path = require('path');
 const fs = require('fs');
 const {tmpdir} = require('os');
 const Logger = require('../utils/logger');
-const {getHostInfo} = require('../utils/helper');
 const RequestUtils = require('./requestUtils');
 const helper = require('../utils/helper');
 // Constants
@@ -414,7 +413,7 @@ class OrchestrationUtils {
   /**
    * Get build start data
    */
-  getBuildStartData(config) {
+  getBuildStartData() {
     const testOrchestrationData = {};
 
     testOrchestrationData['run_smart_selection'] = {
@@ -442,7 +441,7 @@ class OrchestrationUtils {
         buildRunIdentifier: this.getBuildIdentifier(),
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0', 10),
         totalNodes: parseInt(process.env.BROWSERSTACK_TOTAL_NODE_COUNT || '1', 10),
-        hostInfo: getHostInfo()
+        hostInfo: helper.getHostInfo()
       };
 
       this.logger.debug(`[collectBuildData] Sending build data payload: ${JSON.stringify(payload)}`);
