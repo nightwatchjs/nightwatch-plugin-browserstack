@@ -113,7 +113,7 @@ class TestObservability {
         frameworkVersion: helper.getPackageVersion('nightwatch'),
         sdkVersion: helper.getAgentVersion()
       },
-      test_orchestration: this.getTestOrchestrationBuildStartData(this._settings)
+      test_orchestration: this.getTestOrchestrationBuildStartData(this._parentSettings)
     };
 
     const config = {
