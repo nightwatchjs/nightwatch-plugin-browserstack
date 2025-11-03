@@ -347,7 +347,7 @@ class OrchestrationUtils {
         repoInfoCopy.name = name;
         repoInfoCopy.featureBranch = getFeatureBranch(name, repoInfo);
 
-        if (!repoInfoCopy.featureBranch) {
+        if (!repoInfoCopy.featureBranch || repoInfoCopy.featureBranch === '') {
           this.logger.warn(`Feature branch not specified for source '${name}': ${JSON.stringify(repoInfo)}`);
           continue;
         }
