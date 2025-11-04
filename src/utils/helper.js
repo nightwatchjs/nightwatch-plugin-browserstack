@@ -1057,7 +1057,7 @@ function getBaseBranch() {
     try {
       const originHeadOutput = execSync('git symbolic-ref refs/remotes/origin/HEAD').toString().trim();
       if (originHeadOutput.startsWith('refs/remotes/origin/')) {
-        return originHeadOutput.replace('refs/remotes/origin/', '');
+        return originHeadOutput.replace('refs/remotes/', '');
       }
     } catch (e) {
       // Symbolic ref might not exist
