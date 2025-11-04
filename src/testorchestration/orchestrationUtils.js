@@ -326,7 +326,7 @@ class OrchestrationUtils {
           continue;
         }
 
-        if (!repoInfo.url) {
+        if (!repoInfo.url || String(repoInfo.url).trim() === '') {
           this.logger.warn(`Repository URL is missing for source '${name}': ${JSON.stringify(repoInfo)}`);
           continue;
         }
