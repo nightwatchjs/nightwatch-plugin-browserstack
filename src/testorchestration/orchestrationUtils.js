@@ -307,13 +307,15 @@ class OrchestrationUtils {
     const getFeatureBranch = (name, repoInfo) => {
       // 1. Check in environment variable map
       if (featureBranchEnvMap && featureBranchEnvMap[name]) {
-      const val = featureBranchEnvMap[name];
-      return typeof val === 'string' ? val.trim() : val;
+        const val = featureBranchEnvMap[name];
+
+        return typeof val === 'string' ? val.trim() : val;
       }
       // 2. Check in repo_info
       if (repoInfo && repoInfo.featureBranch) {
-      const val = repoInfo.featureBranch;
-      return typeof val === 'string' ? val.trim() : val;
+        const val = repoInfo.featureBranch;
+
+        return typeof val === 'string' ? val.trim() : val;
       }
 
       return null;
