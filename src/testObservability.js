@@ -8,6 +8,7 @@ const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
 const {API_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
+const OrchestrationUtils = require('./testorchestration/orchestrationUtils');
 const hooksMap = {};
 
 class TestObservability {
@@ -111,7 +112,8 @@ class TestObservability {
         frameworkName: helper.getFrameworkName(this._testRunner),
         frameworkVersion: helper.getPackageVersion('nightwatch'),
         sdkVersion: helper.getAgentVersion()
-      }
+      },
+      test_orchestration: this.getTestOrchestrationBuildStartData(this._parentSettings)
     };
 
     const config = {
@@ -150,6 +152,11 @@ class TestObservability {
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = false;
       process.env.BROWSERSTACK_TEST_REPORTING = false;
     }
+  }
+  getTestOrchestrationBuildStartData(settings) {
+    const orchestrationUtils = OrchestrationUtils.getInstance(settings);
+ 
+    return orchestrationUtils.getBuildStartData();
   }
 
   async stopBuildUpstream () {

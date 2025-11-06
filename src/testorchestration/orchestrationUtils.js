@@ -2,7 +2,6 @@ const path = require('path');
 const fs = require('fs');
 const {tmpdir} = require('os');
 const Logger = require('../utils/logger');
-const {getHostInfo} = require('../utils/helper');
 const RequestUtils = require('./requestUtils');
 const helper = require('../utils/helper');
 // Constants
@@ -307,12 +306,16 @@ class OrchestrationUtils {
 
     const getFeatureBranch = (name, repoInfo) => {
       // 1. Check in environment variable map
-      if (featureBranchEnvMap[name]) {
-        return featureBranchEnvMap[name];
+      if (featureBranchEnvMap && featureBranchEnvMap[name]) {
+        const val = featureBranchEnvMap[name];
+
+        return typeof val === 'string' ? val.trim() : val;
       }
       // 2. Check in repo_info
-      if (repoInfo.featureBranch) {
-        return repoInfo.featureBranch;
+      if (repoInfo && repoInfo.featureBranch) {
+        const val = repoInfo.featureBranch;
+
+        return typeof val === 'string' ? val.trim() : val;
       }
 
       return null;
@@ -327,7 +330,7 @@ class OrchestrationUtils {
           continue;
         }
 
-        if (!repoInfo.url) {
+        if (!repoInfo.url || String(repoInfo.url).trim() === '') {
           this.logger.warn(`Repository URL is missing for source '${name}': ${JSON.stringify(repoInfo)}`);
           continue;
         }
@@ -348,7 +351,7 @@ class OrchestrationUtils {
         repoInfoCopy.name = name;
         repoInfoCopy.featureBranch = getFeatureBranch(name, repoInfo);
 
-        if (!repoInfoCopy.featureBranch) {
+        if (!repoInfoCopy.featureBranch || repoInfoCopy.featureBranch === '') {
           this.logger.warn(`Feature branch not specified for source '${name}': ${JSON.stringify(repoInfo)}`);
           continue;
         }
@@ -414,7 +417,7 @@ class OrchestrationUtils {
   /**
    * Get build start data
    */
-  getBuildStartData(config) {
+  getBuildStartData() {
     const testOrchestrationData = {};
 
     testOrchestrationData['run_smart_selection'] = {
@@ -442,7 +445,7 @@ class OrchestrationUtils {
         buildRunIdentifier: this.getBuildIdentifier(),
         nodeIndex: parseInt(process.env.BROWSERSTACK_NODE_INDEX || '0', 10),
         totalNodes: parseInt(process.env.BROWSERSTACK_TOTAL_NODE_COUNT || '1', 10),
-        hostInfo: getHostInfo()
+        hostInfo: helper.getHostInfo()
       };
 
       this.logger.debug(`[collectBuildData] Sending build data payload: ${JSON.stringify(payload)}`);
