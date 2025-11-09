@@ -36,11 +36,11 @@ class RequestUtils {
    * Makes an orchestration request with the given method and data
    */
   static async makeOrchestrationRequest(method, reqEndpoint, options) {
-    const jwtToken = process.env.BS_TESTOPS_JWT || '';
+    const jwtToken = process.env.BROWSERSTACK_TESTHUB_JWT || '';
     
     // Validate JWT token
     if (!jwtToken) {
-      Logger.error('BS_TESTOPS_JWT environment variable is not set. This is required for test orchestration.');
+      Logger.error('BROWSERSTACK_TESTHUB_JWT environment variable is not set. This is required for test orchestration.');
 
       return null;
     }

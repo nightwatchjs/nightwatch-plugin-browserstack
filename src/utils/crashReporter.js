@@ -52,7 +52,7 @@ class CrashReporter {
 
     try {
       const data = {
-        hashed_id: process.env.BS_TESTOPS_BUILD_HASHED_ID,
+        hashed_id: process.env.BROWSERSTACK_TESTHUB_UUID,
         observability_version: {
           frameworkName: 'nightwatch-default',
           frameworkVersion: helper.getPackageVersion('nightwatch'),

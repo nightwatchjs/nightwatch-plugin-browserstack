@@ -11,6 +11,7 @@ class RequestQueueHandler {
     this.BATCH_EVENT_TYPES = ['LogCreated', 'TestRunFinished', 'TestRunSkipped', 'HookRunFinished', 'TestRunStarted', 'HookRunStarted'];
     this.pollEventBatchInterval = null;
     this.pending_test_uploads = 0;
+    this.data = null;
   }
 
   start() {
@@ -31,17 +32,17 @@ class RequestQueueHandler {
       }
 
       this.queue.push(event);
-      let data = null;
+      // let data = null;
       const shouldProceed = this.shouldProceed();
       if (shouldProceed) {
-        data = this.queue.slice(0, BATCH_SIZE);
+        this.data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
         this.resetEventBatchPolling();
       }
 
       return {
         shouldProceed: shouldProceed,
-        proceedWithData: data,
+        proceedWithData: this.data,
         proceedWithUrl: this.eventUrl
       };
     }
@@ -63,10 +64,10 @@ class RequestQueueHandler {
 
   startEventBatchPolling () {
     this.pollEventBatchInterval = setInterval(async () => {
-      if (this.queue.length > 0) {
-        const data = this.queue.slice(0, BATCH_SIZE);
-        this.queue.splice(0, BATCH_SIZE);
-        await this.batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
+       if (this.data.length > 0) {
+      //   const data = this.queue.slice(0, BATCH_SIZE);
+      //   this.queue.splice(0, BATCH_SIZE);
+        await this.batchAndPostEvents(this.eventUrl, 'Interval-Queue', this.data);
       }
     }, BATCH_INTERVAL);
   }
@@ -87,13 +88,13 @@ class RequestQueueHandler {
   }
 
   shouldProceed () {
-    return this.queue.length >= BATCH_SIZE;
+    return this.queue.length <= BATCH_SIZE;
   }
 
   async batchAndPostEvents (eventUrl, kind, data) {
     const config = {
       headers: {
-        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
         'Content-Type': 'application/json',
         'X-BSTACK-TESTOPS': 'true'
       }

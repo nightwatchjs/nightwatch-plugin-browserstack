@@ -9,6 +9,7 @@ const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
 const {API_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
 const OrchestrationUtils = require('./testorchestration/orchestrationUtils');
+const accessibilityScripts = require('./scripts/accessibilityScripts');
 const hooksMap = {};
 
 class TestObservability {
@@ -83,36 +84,49 @@ class TestObservability {
 
   async launchTestSession() {
     // Support both old and new configuration options at different levels
-    const options = this._settings.test_observability || 
+    const testReportingOptions = this._settings.test_observability || 
                    this._settings.test_reporting || 
                    this._settings.testReportingOptions || 
                    this._settings.testObservabilityOptions || 
                    this._parentSettings?.testReportingOptions ||
                    this._parentSettings?.testObservabilityOptions ||
                    {};
+    const accessibility = this._settings.accessibility || false;             
+    const accessibilityOptions = accessibility ? this._settings.accessibilityOptions || {} : {};
     this._gitMetadata = await helper.getGitMetaData();
     const fromProduct = {
-      test_observability: true,
-      test_reporting: true
+      test_observability: this._settings.test_observability.enabled || this._settings.test_reporting.enabled || false,
+      accessibility: accessibility
     };
     const data = {
       format: 'json',
       project_name: helper.getProjectName(this._settings, this._bstackOptions, fromProduct),
       name: helper.getBuildName(this._settings, this._bstackOptions, fromProduct),
-      build_identifier: options.buildIdentifier,
-      description: options.buildDescription || '',
-      start_time: new Date().toISOString(),
+      build_identifier: testReportingOptions.buildIdentifier,
+      description: testReportingOptions.buildDescription || '',
+      started_at: new Date().toISOString(),
       tags: helper.getObservabilityBuildTags(this._settings, this._bstackOptions),
       host_info: helper.getHostInfo(),
       ci_info: helper.getCiInfo(),
       build_run_identifier: process.env.BROWSERSTACK_BUILD_RUN_IDENTIFIER,
       failed_tests_rerun: process.env.BROWSERSTACK_RERUN || false,
       version_control: this._gitMetadata,
-      observability_version: {
-        frameworkName: helper.getFrameworkName(this._testRunner),
-        frameworkVersion: helper.getPackageVersion('nightwatch'),
-        sdkVersion: helper.getAgentVersion()
+      accessibility: {
+        settings: accessibilityOptions
       },
+      framework_details: {
+            frameworkName: helper.getFrameworkName(this._testRunner),
+            frameworkVersion: helper.getPackageVersion('nightwatch'),
+            sdkVersion: helper.getAgentVersion(),
+            language: 'javascript',
+            testFramework: {
+                name: 'nightwatch',
+                version: helper.getPackageVersion('nightwatch')
+            }
+      },
+      product_map: this.getProductMapForBuildStartCall(this._parentSettings),
+      browserstackAutomation: helper.isBrowserstackInfra(this._settings),
+      config: {},
       test_orchestration: this.getTestOrchestrationBuildStartData(this._parentSettings)
     };
 
@@ -128,20 +142,19 @@ class TestObservability {
     };
 
     try {
-      const response = await makeRequest('POST', 'api/v1/builds', data, config, API_URL);
-      Logger.info('Build creation successful!');
+      const response = await makeRequest('POST', 'api/v2/builds', data, config, API_URL);
+      Logger.debug(`[Start_Build] Success response: ${JSON.stringify(response)}`)
+      console.log(`[Start_Build] Success response: ${JSON.stringify(response)}`)
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
       const responseData = response.data || {};
       if (responseData.jwt) {
-        process.env.BS_TESTOPS_JWT = responseData.jwt;
+        process.env.BROWSERSTACK_TESTHUB_JWT = responseData.jwt;
       }
       if (responseData.build_hashed_id) {
-        process.env.BS_TESTOPS_BUILD_HASHED_ID = responseData.build_hashed_id;
+        process.env.BROWSERSTACK_TESTHUB_UUID = responseData.build_hashed_id;
       }
-      if (responseData.allow_screenshots) {
-        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = responseData.allow_screenshots.toString();
-      }
+      this.processLaunchBuildResponse(responseData, this._settings);
     } catch (error) {
       if (error.response) {
         Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
@@ -159,11 +172,82 @@ class TestObservability {
     return orchestrationUtils.getBuildStartData();
   }
 
+  processLaunchBuildResponse(responseData, settings) {  
+    if (helper.isTestObservabilitySession()) {
+      this.processTestObservabilityResponse(responseData);
+    }
+    this.processAccessibilityResponse(responseData, settings);
+  }
+
+  processTestObservabilityResponse(responseData) {
+     if (!responseData.observability) {
+        this.handleErrorForObservability(null)
+        return
+    }
+    if (!responseData.observability.success) {
+        this.handleErrorForObservability(responseData.observability)
+        return
+    }
+    process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'true';
+    process.env.BROWSERSTACK_TEST_REPORTING = 'true';
+    if (responseData.observability.options.allow_screenshots) {
+        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = responseData.observability.options.allow_screenshots.toString();
+    }
+  }
+
+  processAccessibilityResponse(responseData, settings) {
+    if (!responseData.accessibility) {
+        if (settings.accessibility === true) {
+          this.handleErrorForAccessibility(null)
+        }
+        return
+    }
+    if (!responseData.accessibility.success) {
+        this.handleErrorForAccessibility(responseData.accessibility)
+        return
+    }
+
+    if (responseData.accessibility.options) {
+        const { accessibilityToken, pollingTimeout, scannerVersion } = helper.jsonifyAccessibilityArray(responseData.accessibility.options.capabilities, 'name', 'value')
+        const scriptsJson = {
+            'scripts': helper.jsonifyAccessibilityArray(responseData.accessibility.options.scripts, 'name', 'command'),
+            'commands': responseData.accessibility.options.commandsToWrap?.commands ?? [],
+        }
+        if (scannerVersion) {
+            process.env.BSTACK_A11Y_SCANNER_VERSION = scannerVersion
+            Logger.debug(`Accessibility scannerVersion ${scannerVersion}`)
+        }
+        if (accessibilityToken) {
+            process.env.BS_A11Y_JWT = accessibilityToken
+            process.env.BROWSERSTACK_ACCESSIBILITY = 'true'
+        }
+        if (pollingTimeout) {
+            process.env.BSTACK_A11Y_POLLING_TIMEOUT = pollingTimeout
+        }
+        if (scriptsJson) {
+            accessibilityScripts.update(scriptsJson);
+            accessibilityScripts.store();
+        }
+    }
+
+  }
+
+  handleErrorForObservability(observabilityData) {
+    process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
+    process.env.BROWSERSTACK_TEST_REPORTING = 'false';
+    Logger.error(`Observability could not be started`); //make logging better later
+  }
+
+  handleErrorForAccessibility(accessibilityData) {
+    process.env.BROWSERSTACK_ACCESSIBILITY = 'false';
+    Logger.error(`Accessibility could not be started`); //make logging better later
+  }
+
   async stopBuildUpstream () {
     if (!process.env.BS_TESTOPS_BUILD_COMPLETED) {
       return;
     }
-    if (!process.env.BS_TESTOPS_JWT) {
+    if (!process.env.BROWSERSTACK_TESTHUB_JWT) {
       Logger.info('[STOP_BUILD] Missing Authentication Token/ Build ID');
 
       return {
@@ -172,11 +256,11 @@ class TestObservability {
       };
     }
     const data = {
-      'stop_time': new Date().toISOString()
+      'finished_at': new Date().toISOString()
     };
     const config = {
       headers: {
-        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
         'Content-Type': 'application/json',
         'X-BSTACK-TESTOPS': 'true'
       }
@@ -184,7 +268,7 @@ class TestObservability {
     await helper.uploadPending();
     await helper.shutDownRequestHandler();
     try {
-      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID}/stop`, data, config, API_URL, false);
+      const response = await makeRequest('PUT', `api/v1/builds/${process.env.BROWSERSTACK_TESTHUB_UUID}/stop`, data, config, API_URL, false);
       if (response.data?.error) {
         throw {message: response.data.error};
       } else {
@@ -207,8 +291,8 @@ class TestObservability {
     }
   }
 
-  async sendEvents(eventData, testFileReport, startEventType, finishedEventType, hookId, hookType, sectionName) {
-    await this.sendTestRunEvent(eventData, testFileReport, startEventType, hookId, hookType, sectionName);
+  async sendHookEvents(eventData, testFileReport, startEventType, finishedEventType, hookId, hookType, sectionName) {
+    await this.sendHookRunEvent(eventData, testFileReport, startEventType, hookId, hookType, sectionName);
     if (eventData.httpOutput && eventData.httpOutput.length > 0) {
       for (const [index, output] of eventData.httpOutput.entries()) {
         if (index % 2 === 0) {
@@ -216,12 +300,12 @@ class TestObservability {
         }
       }
     }
-    await this.sendTestRunEvent(eventData, testFileReport, finishedEventType, hookId, hookType, sectionName);
+    await this.sendHookRunEvent(eventData, testFileReport, finishedEventType, hookId, hookType, sectionName);
   }
 
   async processTestReportFile(testFileReport) {
     const completedSections = testFileReport['completedSections'];
-    const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
+    // const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
     if (completedSections) {
       const globalBeforeEachHookId = uuidv4();
       const beforeHookId = uuidv4();
@@ -232,49 +316,49 @@ class TestObservability {
         const eventData = completedSections[sectionName];
         switch (sectionName) {
           case '__global_beforeEach_hook': {
-            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
+            await this.sendHookEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalBeforeEachHookId, 'GLOBAL_BEFORE_EACH', sectionName);
             break;
           }
           case '__before_hook': {
-            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', beforeHookId, 'BEFORE_ALL', sectionName);
+            await this.sendHookEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', beforeHookId, 'BEFORE_ALL', sectionName);
             break;
           }
           case '__after_hook': {
-            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', afterHookId, 'AFTER_ALL', sectionName);
+            await this.sendHookEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', afterHookId, 'AFTER_ALL', sectionName);
             break;
           }
           case '__global_afterEach_hook': {
-            await this.sendEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
+            await this.sendHookEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
             break;
           }
-          default: {
-            if (eventData.retryTestData?.length>0) {
-              for (const retryTest of eventData.retryTestData) {
-                await this.processTestRunData(retryTest, sectionName, testFileReport, hookIds);
-              }
-            }
-            await this.processTestRunData(eventData, sectionName, testFileReport, hookIds);
-            break;
-          }
+          // default: {
+          //   if (eventData.retryTestData?.length>0) {
+          //     for (const retryTest of eventData.retryTestData) {
+          //       await this.processTestRunData(retryTest, sectionName, testFileReport, hookIds);
+          //     }
+          //   }
+          //   await this.processTestRunData(eventData, sectionName, testFileReport, hookIds);
+          //   break;
+          // }
         }
       }
-      if (skippedTests?.length > 0) {
-        for (const skippedTest of skippedTests) {
-          await this.sendSkippedTestEvent(skippedTest, testFileReport);
-        }
-      }
+      // if (skippedTests?.length > 0) {
+      //   for (const skippedTest of skippedTests) {
+      //     await this.sendSkippedTestEvent(skippedTest, testFileReport);
+      //   }
+      // }
     }
   }
 
-  async processTestRunData (eventData, sectionName, testFileReport, hookIds) {
-    const testUuid = uuidv4();
-    const errorData = eventData.commands.find(command => command.result?.stack);
-    eventData.lastError = errorData ? errorData.result : null;
-    await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
+  async processTestRunData (eventData, uuid) {
+    // const testUuid = uuidv4();
+    // const errorData = eventData.commands.find(command => command.result?.stack);
+    // eventData.lastError = errorData ? errorData.result : null;
+    // await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
     if (eventData.httpOutput && eventData.httpOutput.length > 0) {
       for (const [index, output] of eventData.httpOutput.entries()) {
         if (index % 2 === 0) {
-          await this.createHttpLogEvent(output, eventData.httpOutput[index + 1], testUuid);
+          await this.createHttpLogEvent(output, eventData.httpOutput[index + 1], uuid);
         }
       }
     }
@@ -291,7 +375,7 @@ class TestObservability {
           try {
             if (fs.existsSync(screenshotPath)) {
               const screenshot = fs.readFileSync(screenshotPath, 'base64');
-              await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
+              await this.createScreenshotLogEvent(uuid, screenshot, command.startTime);
             }
           } catch (err) {
             Logger.debug(`Failed to upload screenshot from saveScreenshot: ${err.message}`);
@@ -299,11 +383,11 @@ class TestObservability {
         } else if (TAKE_SCREENSHOT_REGEX.test(command.name) && command.result) {
           try {
             if (command.result.value) {
-              await this.createScreenshotLogEvent(testUuid, command.result.value, command.startTime);
+              await this.createScreenshotLogEvent(uuid, command.result.value, command.startTime);
             } else if (command.result.valuePath) {
               if (fs.existsSync(command.result.valuePath)) {
                 const screenshot = fs.readFileSync(command.result.valuePath, 'utf8');
-                await this.createScreenshotLogEvent(testUuid, screenshot, command.startTime);
+                await this.createScreenshotLogEvent(uuid, screenshot, command.startTime);
               }
             }
           } catch (err) {
@@ -312,7 +396,7 @@ class TestObservability {
         }
       }
     }
-    await this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
+    // await this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
   }
 
   async sendSkippedTestEvent(skippedTest, testFileReport) {
@@ -329,7 +413,7 @@ class TestObservability {
       file_name: path.relative(process.cwd(), testFileReport.modulePath),
       location: path.relative(process.cwd(), testFileReport.modulePath),
       vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
-      started_at: new Date(testFileReport.endTimestamp).toISOString(),
+      started_at: new Date(testFileReport.startTimestamp).toISOString(),
       finished_at: new Date(testFileReport.endTimestamp).toISOString(),
       duration_in_ms: 0,
       result: 'skipped',
@@ -384,7 +468,91 @@ class TestObservability {
     }
   }
 
-  async sendTestRunEvent(eventData, testFileReport, eventType, uuid, hookType, sectionName, hooks) {
+  async sendTestRunEvent(eventType, test) {
+    Logger.debug(`[sendTestRunEvent] Reached sendTestRunEvent with eventType: ${eventType}`);
+    const testMetaData = test.metadata;
+    const uuid = test.uuid;
+    const testName = test.testcase;
+    const settings = test.settings || {};
+    const startTimestamp = test.envelope[testName].startTimestamp;
+    let testResults = {};
+    const testBody = test.testBody;
+    Logger.debug(`[sendTestRunEvent] Values - testMetaData: ${JSON.stringify(testMetaData)}, uuid: ${uuid}, testName: ${testName}, settings: ${JSON.stringify(settings)},testResults: ${JSON.stringify(testResults)}, testBody: ${testBody}`);
+    const provider = helper.getCloudProvider(testMetaData.host);
+    const testData = {
+      uuid: uuid,
+      type: 'test',
+      name: testName,
+      body: {
+        lang: 'javascript', 
+        code: testBody ? testBody.toString() : null
+      },
+      scope: `${testMetaData.name} - ${testName}`,
+      scopes: [
+        testMetaData.name
+      ],
+      tags: testMetaData.tags,
+      identifier: `${testMetaData.name} - ${testName}`,
+      file_name: path.relative(process.cwd(), testMetaData.modulePath),
+      location: path.relative(process.cwd(), testMetaData.modulePath),
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, testMetaData.modulePath) : null,
+      started_at: new Date(startTimestamp).toISOString(),
+      result: 'pending',
+      framework: 'nightwatch',
+      integrations: {
+        [provider]: helper.getIntegrationsObject(testMetaData.sessionCapabilities, testMetaData.sessionId, testMetaData.host, settings.desiredCapabilities['bstack:options']?.osVersion)
+      },
+      // customRerunParam: {
+      //   rerun_name: '<string>' // Rerun name of test that can be sent in Rerun request to uniquely identify the test
+      // },
+      // retry_of: '<string>',
+      product_map: {
+        accessibility: helper.isAccessibilitySession(),
+      }
+    };
+
+    if (eventType === 'TestRunFinished') {
+      const eventData = test.envelope[testName].testcase;
+      testResults = test.testResults;
+      // const skippedTests =testResults['skippedAtRuntime'].concat(testResults['skippedByUser'])
+      // if (skippedTests?.length > 0){
+      //   for (const skippedTest of skippedTests) {
+      //     await this.sendSkippedTestEvent(skippedTest, testMetaData);
+      //   }
+      // }
+      testData.finished_at = testResults.endTimestamp ? new Date(testResults.endTimestamp).toISOString() : new Date(testResults.startTimestamp).toISOString();
+      testData.result = testResults.__failedCount > 0 ? 'failed' : 'passed';
+      if (testData.result === 'failed' && testResults.__lastError) {
+        testData.failure = [
+          {
+            'backtrace': [stripAnsi(testResults.__lastError.message), testResults.__lastError.stack]
+          }
+        ];
+        testData.failure_reason = testResults.__lastError ? stripAnsi(testResults.__lastError.message) : null;
+        if (testResults.__lastError && testResults.__lastError.name) {
+          testData.failure_type = testResults.__lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+        }
+      } 
+
+      this.processTestRunData (eventData,uuid)
+      // else if (eventData.status === 'fail' && (testFileReport?.completed[sectionName]?.lastError || testFileReport?.completed[sectionName]?.stackTrace)) {
+      //   const testCompletionData = testFileReport.completed[sectionName];
+      //   testData.failure = [
+      //     {'backtrace': [testCompletionData?.stackTrace]}
+      //   ];
+      //   testData.failure_reason = testCompletionData?.assertions.find(val => val.stackTrace === testCompletionData.stackTrace)?.failure;
+      //   testData.failure_type = testCompletionData?.stackTrace.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+      // }
+    }
+
+    const uploadData = {
+      event_type: eventType,
+      test_run: testData
+    };
+    await helper.uploadEventData(uploadData);
+  }
+
+  async sendHookRunEvent(eventData, testFileReport, eventType, uuid, hookType, sectionName, hooks) {
     const testData = {
       uuid: uuid,
       type: 'hook',
@@ -404,12 +572,12 @@ class TestObservability {
       hook_type: hookType
     };
 
-    if (eventType === 'HookRunFinished' || eventType === 'TestRunFinished') {
+    if (eventType === 'HookRunFinished') {
       testData.finished_at = eventData.endTimestamp ? new Date(eventData.endTimestamp).toISOString() : new Date(eventData.startTimestamp).toISOString();
       testData.result = eventData.status === 'pass' ? 'passed' : 'failed';
       testData.duration_in_ms = 'timeMs' in eventData ? eventData.timeMs : eventData.time;
       if (eventData.status === 'fail' && eventData.lastError) {
-        testData.failure = [
+        testData.failure_data = [
           {
             'backtrace': [stripAnsi(eventData.lastError.message), eventData.lastError.stack]
           }
@@ -420,7 +588,7 @@ class TestObservability {
         }
       } else if (eventData.status === 'fail' && (testFileReport?.completed[sectionName]?.lastError || testFileReport?.completed[sectionName]?.stackTrace)) {
         const testCompletionData = testFileReport.completed[sectionName];
-        testData.failure = [
+        testData.failure_data = [
           {'backtrace': [testCompletionData?.stackTrace]}
         ];
         testData.failure_reason = testCompletionData?.assertions.find(val => val.stackTrace === testCompletionData.stackTrace)?.failure;
@@ -434,26 +602,27 @@ class TestObservability {
       testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
     }
 
-    if (eventType === 'TestRunStarted') {
-      testData.type = 'test';
-      testData.integrations = {};
-      const provider = helper.getCloudProvider(testFileReport.host);
-      testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
-    }
+    // if (eventType === 'TestRunStarted') {
+    //   testData.type = 'test';
+    //   testData.integrations = {};
+    //   const provider = helper.getCloudProvider(testFileReport.host);
+    //   testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
+    // }
 
-    if (eventType === 'TestRunFinished') {
-      testData.type = 'test';
-      testData.hooks = hooks;
-    }
+    // if (eventType === 'TestRunFinished') {
+    //   testData.type = 'test';
+    //   testData.hooks = hooks;
+    // }
 
     const uploadData = {
-      event_type: eventType
+      event_type: eventType,
+      hook_run: testData
     };
-    if (eventType.match(/HookRun/)) {
-      uploadData['hook_run'] = testData;
-    } else {
-      uploadData['test_run'] = testData;
-    }
+    // if (eventType.match(/HookRun/)) {
+    //   uploadData['hook_run'] = testData;
+    // } else {
+    //   uploadData['test_run'] = testData;
+    // }
     await helper.uploadEventData(uploadData);
   }
 
@@ -708,6 +877,21 @@ class TestObservability {
     } catch (error) {
       Logger.error(`Exception in uploading log data to Test Reporting and Analytics with error : ${error}`);
     }
+  }
+
+  getProductMapForBuildStartCall(settings) {
+    const product = helper.getObservabilityLinkedProductName(settings.desiredCapabilities, settings?.selenium?.host);
+    
+        const buildProductMap = {
+          automate: product === 'automate',
+          app_automate: product === 'app-automate',
+          observability: helper.isTestObservabilitySession(),
+          accessibility: settings['@nightwatch/browserstack']?.accessibility === true,
+          turboscale: product === 'turboscale',
+          percy: false
+        };
+
+        return buildProductMap;
   }
 }
 

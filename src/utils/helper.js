@@ -376,8 +376,9 @@ exports.getHostInfo = () => {
   };
 };
 
-exports.isBrowserstackInfra = () => {
-  return process.env.BROWSERSTACK_INFRA === 'true';
+exports.isBrowserstackInfra = (settings) => {
+  const isBrowserstackInfra = settings && settings.webdriver && settings.webdriver.host && settings.webdriver.host.indexOf('browserstack') === -1 ? false : true;
+  return isBrowserstackInfra;
 };
 
 const findGitConfig = async (filePath) => {
@@ -505,12 +506,12 @@ exports.uploadEventData = async (eventData) => {
     ['HookRunFinished']: 'Hook_End_Upload'
   }[eventData.event_type];
 
-  if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
+  if (process.env.BROWSERSTACK_TESTHUB_JWT && process.env.BROWSERSTACK_TESTHUB_JWT !== 'null') {
     requestQueueHandler.pending_test_uploads += 1;
   }
 
   if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
-    if (process.env.BS_TESTOPS_JWT === 'null') {
+    if (process.env.BROWSERSTACK_TESTHUB_JWT === 'null') {
       Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST REPORTING AND ANALYTICS : missing authentication token`);
       requestQueueHandler.pending_test_uploads = Math.max(0, requestQueueHandler.pending_test_uploads-1);
 
@@ -537,7 +538,7 @@ exports.uploadEventData = async (eventData) => {
 
     const config = {
       headers: {
-        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
         'Content-Type': 'application/json',
         'X-BSTACK-TESTOPS': 'true'
       }
@@ -631,13 +632,14 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
   return product;
 };
 
-exports.getIntegrationsObject = (capabilities, sessionId, hostname) => {
+exports.getIntegrationsObject = (capabilities, sessionId, hostname, platform_version) => {
   return {
     capabilities: capabilities,
     session_id: sessionId,
     browser: capabilities.browserName,
     browser_version: capabilities.browserVersion,
     platform: capabilities.platformName,
+    platform_version: platform_version,
     product: this.getObservabilityLinkedProductName(capabilities, hostname)
   };
 };
@@ -1301,4 +1303,12 @@ exports.getGitMetadataForAiSelection = (folders = []) => {
   }));
   
   return formattedResults;
+};
+
+exports.jsonifyAccessibilityArray = (dataArray, keyName, valueName) => {
+  const result = {};
+  dataArray.forEach((element) => {
+    result[element[keyName]] = element[valueName];
+  });
+  return result;
 };

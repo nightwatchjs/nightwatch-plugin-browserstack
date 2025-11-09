@@ -257,10 +257,12 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
+      await testObservability.sendTestRunEvent("TestRunStarted",test);
       await accessibilityAutomation.beforeEachExecution(test);
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
+      await testObservability.sendTestRunEvent("TestRunFinished",test);
       await accessibilityAutomation.afterEachExecution(test);
     });
   },
@@ -272,10 +274,11 @@ module.exports = {
   },
 
   async before(settings, testEnvSettings) {
+    const pluginSettings = settings['@nightwatch/browserstack'];
     if (!settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options'] = {};
     }
-
+   
     // Plugin identifier
     settings.desiredCapabilities['bstack:options']['browserstackSDK'] = `nightwatch-plugin/${helper.getAgentVersion()}`;
 
@@ -312,7 +315,7 @@ module.exports = {
           settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
-        if (testObservability._user && testObservability._key) {
+        if (helper.isTestObservabilitySession() || pluginSettings?.accessibility === true) {
           await testObservability.launchTestSession();
         }
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
@@ -321,8 +324,17 @@ module.exports = {
         }
       }
     } catch (error) {
-      Logger.error(`Could not configure or launch test reporting and analytics - ${error}`);
+        Logger.error(`Could not configure or launch test reporting and analytics - ${error}`);
     }
+      
+    try {
+      if (helper.isAccessibilitySession() && !settings.parallel_mode) {
+        accessibilityAutomation.setAccessibilityCapabilities(settings);
+      }
+    } catch (err){
+      Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
+    }
+      
     
     // Initialize and configure test orchestration
     try {
@@ -408,22 +420,6 @@ module.exports = {
       Logger.error(`Could not configure test orchestration - ${error}`);
     }
 
-    try {
-      accessibilityAutomation.configure(settings);
-      if (helper.isAccessibilitySession()) {
-        if (accessibilityAutomation._user && accessibilityAutomation._key) {
-          const [jwtToken, testRunId] = await accessibilityAutomation.createAccessibilityTestRun();
-          process.env.BS_A11Y_JWT = jwtToken;
-          process.env.BS_A11Y_TEST_RUN_ID = testRunId;
-          if (helper.isAccessibilitySession()) {
-            accessibilityAutomation.setAccessibilityCapabilities(settings);
-          }
-        }
-      }
-    } catch (error) {
-      Logger.error(`Could not configure or launch accessibility automation - ${error}`);
-    }
-
     addProductMapAndbuildUuidCapability(settings);
   },
 
@@ -443,8 +439,8 @@ module.exports = {
     } catch (error) {
       Logger.error(`Error collecting build data for test orchestration: ${error}`);
     }
-    
-    if (helper.isTestObservabilitySession()) {
+
+    if (helper.isTestObservabilitySession() || helper.isAccessibilitySession()) {
       process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
       process.env.NIGHTWATCH_RERUN_REPORT_FILE = nightwatchRerunFile;
       if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
@@ -452,21 +448,13 @@ module.exports = {
       }
       try {
         await testObservability.stopBuildUpstream();
-        if (process.env.BS_TESTOPS_BUILD_HASHED_ID) {
-          Logger.info(`\nVisit https://automation.browserstack.com/builds/${process.env.BS_TESTOPS_BUILD_HASHED_ID} to view build report, insights, and many more debugging information all at one place!\n`);
+        if (process.env.BROWSERSTACK_TESTHUB_UUID) {
+          Logger.info(`\nVisit https://automation.browserstack.com/builds/${process.env.BROWSERSTACK_TESTHUB_UUID} to view build report, insights, and many more debugging information all at one place!\n`);
         }
       } catch (error) {
         Logger.error(`Something went wrong in stopping build session for test reporting and analytics - ${error}`);
       }
       process.exit();
-    }
-    if (helper.isAccessibilitySession()){
-      try {
-        await accessibilityAutomation.stopAccessibilityTestRun();
-      } catch (error) {
-        Logger.error(`Exception in stop accessibility test run: ${error}`);
-      }
-
     }
   },
 
@@ -569,10 +557,10 @@ const addProductMapAndbuildUuidCapability = (settings) => {
 
     if (settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
-      settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+      settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BROWSERSTACK_TESTHUB_UUID ? process.env.BROWSERSTACK_TESTHUB_UUID : '' ;
     } else {
       settings.desiredCapabilities['browserstack.buildProductMap'] = buildProductMap;
-      settings.desiredCapabilities['browserstack.testhubBuildUuid'] = process.env.BS_TESTOPS_BUILD_HASHED_ID ? process.env.BS_TESTOPS_BUILD_HASHED_ID : '' ;
+      settings.desiredCapabilities['browserstack.testhubBuildUuid'] = process.env.BROWSERSTACK_TESTHUB_UUID ? process.env.BROWSERSTACK_TESTHUB_UUID : '' ;
     }
   } catch (error) {
     Logger.debug(`Error while sending productmap and build capabilities ${error}`);

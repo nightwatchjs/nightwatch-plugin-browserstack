@@ -7,22 +7,10 @@ const util = require('util');
 
 class AccessibilityAutomation {
   configure(settings = {}) {
-    this._settings = settings['@nightwatch/browserstack'] || {};
-
-    if (this._settings.accessibility) {
-      process.env.BROWSERSTACK_ACCESSIBILITY =
-        String(this._settings.accessibility).toLowerCase() === 'true';
-    }
     if (process.argv.includes('--disable-accessibility')) {
       process.env.BROWSERSTACK_ACCESSIBILITY = false;
-
       return;
     }
-    process.env.BROWSERSTACK_INFRA = true;
-    if (settings && settings.webdriver && settings.webdriver.host && settings.webdriver.host.indexOf('browserstack') === -1){
-      process.env.BROWSERSTACK_INFRA = false;
-    }
-
     this._testRunner = settings.test_runner;
     this._bstackOptions = {};
     if (
@@ -36,165 +24,6 @@ class AccessibilityAutomation {
     if (this._settings.accessibility || this._bstackOptions) {
       this._user = helper.getUserName(settings, this._settings);
       this._key = helper.getAccessKey(settings, this._settings);
-    }
-  }
-
-  async createAccessibilityTestRun() {
-    const userName = this._user;
-    const accessKey = this._key;
-
-    if (helper.isUndefined(userName) || helper.isUndefined(accessKey)) {
-      Logger.error(
-        'Exception while creating test run for BrowserStack Accessibility Automation: Missing authentication token'
-      );
-
-      return [null, null];
-    }
-
-    try {
-      let accessibilityOptions;
-      if (helper.isUndefined(this._settings.accessibilityOptions)) {
-        accessibilityOptions = {};
-      } else {
-        accessibilityOptions = this._settings.accessibilityOptions;
-      }
-
-      const fromProduct = {
-        accessibility: true
-      };
-
-      const data = {
-        projectName: helper.getProjectName(this._settings, this._bstackOptions, fromProduct),
-        buildName:
-          helper.getBuildName(this._settings, this._bstackOptions, fromProduct) ||
-          path.basename(path.resolve(process.cwd())),
-        startTime: new Date().toISOString(),
-        description: accessibilityOptions.buildDescription || '',
-        source: {
-          frameworkName: helper.getFrameworkName(this._testRunner),
-          frameworkVersion: helper.getPackageVersion('nightwatch'),
-          sdkVersion: helper.getAgentVersion()
-        },
-        settings: accessibilityOptions,
-        versionControl: await helper.getGitMetaData(),
-        ciInfo: helper.getCiInfo(),
-        hostInfo: helper.getHostInfo(),
-        browserstackAutomation: helper.isBrowserstackInfra()
-      };
-      const config = {
-        auth: {
-          user: userName,
-          pass: accessKey
-        },
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      };
-
-      const response = await makeRequest('POST', 'test_runs', data, config, ACCESSIBILITY_URL);
-      const responseData = response.data.data || {};
-
-      accessibilityOptions.scannerVersion = responseData.scannerVersion;
-      process.env.BROWSERSTACK_ACCESSIBILITY_OPTIONS = JSON.stringify(accessibilityOptions);
-
-      return [responseData.accessibilityToken, responseData.id];
-    } catch (error) {
-      process.env.BROWSERSTACK_ACCESSIBILITY = 'false';
-      if (error.response) {
-        Logger.error(
-          `Exception while creating test run for BrowserStack Accessibility Automation: ${
-            error.response.status
-          } ${error.response.statusText} ${JSON.stringify(error.response.data)}`
-        );
-      } else {
-        if (error.message === 'Invalid configuration passed.') {
-          Logger.error(
-            `Exception while creating test run for BrowserStack Accessibility Automation: ${
-              error.message || error.stack
-            }`
-          );
-          for (const errorkey of error.errors) {
-            Logger.error(errorkey.message);
-          }
-          process.env.BROWSERSTACK_ACCESSIBILITY = 'false';
-        } else {
-          Logger.error(
-            `Exception while creating test run for BrowserStack Accessibility Automation: ${
-              error.message || error.stack
-            }`
-          );
-        }
-      }
-
-      return [null, null];
-    }
-  }
-
-  async stopAccessibilityTestRun() {
-    if (
-      helper.isUndefined(process.env.BS_A11Y_JWT) ||
-      typeof process.env.BS_A11Y_JWT !== 'string'
-    ) {
-      return {
-        status: 'error',
-        message: 'Build creation had failed.'
-      };
-    }
-
-    const data = {endTime: new Date().toISOString()};
-    const config = {
-      headers: {
-        Authorization: `Bearer ${process.env.BS_A11Y_JWT}`,
-        'Content-Type': 'application/json'
-      }
-    };
-    const options = {
-      ...config,
-      ...{
-        body: data,
-        auth: null,
-        json: true
-      }
-    };
-
-    try {
-      const response = await makeRequest(
-        'PUT',
-        'test_runs/stop',
-        options,
-        config,
-        ACCESSIBILITY_URL
-      );
-      if (response.data.error) {
-        throw new Error('Invalid request: ' + response.data.error);
-      } else {
-        Logger.info(
-          `BrowserStack Accessibility Automation Test Run marked as completed at ${new Date().toISOString()}`
-        );
-
-        return {status: 'success', message: ''};
-      }
-    } catch (error) {
-      if (error.response) {
-        Logger.error(
-          `Exception while marking completion of BrowserStack Accessibility Automation Test Run: ${
-            error.response.status
-          } ${error.response.statusText} ${JSON.stringify(error.response.data)}`
-        );
-      } else {
-        Logger.error(
-          `Exception while marking completion of BrowserStack Accessibility Automation Test Run: ${
-            error.message || util.format(error)
-          }`
-        );
-      }
-
-      return {
-        status: 'error',
-        message:
-          error.message ||
-          (error.response ? `${error.response.status}:${error.response.statusText}` : error)
-      };
     }
   }
 
@@ -313,7 +142,7 @@ class AccessibilityAutomation {
     return response;
   }
 
-  setExtension(driver) {
+  validateA11yCaps(driver) {
     try {
       const capabilityConfig = driver.desiredCapabilities || {};
       const deviceName = driver.capabilities.deviceName || (capabilityConfig['bstack:options'] ? capabilityConfig['bstack:options'].deviceName : capabilityConfig.device) || '';
@@ -345,7 +174,7 @@ class AccessibilityAutomation {
 
       return true;
     } catch (error) {
-      Logger.debug(`Exception in setExtension Error: ${error}`);
+      Logger.debug(`Exception in validateA11yCaps Error: ${error}`);
     }
 
     return false;
@@ -358,7 +187,7 @@ class AccessibilityAutomation {
         testMetaData
       );
       this.currentTest.accessibilityScanStarted = true;
-      this._isAccessibilitySession = this.setExtension(browser);
+      this._isAccessibilitySession = this.validateA11yCaps(browser);
 
       if (this.isAccessibilityAutomationSession() && browser && helper.isAccessibilitySession() && this._isAccessibilitySession) {
         try {
