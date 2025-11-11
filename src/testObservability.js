@@ -305,7 +305,7 @@ class TestObservability {
 
   async processTestReportFile(testFileReport) {
     const completedSections = testFileReport['completedSections'];
-    // const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
+    const skippedTests = testFileReport['skippedAtRuntime'].concat(testFileReport['skippedByUser']);
     if (completedSections) {
       const globalBeforeEachHookId = uuidv4();
       const beforeHookId = uuidv4();
@@ -342,19 +342,15 @@ class TestObservability {
           // }
         }
       }
-      // if (skippedTests?.length > 0) {
-      //   for (const skippedTest of skippedTests) {
-      //     await this.sendSkippedTestEvent(skippedTest, testFileReport);
-      //   }
-      // }
+      if (skippedTests?.length > 0) {
+        for (const skippedTest of skippedTests) {
+          await this.sendSkippedTestEvent(skippedTest, testFileReport);
+        }
+      }
     }
   }
 
   async processTestRunData (eventData, uuid) {
-    // const testUuid = uuidv4();
-    // const errorData = eventData.commands.find(command => command.result?.stack);
-    // eventData.lastError = errorData ? errorData.result : null;
-    // await this.sendTestRunEvent(eventData, testFileReport, 'TestRunStarted', testUuid, null, sectionName, hookIds);
     if (eventData.httpOutput && eventData.httpOutput.length > 0) {
       for (const [index, output] of eventData.httpOutput.entries()) {
         if (index % 2 === 0) {
@@ -396,7 +392,6 @@ class TestObservability {
         }
       }
     }
-    // await this.sendTestRunEvent(eventData, testFileReport, 'TestRunFinished', testUuid, null, sectionName, hookIds);
   }
 
   async sendSkippedTestEvent(skippedTest, testFileReport) {
@@ -468,10 +463,9 @@ class TestObservability {
     }
   }
 
-  async sendTestRunEvent(eventType, test) {
+  async sendTestRunEvent(eventType, test, uuid) {
     Logger.debug(`[sendTestRunEvent] Reached sendTestRunEvent with eventType: ${eventType}`);
     const testMetaData = test.metadata;
-    const uuid = test.uuid;
     const testName = test.testcase;
     const settings = test.settings || {};
     const startTimestamp = test.envelope[testName].startTimestamp;
@@ -502,10 +496,6 @@ class TestObservability {
       integrations: {
         [provider]: helper.getIntegrationsObject(testMetaData.sessionCapabilities, testMetaData.sessionId, testMetaData.host, settings.desiredCapabilities['bstack:options']?.osVersion)
       },
-      // customRerunParam: {
-      //   rerun_name: '<string>' // Rerun name of test that can be sent in Rerun request to uniquely identify the test
-      // },
-      // retry_of: '<string>',
       product_map: {
         accessibility: helper.isAccessibilitySession(),
       }
@@ -514,12 +504,6 @@ class TestObservability {
     if (eventType === 'TestRunFinished') {
       const eventData = test.envelope[testName].testcase;
       testResults = test.testResults;
-      // const skippedTests =testResults['skippedAtRuntime'].concat(testResults['skippedByUser'])
-      // if (skippedTests?.length > 0){
-      //   for (const skippedTest of skippedTests) {
-      //     await this.sendSkippedTestEvent(skippedTest, testMetaData);
-      //   }
-      // }
       testData.finished_at = testResults.endTimestamp ? new Date(testResults.endTimestamp).toISOString() : new Date(testResults.startTimestamp).toISOString();
       testData.result = testResults.__failedCount > 0 ? 'failed' : 'passed';
       if (testData.result === 'failed' && testResults.__lastError) {
@@ -535,14 +519,6 @@ class TestObservability {
       } 
 
       this.processTestRunData (eventData,uuid)
-      // else if (eventData.status === 'fail' && (testFileReport?.completed[sectionName]?.lastError || testFileReport?.completed[sectionName]?.stackTrace)) {
-      //   const testCompletionData = testFileReport.completed[sectionName];
-      //   testData.failure = [
-      //     {'backtrace': [testCompletionData?.stackTrace]}
-      //   ];
-      //   testData.failure_reason = testCompletionData?.assertions.find(val => val.stackTrace === testCompletionData.stackTrace)?.failure;
-      //   testData.failure_type = testCompletionData?.stackTrace.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
-      // }
     }
 
     const uploadData = {
@@ -602,27 +578,10 @@ class TestObservability {
       testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
     }
 
-    // if (eventType === 'TestRunStarted') {
-    //   testData.type = 'test';
-    //   testData.integrations = {};
-    //   const provider = helper.getCloudProvider(testFileReport.host);
-    //   testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
-    // }
-
-    // if (eventType === 'TestRunFinished') {
-    //   testData.type = 'test';
-    //   testData.hooks = hooks;
-    // }
-
     const uploadData = {
       event_type: eventType,
       hook_run: testData
     };
-    // if (eventType.match(/HookRun/)) {
-    //   uploadData['hook_run'] = testData;
-    // } else {
-    //   uploadData['test_run'] = testData;
-    // }
     await helper.uploadEventData(uploadData);
   }
 

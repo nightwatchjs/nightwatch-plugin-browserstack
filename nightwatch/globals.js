@@ -9,9 +9,11 @@ const path = require('path');
 const AccessibilityAutomation = require('../src/accessibilityAutomation');
 const eventHelper = require('../src/utils/eventHelper');
 const OrchestrationUtils = require('../src/testorchestration/orchestrationUtils');
+const TestMap = require('../src/utils/testMap');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
+const testMapInstance = new TestMap();
 
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
@@ -257,12 +259,15 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
-      await testObservability.sendTestRunEvent("TestRunStarted",test);
+      testMapInstance.storeTestDetails(test);
+      const uuid = testMapInstance.getUUID(test);
+      await testObservability.sendTestRunEvent("TestRunStarted", test, uuid);
       await accessibilityAutomation.beforeEachExecution(test);
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
-      await testObservability.sendTestRunEvent("TestRunFinished",test);
+      const uuid = testMapInstance.getUUID(test);
+      await testObservability.sendTestRunEvent("TestRunFinished",test, uuid);
       await accessibilityAutomation.afterEachExecution(test);
     });
   },
