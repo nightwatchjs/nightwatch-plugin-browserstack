@@ -95,7 +95,7 @@ class TestObservability {
     const accessibilityOptions = accessibility ? this._settings.accessibilityOptions || {} : {};
     this._gitMetadata = await helper.getGitMetaData();
     const fromProduct = {
-      test_observability: this._settings.test_observability.enabled || this._settings.test_reporting.enabled || false,
+      test_observability: this._settings.test_observability?.enabled || this._settings.test_reporting?.enabled || false,
       accessibility: accessibility
     };
     const data = {
@@ -143,8 +143,6 @@ class TestObservability {
 
     try {
       const response = await makeRequest('POST', 'api/v2/builds', data, config, API_URL);
-      Logger.debug(`[Start_Build] Success response: ${JSON.stringify(response)}`)
-      console.log(`[Start_Build] Success response: ${JSON.stringify(response)}`)
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
       const responseData = response.data || {};
@@ -471,7 +469,6 @@ class TestObservability {
     const startTimestamp = test.envelope[testName].startTimestamp;
     let testResults = {};
     const testBody = test.testBody;
-    Logger.debug(`[sendTestRunEvent] Values - testMetaData: ${JSON.stringify(testMetaData)}, uuid: ${uuid}, testName: ${testName}, settings: ${JSON.stringify(settings)},testResults: ${JSON.stringify(testResults)}, testBody: ${testBody}`);
     const provider = helper.getCloudProvider(testMetaData.host);
     const testData = {
       uuid: uuid,
@@ -845,7 +842,7 @@ class TestObservability {
           automate: product === 'automate',
           app_automate: product === 'app-automate',
           observability: helper.isTestObservabilitySession(),
-          accessibility: settings['@nightwatch/browserstack']?.accessibility === true,
+          accessibility: helper.isAccessibilityEnabled(settings),
           turboscale: product === 'turboscale',
           percy: false
         };

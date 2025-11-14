@@ -76,6 +76,13 @@ exports.isAccessibilitySession = () => {
   return process.env.BROWSERSTACK_ACCESSIBILITY === 'true';
 };
 
+exports.isAccessibilityEnabled = (settings) => {
+   if (process.argv.includes('--disable-accessibility'))
+    return false;
+   else
+    return settings['@nightwatch/browserstack']?.accessibility === true;
+};
+
 exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
   if ((fromProduct.test_observability || fromProduct.test_reporting) && 
       ((options.test_observability && options.test_observability.projectName) ||
