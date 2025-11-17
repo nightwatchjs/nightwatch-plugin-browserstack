@@ -52,8 +52,6 @@ class TestMap {
   getAllTests() {
     return new Map(this.testMap);
   }
-
- 
 }
 
 module.exports = TestMap;
