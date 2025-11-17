@@ -230,15 +230,15 @@ class TestObservability {
 
   }
 
-  handleErrorForObservability(observabilityData) {
+  handleErrorForObservability(error) {
     process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
     process.env.BROWSERSTACK_TEST_REPORTING = 'false';
-    Logger.error(`Observability could not be started`); //make logging better later
+    helper.logBuildError(error, 'Test Reporting and Analytics'); 
   }
 
-  handleErrorForAccessibility(accessibilityData) {
+  handleErrorForAccessibility(error) {
     process.env.BROWSERSTACK_ACCESSIBILITY = 'false';
-    Logger.error(`Accessibility could not be started`); //make logging better later
+    helper.logBuildError(error, 'Accessibility'); 
   }
 
   async stopBuildUpstream () {
@@ -329,15 +329,6 @@ class TestObservability {
             await this.sendHookEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
             break;
           }
-          // default: {
-          //   if (eventData.retryTestData?.length>0) {
-          //     for (const retryTest of eventData.retryTestData) {
-          //       await this.processTestRunData(retryTest, sectionName, testFileReport, hookIds);
-          //     }
-          //   }
-          //   await this.processTestRunData(eventData, sectionName, testFileReport, hookIds);
-          //   break;
-          // }
         }
       }
       if (skippedTests?.length > 0) {
@@ -462,13 +453,13 @@ class TestObservability {
   }
 
   async sendTestRunEvent(eventType, test, uuid) {
-    Logger.debug(`[sendTestRunEvent] Reached sendTestRunEvent with eventType: ${eventType}`);
+    Logger.debug(`Sending test run event with eventType: ${eventType}`);
     const testMetaData = test.metadata;
     const testName = test.testcase;
     const settings = test.settings || {};
     const startTimestamp = test.envelope[testName].startTimestamp;
     let testResults = {};
-    const testBody = test.testBody;
+    const testBody = this.getTestBody(test.testCaseData);
     const provider = helper.getCloudProvider(testMetaData.host);
     const testData = {
       uuid: uuid,
@@ -849,6 +840,10 @@ class TestObservability {
 
         return buildProductMap;
   }
-}
+
+  getTestBody(testCaseData) {
+    return testCaseData.context.__module[testCaseData.testName] || null;
+  }
+} 
 
 module.exports = TestObservability;
