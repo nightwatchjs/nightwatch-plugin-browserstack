@@ -397,7 +397,7 @@ class TestObservability {
       file_name: path.relative(process.cwd(), testFileReport.modulePath),
       location: path.relative(process.cwd(), testFileReport.modulePath),
       vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
-      started_at: new Date(testFileReport.startTimestamp).toISOString(),
+      started_at: new Date(testFileReport.endTimestamp).toISOString(),
       finished_at: new Date(testFileReport.endTimestamp).toISOString(),
       duration_in_ms: 0,
       result: 'skipped',
