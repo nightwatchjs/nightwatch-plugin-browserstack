@@ -486,7 +486,7 @@ class TestObservability {
       result: 'pending',
       framework: 'nightwatch',
       integrations: {
-        [provider]: helper.getIntegrationsObject(testMetaData.sessionCapabilities, testMetaData.sessionId, testMetaData.host, settings.desiredCapabilities['bstack:options']?.osVersion)
+        [provider]: helper.getIntegrationsObject(testMetaData.sessionCapabilities, testMetaData.sessionId, testMetaData.host, settings?.desiredCapabilities?.['bstack:options']?.osVersion)
       },
       product_map: {
         accessibility: helper.isAccessibilitySession()
@@ -496,19 +496,23 @@ class TestObservability {
     if (eventType === 'TestRunFinished') {
       const eventData = test.envelope[testName].testcase;
       testResults = test.testResults;
-      testData.finished_at = testResults.endTimestamp ? new Date(testResults.endTimestamp).toISOString() : new Date(testResults.startTimestamp).toISOString();
-      testData.result = testResults.__failedCount > 0 ? 'failed' : 'passed';
-      if (testData.result === 'failed' && testResults.__lastError) {
-        testData.failure = [
-          {
-            'backtrace': [stripAnsi(testResults.__lastError.message), testResults.__lastError.stack]
+      if (!testResults) {
+        Logger.debug(`Test results could not be retrieved for test: ${testName}. Skipping result processing.`);
+      } else {
+        testData.finished_at = testResults.endTimestamp ? new Date(testResults.endTimestamp).toISOString() : new Date(testResults.startTimestamp).toISOString();
+        testData.result = testResults.__failedCount > 0 ? 'failed' : 'passed';
+        if (testData.result === 'failed' && testResults.__lastError) {
+          testData.failure = [
+            {
+              'backtrace': [stripAnsi(testResults.__lastError.message), testResults.__lastError.stack]
+            }
+          ];
+          testData.failure_reason = testResults.__lastError ? stripAnsi(testResults.__lastError.message) : null;
+          if (testResults.__lastError && testResults.__lastError.name) {
+            testData.failure_type = testResults.__lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
           }
-        ];
-        testData.failure_reason = testResults.__lastError ? stripAnsi(testResults.__lastError.message) : null;
-        if (testResults.__lastError && testResults.__lastError.name) {
-          testData.failure_type = testResults.__lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
         }
-      } 
+      }
 
       this.processTestRunData (eventData, uuid);
     }
@@ -846,7 +850,7 @@ class TestObservability {
   }
 
   getTestBody(testCaseData) {
-    return testCaseData.context.__module[testCaseData.testName] || null;
+    return testCaseData?.context.__module[testCaseData.testName] || null;
   }
 } 
 
