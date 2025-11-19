@@ -31,8 +31,8 @@ class RequestQueueHandler {
       }
 
       this.queue.push(event);
-      const shouldProceed = this.shouldProceed();
       let data = null;
+      const shouldProceed = this.shouldProceed();
       if (shouldProceed) {
         data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
@@ -114,7 +114,7 @@ class RequestQueueHandler {
       }
       this.pending_test_uploads = Math.max(0, this.pending_test_uploads - data.length);
     }
-  }
+  };
 }
 
 module.exports = new RequestQueueHandler();
