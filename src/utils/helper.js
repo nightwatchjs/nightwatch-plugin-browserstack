@@ -646,7 +646,7 @@ exports.getIntegrationsObject = (capabilities, sessionId, hostname, platform_ver
     browser: capabilities.browserName,
     browser_version: capabilities.browserVersion,
     platform: capabilities.platformName,
-    platform_version: platform_version,
+    platform_version: capabilities.platformVersion || platform_version,
     product: this.getObservabilityLinkedProductName(capabilities, hostname)
   };
 };
