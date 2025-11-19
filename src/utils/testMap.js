@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const {v4: uuidv4} = require('uuid');
 
 class TestMap {
   constructor() {
@@ -24,6 +24,7 @@ class TestMap {
     if (test) {
       const testIdentifier = typeof test === 'string' ? test : this.generateTestIdentifier(test);
       const testData = this.testMap.get(testIdentifier);
+
       return testData ? testData.uuid : null;
     }
   }
@@ -32,6 +33,7 @@ class TestMap {
     if (this.testMap.has(identifier)) {
       return this.testMap.get(identifier);
     }
+
     return null;
   }
 

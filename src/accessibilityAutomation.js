@@ -22,13 +22,13 @@ class AccessibilityAutomation {
       this._key = helper.getAccessKey(settings, this._settings);
     }
 
-     let accessibilityOptions;
-      if (helper.isUndefined(this._settings.accessibilityOptions)) {
-        accessibilityOptions = {};
-      } else {
-        accessibilityOptions = this._settings.accessibilityOptions;
-      }
-      process.env.BROWSERSTACK_ACCESSIBILITY_OPTIONS = JSON.stringify(accessibilityOptions);
+    let accessibilityOptions;
+    if (helper.isUndefined(this._settings.accessibilityOptions)) {
+      accessibilityOptions = {};
+    } else {
+      accessibilityOptions = this._settings.accessibilityOptions;
+    }
+    process.env.BROWSERSTACK_ACCESSIBILITY_OPTIONS = JSON.stringify(accessibilityOptions);
   }
 
   setAccessibilityCapabilities(settings) {
@@ -175,11 +175,11 @@ class AccessibilityAutomation {
 
       if (this.isAccessibilityAutomationSession() && browser && this._isAccessibilitySession) {
         try { 
-            this.currentTest.accessibilityScanStarted =
+          this.currentTest.accessibilityScanStarted =
               this.currentTest.shouldScanTestForAccessibility;
-            if (this.currentTest.shouldScanTestForAccessibility) {
-              Logger.info('Automate test case execution has started.');
-            }
+          if (this.currentTest.shouldScanTestForAccessibility) {
+            Logger.info('Automate test case execution has started.');
+          }
         } catch (e) {
           Logger.error('Exception in starting accessibility automation scan for this test case', e);
         }
@@ -201,8 +201,8 @@ class AccessibilityAutomation {
             'thTestRunUuid': uuid,
             'thBuildUuid': process.env.BROWSERSTACK_TESTHUB_UUID,
             'thJwtToken': process.env.BROWSERSTACK_TESTHUB_JWT
-          }
-          await this.sendTestStopEvent(browser, dataForExtension)
+          };
+          await this.sendTestStopEvent(browser, dataForExtension);
           Logger.info('Accessibility testing for this test case has ended.');          
         }
       }
@@ -224,6 +224,7 @@ class AccessibilityAutomation {
       Logger.debug('Performing scan before getting results');
       await this.performScan(browser);
       const results = await browser.executeAsyncScript(AccessibilityScripts.getResults);
+
       return results;
     } catch {
       Logger.error('No accessibility results were found.');
@@ -244,6 +245,7 @@ class AccessibilityAutomation {
       Logger.debug('Performing scan before getting results summary');
       await this.performScan(browser);
       const summaryResults = await browser.executeAsyncScript(AccessibilityScripts.getResultsSummary);
+
       return summaryResults;
     } catch {
       Logger.error('No accessibility summary was found.');
@@ -256,46 +258,51 @@ class AccessibilityAutomation {
     return Object.fromEntries(Object.entries(accessibilityOptions).filter(([k, v]) => !(k.toLowerCase() === 'excludetagsintestingscope' || k.toLowerCase() === 'includetagsintestingscope')));
   }
 
-  async performScan( browserInstance = null, commandName = '') {
+  async performScan(browserInstance = null, commandName = '') {
     
-      if (!this.isAccessibilityAutomationSession() || !this._isAccessibilitySession) {
-        Logger.warn('Not an Accessibility Automation session, cannot perform Accessibility scan.');
-        return;
-      }
+    if (!this.isAccessibilityAutomationSession() || !this._isAccessibilitySession) {
+      Logger.warn('Not an Accessibility Automation session, cannot perform Accessibility scan.');
 
-      if (this.currentTest.shouldScanTestForAccessibility === false) {
-        Logger.info('Skipping Accessibility scan for this test as it\'s disabled.');
-        return;
-      }
-      try {
-        const browser = browserInstance;
+      return;
+    }
+
+    if (this.currentTest.shouldScanTestForAccessibility === false) {
+      Logger.info('Skipping Accessibility scan for this test as it\'s disabled.');
+
+      return;
+    }
+    try {
+      const browser = browserInstance;
         
-        if (!browser) {
-          Logger.error('No browser instance available for accessibility scan');
-          return;
-        }
-        const results = await browser.executeAsyncScript(AccessibilityScripts.performScan, { 
-          method: commandName || '' 
-        });
-        Logger.debug(util.inspect(results));
-        return results;
+      if (!browser) {
+        Logger.error('No browser instance available for accessibility scan');
 
-      } catch (err) {
-        Logger.error('Accessibility Scan could not be performed: ' + err.message);
-        Logger.debug('Stack trace:', err.stack);
         return;
       }
+      const results = await browser.executeAsyncScript(AccessibilityScripts.performScan, { 
+        method: commandName || '' 
+      });
+      Logger.debug(util.inspect(results));
+
+      return results;
+
+    } catch (err) {
+      Logger.error('Accessibility Scan could not be performed: ' + err.message);
+      Logger.debug('Stack trace:', err.stack);
+
+      return;
+    }
   }
 
-async sendTestStopEvent(browser, dataForExtension = {}) {
-   Logger.debug('Performing scan before saving results');
-   await this.performScan(browser);
-   const results = await browser.executeAsyncScript(AccessibilityScripts.saveTestResults, dataForExtension);
-   Logger.debug(util.inspect(results)); 
-}
+  async sendTestStopEvent(browser, dataForExtension = {}) {
+    Logger.debug('Performing scan before saving results');
+    await this.performScan(browser);
+    const results = await browser.executeAsyncScript(AccessibilityScripts.saveTestResults, dataForExtension);
+    Logger.debug(util.inspect(results)); 
+  }
 
-async commandWrapper() {
-  try {
+  async commandWrapper() {
+    try {
       const nightwatchMain = require.resolve('nightwatch');
       const nightwatchDir = path.dirname(nightwatchMain);
      
@@ -303,22 +310,22 @@ async commandWrapper() {
       const accessibilityInstance = this;
       for (const commandKey in commandJson) { 
         if (commandJson[commandKey].method === 'protocolAction'){
-            try {
+          try {
             commandJson[commandKey].name.forEach(commandName => {
               const commandPath = path.join(nightwatchDir, `${commandJson[commandKey].path}`, `${commandName}.js`);
               const OriginalClass = require(commandPath);
               const originalProtocolAction = OriginalClass.prototype.protocolAction;
               
               OriginalClass.prototype.protocolAction = async function() {
-              await accessibilityInstance.performScan(browser, commandName);
-              return originalProtocolAction.apply(this);
+                await accessibilityInstance.performScan(browser, commandName);
+
+                return originalProtocolAction.apply(this);
               };
             });
-            } catch (error) {
+          } catch (error) {
             Logger.debug(`Failed to patch protocolAction for command: ${error.message}`);
-            }
-        } 
-        else {
+          }
+        } else {
           try {
             commandJson[commandKey].name.forEach(commandName => {
               const webElementCommandPath = path.join(nightwatchDir, `${commandJson[commandKey].path}`, `${commandName}.js`);
@@ -326,8 +333,9 @@ async commandWrapper() {
               const originalCommandFn = originalCommand.command;
 
               originalCommand.command = async function(...args) {
-              await accessibilityInstance.performScan(browser, commandName);
-              return originalCommandFn.apply(this, args);
+                await accessibilityInstance.performScan(browser, commandName);
+
+                return originalCommandFn.apply(this, args);
               };
             });
           } catch (error) {
@@ -335,10 +343,10 @@ async commandWrapper() {
           }
         }
       }
-  } catch (error) {
-    Logger.debug(`Command patching failed: ${error.message}`);
+    } catch (error) {
+      Logger.debug(`Command patching failed: ${error.message}`);
+    }
   }
-}
 }
 
 module.exports = AccessibilityAutomation;

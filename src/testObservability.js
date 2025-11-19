@@ -115,14 +115,14 @@ class TestObservability {
         settings: accessibilityOptions
       },
       framework_details: {
-            frameworkName: helper.getFrameworkName(this._testRunner),
-            frameworkVersion: helper.getPackageVersion('nightwatch'),
-            sdkVersion: helper.getAgentVersion(),
-            language: 'javascript',
-            testFramework: {
-                name: 'nightwatch',
-                version: helper.getPackageVersion('nightwatch')
-            }
+        frameworkName: helper.getFrameworkName(this._testRunner),
+        frameworkVersion: helper.getPackageVersion('nightwatch'),
+        sdkVersion: helper.getAgentVersion(),
+        language: 'javascript',
+        testFramework: {
+          name: 'nightwatch',
+          version: helper.getPackageVersion('nightwatch')
+        }
       },
       product_map: this.getProductMapForBuildStartCall(this._parentSettings),
       browserstackAutomation: helper.isBrowserstackInfra(this._settings),
@@ -178,54 +178,58 @@ class TestObservability {
   }
 
   processTestObservabilityResponse(responseData) {
-     if (!responseData.observability) {
-        this.handleErrorForObservability(null)
-        return
+    if (!responseData.observability) {
+      this.handleErrorForObservability(null);
+
+      return;
     }
     if (!responseData.observability.success) {
-        this.handleErrorForObservability(responseData.observability)
-        return
+      this.handleErrorForObservability(responseData.observability);
+
+      return;
     }
     process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'true';
     process.env.BROWSERSTACK_TEST_REPORTING = 'true';
     if (responseData.observability.options.allow_screenshots) {
-        process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = responseData.observability.options.allow_screenshots.toString();
+      process.env.BS_TESTOPS_ALLOW_SCREENSHOTS = responseData.observability.options.allow_screenshots.toString();
     }
   }
 
   processAccessibilityResponse(responseData, settings) {
     if (!responseData.accessibility) {
-        if (settings.accessibility === true) {
-          this.handleErrorForAccessibility(null)
-        }
-        return
+      if (settings.accessibility === true) {
+        this.handleErrorForAccessibility(null);
+      }
+
+      return;
     }
     if (!responseData.accessibility.success) {
-        this.handleErrorForAccessibility(responseData.accessibility)
-        return
+      this.handleErrorForAccessibility(responseData.accessibility);
+
+      return;
     }
 
     if (responseData.accessibility.options) {
-        const { accessibilityToken, pollingTimeout, scannerVersion } = helper.jsonifyAccessibilityArray(responseData.accessibility.options.capabilities, 'name', 'value')
-        const scriptsJson = {
-            'scripts': helper.jsonifyAccessibilityArray(responseData.accessibility.options.scripts, 'name', 'command'),
-            'commands': responseData.accessibility.options.commandsToWrap?.commands ?? [],
-        }
-        if (scannerVersion) {
-            process.env.BSTACK_A11Y_SCANNER_VERSION = scannerVersion
-            Logger.debug(`Accessibility scannerVersion ${scannerVersion}`)
-        }
-        if (accessibilityToken) {
-            process.env.BS_A11Y_JWT = accessibilityToken
-            process.env.BROWSERSTACK_ACCESSIBILITY = 'true'
-        }
-        if (pollingTimeout) {
-            process.env.BSTACK_A11Y_POLLING_TIMEOUT = pollingTimeout
-        }
-        if (scriptsJson) {
-            accessibilityScripts.update(scriptsJson);
-            accessibilityScripts.store();
-        }
+      const {accessibilityToken, pollingTimeout, scannerVersion} = helper.jsonifyAccessibilityArray(responseData.accessibility.options.capabilities, 'name', 'value');
+      const scriptsJson = {
+        'scripts': helper.jsonifyAccessibilityArray(responseData.accessibility.options.scripts, 'name', 'command'),
+        'commands': responseData.accessibility.options.commandsToWrap?.commands ?? []
+      };
+      if (scannerVersion) {
+        process.env.BSTACK_A11Y_SCANNER_VERSION = scannerVersion;
+        Logger.debug(`Accessibility scannerVersion ${scannerVersion}`);
+      }
+      if (accessibilityToken) {
+        process.env.BS_A11Y_JWT = accessibilityToken;
+        process.env.BROWSERSTACK_ACCESSIBILITY = 'true';
+      }
+      if (pollingTimeout) {
+        process.env.BSTACK_A11Y_POLLING_TIMEOUT = pollingTimeout;
+      }
+      if (scriptsJson) {
+        accessibilityScripts.update(scriptsJson);
+        accessibilityScripts.store();
+      }
     }
 
   }
@@ -485,7 +489,7 @@ class TestObservability {
         [provider]: helper.getIntegrationsObject(testMetaData.sessionCapabilities, testMetaData.sessionId, testMetaData.host, settings.desiredCapabilities['bstack:options']?.osVersion)
       },
       product_map: {
-        accessibility: helper.isAccessibilitySession(),
+        accessibility: helper.isAccessibilitySession()
       }
     };
 
@@ -506,7 +510,7 @@ class TestObservability {
         }
       } 
 
-      this.processTestRunData (eventData,uuid)
+      this.processTestRunData (eventData, uuid);
     }
 
     const uploadData = {
@@ -829,16 +833,16 @@ class TestObservability {
   getProductMapForBuildStartCall(settings) {
     const product = helper.getObservabilityLinkedProductName(settings.desiredCapabilities, settings?.selenium?.host);
     
-        const buildProductMap = {
-          automate: product === 'automate',
-          app_automate: product === 'app-automate',
-          observability: helper.isTestObservabilitySession(),
-          accessibility: helper.isAccessibilityEnabled(settings),
-          turboscale: product === 'turboscale',
-          percy: false
-        };
+    const buildProductMap = {
+      automate: product === 'automate',
+      app_automate: product === 'app-automate',
+      observability: helper.isTestObservabilitySession(),
+      accessibility: helper.isAccessibilityEnabled(settings),
+      turboscale: product === 'turboscale',
+      percy: false
+    };
 
-        return buildProductMap;
+    return buildProductMap;
   }
 
   getTestBody(testCaseData) {

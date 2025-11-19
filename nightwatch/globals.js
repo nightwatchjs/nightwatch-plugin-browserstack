@@ -263,14 +263,14 @@ module.exports = {
       testMapInstance.storeTestDetails(test);
       const uuid = testMapInstance.getUUID(test);
       allPromises.push(accessibilityAutomation.beforeEachExecution(test));
-      allPromises.push(testObservability.sendTestRunEvent("TestRunStarted", test, uuid));
+      allPromises.push(testObservability.sendTestRunEvent('TestRunStarted', test, uuid));
 
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
       const uuid = testMapInstance.getUUID(test);
       allPromises.push(accessibilityAutomation.afterEachExecution(test, uuid));
-      allPromises.push(testObservability.sendTestRunEvent("TestRunFinished", test, uuid));
+      allPromises.push(testObservability.sendTestRunEvent('TestRunFinished', test, uuid));
     });
   },
 
@@ -332,7 +332,7 @@ module.exports = {
         }
       }
     } catch (error) {
-        Logger.error(`Could not configure or launch test reporting and analytics - ${error}`);
+      Logger.error(`Could not configure or launch test reporting and analytics - ${error}`);
     }
       
     try {

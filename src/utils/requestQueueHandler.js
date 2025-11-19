@@ -64,7 +64,7 @@ class RequestQueueHandler {
 
   startEventBatchPolling () {
     this.pollEventBatchInterval = setInterval(async () => {
-       if (this.data.length > 0) {
+      if (this.data.length > 0) {
       //   const data = this.queue.slice(0, BATCH_SIZE);
       //   this.queue.splice(0, BATCH_SIZE);
         await this.batchAndPostEvents(this.eventUrl, 'Interval-Queue', this.data);

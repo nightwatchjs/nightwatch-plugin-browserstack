@@ -77,10 +77,9 @@ exports.isAccessibilitySession = () => {
 };
 
 exports.isAccessibilityEnabled = (settings) => {
-   if (process.argv.includes('--disable-accessibility'))
-    return false;
-   else
-    return settings['@nightwatch/browserstack']?.accessibility === true;
+  if (process.argv.includes('--disable-accessibility')) {return false}
+
+  return settings['@nightwatch/browserstack']?.accessibility === true;
 };
 
 exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
@@ -385,6 +384,7 @@ exports.getHostInfo = () => {
 
 exports.isBrowserstackInfra = (settings) => {
   const isBrowserstackInfra = settings && settings.webdriver && settings.webdriver.host && settings.webdriver.host.indexOf('browserstack') === -1 ? false : true;
+
   return isBrowserstackInfra;
 };
 
@@ -1317,12 +1317,14 @@ exports.jsonifyAccessibilityArray = (dataArray, keyName, valueName) => {
   dataArray.forEach((element) => {
     result[element[keyName]] = element[valueName];
   });
+
   return result;
 };
 
 exports.logBuildError = (error, product = '') => {
   if (!error || !error.errors) {
     Logger.error(`${product.toUpperCase()} Build creation failed ${error}`);
+
     return;
   }
 
@@ -1331,17 +1333,17 @@ exports.logBuildError = (error, product = '') => {
     const errorMessage = errorJson.message;
     if (errorMessage) {
       switch (errorType) {
-      case 'ERROR_INVALID_CREDENTIALS':
-        Logger.error(errorMessage);
-        break;
-      case 'ERROR_ACCESS_DENIED':
-        Logger.info(errorMessage);
-        break;
-      case 'ERROR_SDK_DEPRECATED':
-        Logger.error(errorMessage);
-        break;
-      default:
-        Logger.error(errorMessage);
+        case 'ERROR_INVALID_CREDENTIALS':
+          Logger.error(errorMessage);
+          break;
+        case 'ERROR_ACCESS_DENIED':
+          Logger.info(errorMessage);
+          break;
+        case 'ERROR_SDK_DEPRECATED':
+          Logger.error(errorMessage);
+          break;
+        default:
+          Logger.error(errorMessage);
       }
     }
   }
