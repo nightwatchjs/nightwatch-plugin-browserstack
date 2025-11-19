@@ -1,6 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const Logger = require('../utils/logger.js');
+
 
 class AccessibilityScripts {
   static instance = null;
@@ -49,7 +51,7 @@ class AccessibilityScripts {
         return orderedPath;
 
       } catch (e) {
-        /* no-empty */
+        Logger.debug(`Failed to access or create directory ${orderedPath}: ${e.message}`);
       }
     }
 
@@ -65,7 +67,7 @@ class AccessibilityScripts {
         }
       }
     } catch (error) {
-      /* Do nothing */
+      Logger.debug(`Failed to read accessibility commands file: ${error.message}`);
     }
   }
 

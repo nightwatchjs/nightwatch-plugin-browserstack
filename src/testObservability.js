@@ -514,7 +514,7 @@ class TestObservability {
         }
       }
 
-      this.processTestRunData (eventData, uuid);
+      await this.processTestRunData (eventData, uuid);
     }
 
     const uploadData = {

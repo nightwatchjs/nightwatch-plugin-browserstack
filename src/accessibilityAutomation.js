@@ -339,7 +339,7 @@ class AccessibilityAutomation {
               };
             });
           } catch (error) {
-            Logger.debug(`Failed to patch command ${commandName}: ${error.message}`);
+            Logger.debug(`Failed to patch command: ${error.message}`);
           }
         }
       }

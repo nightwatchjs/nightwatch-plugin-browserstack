@@ -11,7 +11,6 @@ class RequestQueueHandler {
     this.BATCH_EVENT_TYPES = ['LogCreated', 'TestRunFinished', 'TestRunSkipped', 'HookRunFinished', 'TestRunStarted', 'HookRunStarted'];
     this.pollEventBatchInterval = null;
     this.pending_test_uploads = 0;
-    this.data = null;
   }
 
   start() {
@@ -32,17 +31,17 @@ class RequestQueueHandler {
       }
 
       this.queue.push(event);
-      // let data = null;
       const shouldProceed = this.shouldProceed();
+      let data = null;
       if (shouldProceed) {
-        this.data = this.queue.slice(0, BATCH_SIZE);
+        data = this.queue.slice(0, BATCH_SIZE);
         this.queue.splice(0, BATCH_SIZE);
         this.resetEventBatchPolling();
       }
 
       return {
         shouldProceed: shouldProceed,
-        proceedWithData: this.data,
+        proceedWithData: data,
         proceedWithUrl: this.eventUrl
       };
     }
@@ -64,10 +63,10 @@ class RequestQueueHandler {
 
   startEventBatchPolling () {
     this.pollEventBatchInterval = setInterval(async () => {
-      if (this.data.length > 0) {
-      //   const data = this.queue.slice(0, BATCH_SIZE);
-      //   this.queue.splice(0, BATCH_SIZE);
-        await this.batchAndPostEvents(this.eventUrl, 'Interval-Queue', this.data);
+      if (this.queue.length > 0) {
+        const data = this.queue.slice(0, BATCH_SIZE);
+        this.queue.splice(0, BATCH_SIZE);
+        await this.batchAndPostEvents(this.eventUrl, 'Interval-Queue', data);
       }
     }, BATCH_INTERVAL);
   }
@@ -88,7 +87,7 @@ class RequestQueueHandler {
   }
 
   shouldProceed () {
-    return this.queue.length <= BATCH_SIZE;
+    return this.queue.length >= BATCH_SIZE;
   }
 
   async batchAndPostEvents (eventUrl, kind, data) {
@@ -102,7 +101,7 @@ class RequestQueueHandler {
   
     try {
       const response = await makeRequest('POST', eventUrl, data, config);
-      if (response.data.error) {
+      if (response.data && response.data.error) {
         throw ({message: response.data.error});
       } else {
         this.pending_test_uploads = Math.max(0, this.pending_test_uploads - data.length);
@@ -115,7 +114,7 @@ class RequestQueueHandler {
       }
       this.pending_test_uploads = Math.max(0, this.pending_test_uploads - data.length);
     }
-  };
+  }
 }
 
 module.exports = new RequestQueueHandler();

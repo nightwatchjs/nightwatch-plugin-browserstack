@@ -21,7 +21,6 @@ const _tests = {};
 const _testCasesData = {};
 let currentTestUUID = '';
 let workerList = {};
-let allPromises = [];
 
 eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
@@ -262,15 +261,14 @@ module.exports = {
     eventBroadcaster.on('TestRunStarted', async (test) => {
       testMapInstance.storeTestDetails(test);
       const uuid = testMapInstance.getUUID(test);
-      allPromises.push(accessibilityAutomation.beforeEachExecution(test));
-      allPromises.push(testObservability.sendTestRunEvent('TestRunStarted', test, uuid));
-
+      await accessibilityAutomation.beforeEachExecution(test);
+      await testObservability.sendTestRunEvent('TestRunStarted', test, uuid);
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
       const uuid = testMapInstance.getUUID(test);
-      allPromises.push(accessibilityAutomation.afterEachExecution(test, uuid));
-      allPromises.push(testObservability.sendTestRunEvent('TestRunFinished', test, uuid));
+      await accessibilityAutomation.afterEachExecution(test, uuid);
+      await testObservability.sendTestRunEvent('TestRunFinished', test, uuid);
     });
   },
 
@@ -470,15 +468,10 @@ module.exports = {
   async beforeEach(settings) {
     browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
     browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
-    // await accessibilityAutomation.beforeEachExecution(browser);
   },
 
   // This will be run after each test suite is finished
   async afterEach(settings) {
-    if (allPromises.length > 0) {
-      await Promise.all(allPromises);
-      allPromises = []; 
-    }
   },
 
   beforeChildProcess(settings) {
