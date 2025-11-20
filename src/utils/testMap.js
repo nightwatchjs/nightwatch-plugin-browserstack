@@ -1,43 +1,42 @@
 const {v4: uuidv4} = require('uuid');
 
-class TestMap {
-  constructor() {
-    this.testMap = new Map();
-    this.currentTest = null;
-  }
+const sharedTestMap = new Map();
+let sharedCurrentTest = null;
 
-  storeTestDetails(test) {
+class TestMap {
+  
+  static storeTestDetails(test) {
     const testIdentifier = this.generateTestIdentifier(test);
     
-    if (!this.testMap.has(testIdentifier)) {
+    if (!sharedTestMap.has(testIdentifier)) {
       const uuid = this.generateUUID();
-      this.testMap.set(testIdentifier, {
+      sharedTestMap.set(testIdentifier, {
         uuid,
         test,
         createdAt: new Date().toISOString()
       });
     }
-    this.currentTest = testIdentifier;
+    sharedCurrentTest = testIdentifier;
   }
 
-  getUUID(test = null) {
+  static getUUID(test = null) {
     if (test) {
-      const testIdentifier = typeof test === 'string' ? test : this.generateTestIdentifier(test);
-      const testData = this.testMap.get(testIdentifier);
+      const testIdentifier = typeof test === 'string' ? test : generateTestIdentifier(test);
+      const testData = sharedTestMap.get(testIdentifier);
 
       return testData ? testData.uuid : null;
     }
   }
 
-  getTestDetails(identifier) {
-    if (this.testMap.has(identifier)) {
-      return this.testMap.get(identifier);
+  static getTestDetails(identifier) {
+    if (sharedTestMap.has(identifier)) {
+      return sharedTestMap.get(identifier);
     }
 
     return null;
   }
 
-  generateTestIdentifier(test) {
+  static generateTestIdentifier(test) {
     if (!test) {
       throw new Error('Test object is required to generate identifier');
     }
@@ -47,12 +46,12 @@ class TestMap {
     return `${moduleName}::${testName}`;
   }
   
-  generateUUID() {
+  static generateUUID() {
     return uuidv4();
   }
 
-  getAllTests() {
-    return new Map(this.testMap);
+  static getAllTests() {
+    return new Map(sharedTestMap);
   }
 }
 

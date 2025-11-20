@@ -13,7 +13,6 @@ const TestMap = require('../src/utils/testMap');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
-const testMapInstance = new TestMap();
 
 const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
@@ -67,8 +66,8 @@ module.exports = {
           promises.push(testObservability.processTestReportFile(JSON.parse(JSON.stringify(modulesWithEnv[testSetting][testFile]))));
         }
       }
-
       await Promise.all(promises);
+      
       done();
     } catch (error) {
       CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -259,16 +258,16 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
-      testMapInstance.storeTestDetails(test);
-      const uuid = testMapInstance.getUUID(test);
-      await accessibilityAutomation.beforeEachExecution(test);
-      await testObservability.sendTestRunEvent('TestRunStarted', test, uuid);
+      TestMap.storeTestDetails(test);
+      const uuid = TestMap.getUUID(test);
+      await accessibilityAutomation.beforeEachExecution(test)
+      await testObservability.sendTestRunEvent('TestRunStarted', test, uuid)
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
-      const uuid = testMapInstance.getUUID(test);
+      const uuid = TestMap.getUUID(test);
       await accessibilityAutomation.afterEachExecution(test, uuid);
-      await testObservability.sendTestRunEvent('TestRunFinished', test, uuid);
+      await testObservability.sendTestRunEvent('TestRunFinished', test, uuid)
     });
   },
 
