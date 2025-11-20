@@ -20,6 +20,7 @@ const _tests = {};
 const _testCasesData = {};
 let currentTestUUID = '';
 let workerList = {};
+let testRunner = "";
 
 eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
@@ -261,13 +262,19 @@ module.exports = {
       TestMap.storeTestDetails(test);
       const uuid = TestMap.getUUID(test);
       await accessibilityAutomation.beforeEachExecution(test)
-      await testObservability.sendTestRunEvent('TestRunStarted', test, uuid)
+      if (testRunner != "cucumber"){
+        await testObservability.sendTestRunEvent('TestRunStarted', test, uuid)
+      }
+      
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
       const uuid = TestMap.getUUID(test);
       await accessibilityAutomation.afterEachExecution(test, uuid);
-      await testObservability.sendTestRunEvent('TestRunFinished', test, uuid)
+      if (testRunner != "cucumber"){
+        await testObservability.sendTestRunEvent('TestRunFinished', test, uuid)
+      }
+      
     });
   },
 
@@ -278,6 +285,7 @@ module.exports = {
   },
 
   async before(settings, testEnvSettings) {
+    testRunner = settings.test_runner.type;
     const pluginSettings = settings['@nightwatch/browserstack'];
     if (!settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options'] = {};
