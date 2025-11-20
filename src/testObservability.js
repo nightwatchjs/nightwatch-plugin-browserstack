@@ -221,7 +221,7 @@ class TestObservability {
         Logger.debug(`Accessibility scannerVersion ${scannerVersion}`);
       }
       if (accessibilityToken) {
-        process.env.BS_A11Y_JWT = accessibilityToken;
+        process.env.BSTACK_A11Y_JWT = accessibilityToken;
         process.env.BROWSERSTACK_ACCESSIBILITY = 'true';
       }
       if (pollingTimeout) {

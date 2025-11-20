@@ -56,18 +56,18 @@ class AccessibilityAutomation {
         if (this._bstackOptions) {
           this._bstackOptions.accessibility = this._settings.accessibility;
           if (this._bstackOptions.accessibilityOptions) {
-            this._bstackOptions.accessibilityOptions.authToken = process.env.BS_A11Y_JWT;
+            this._bstackOptions.accessibilityOptions.authToken = process.env.BSTACK_A11Y_JWT;
           } else {
-            this._bstackOptions.accessibilityOptions = {authToken: process.env.BS_A11Y_JWT};
+            this._bstackOptions.accessibilityOptions = {authToken: process.env.BSTACK_A11Y_JWT};
           }
           this._bstackOptions.accessibilityOptions.scannerVersion = process.env.BSTACK_A11Y_SCANNER_VERSION; 
         } else if (settings.desiredCapabilities['browserstack.accessibility']) {
           if (settings.desiredCapabilities['browserstack.accessibilityOptions']) {
             settings.desiredCapabilities['browserstack.accessibilityOptions'].authToken =
-              process.env.BS_A11Y_JWT;
+              process.env.BSTACK_A11Y_JWT;
           } else {
             settings.desiredCapabilities['browserstack.accessibilityOptions'] = {
-              authToken: process.env.BS_A11Y_JWT
+              authToken: process.env.BSTACK_A11Y_JWT
             };
           }
           settings.desiredCapabilities['browserstack.accessibilityOptions'].scannerVersion = process.env.BSTACK_A11Y_SCANNER_VERSION;
@@ -85,9 +85,9 @@ class AccessibilityAutomation {
       }
       const isBrowserstackAccessibilityEnabled = process.env.BROWSERSTACK_ACCESSIBILITY === 'true';
       const hasA11yJwtToken =
-        typeof process.env.BS_A11Y_JWT === 'string' &&
-        process.env.BS_A11Y_JWT.length > 0 &&
-        process.env.BS_A11Y_JWT !== 'null';
+        typeof process.env.BSTACK_A11Y_JWT === 'string' &&
+        process.env.BSTACK_A11Y_JWT.length > 0 &&
+        process.env.BSTACK_A11Y_JWT !== 'null';
 
       return isBrowserstackAccessibilityEnabled && hasA11yJwtToken;
     } catch (error) {
