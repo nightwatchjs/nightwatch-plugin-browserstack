@@ -10,6 +10,7 @@ const Logger = require('./utils/logger');
 const {API_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
 const OrchestrationUtils = require('./testorchestration/orchestrationUtils');
 const accessibilityScripts = require('./scripts/accessibilityScripts');
+const TestMap = require('./utils/testMap');
 const hooksMap = {};
 
 class TestObservability {
@@ -333,6 +334,13 @@ class TestObservability {
             await this.sendHookEvents(eventData, testFileReport, 'HookRunStarted', 'HookRunFinished', globalAfterEachHookId, 'GLOBAL_AFTER_EACH', sectionName);
             break;
           }
+          default: {
+            if(process.env.TEST_RESULT_PENDING) {
+              const uuid = TestMap.getUUID(`${testFileReport.name}::${sectionName}`);
+              await this.sendPendingTestEvent(eventData, sectionName, testFileReport, uuid);
+              await this.processTestRunData(eventData, uuid);
+            }
+          }
         }
       }
       if (skippedTests?.length > 0) {
@@ -385,6 +393,54 @@ class TestObservability {
         }
       }
     }
+  }
+  
+  // fallback for older core versions
+  async sendPendingTestEvent(eventData, testName, testFileReport, uuid) {
+    const testData = {
+      uuid: uuid,
+      type: 'test',
+      name: testName,
+      scope: `${testFileReport.name} - ${testName}`,
+      scopes: [
+        testFileReport.name
+      ],
+      tags: testFileReport.tags,
+      identifier: `${testFileReport.name} - ${testName}`,
+      file_name: path.relative(process.cwd(), testFileReport.modulePath),
+      location: path.relative(process.cwd(), testFileReport.modulePath),
+      vc_filepath: (this._gitMetadata && this._gitMetadata.root) ? path.relative(this._gitMetadata.root, testFileReport.modulePath) : null,
+      started_at: new Date(eventData.startTimestamp).toISOString(),
+      framework: 'nightwatch'
+    };
+    testData.integrations = {};
+    const provider = helper.getCloudProvider(testFileReport.host);
+    testData.integrations[provider] = helper.getIntegrationsObject(testFileReport.sessionCapabilities, testFileReport.sessionId, testFileReport.host);
+    testData.finished_at = eventData.endTimestamp ? new Date(eventData.endTimestamp).toISOString() : new Date(eventData.startTimestamp).toISOString();
+    testData.result = eventData.status === 'pass' ? 'passed' : 'failed';
+      if (eventData.status === 'fail' && eventData.lastError) {
+        testData.failure = [
+          {
+            'backtrace': [stripAnsi(eventData.lastError.message), eventData.lastError.stack]
+          }
+        ];
+        testData.failure_reason = eventData.lastError ? stripAnsi(eventData.lastError.message) : null;
+        if (eventData.lastError && eventData.lastError.name) {
+          testData.failure_type = eventData.lastError.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+        }
+      } else if (eventData.status === 'fail' && (testFileReport?.completed[testName]?.lastError || testFileReport?.completed[testName]?.stackTrace)) {
+        const testCompletionData = testFileReport.completed[testName];
+        testData.failure = [
+          {'backtrace': [testCompletionData?.stackTrace]}
+        ];
+        testData.failure_reason = testCompletionData?.assertions.find(val => val.stackTrace === testCompletionData.stackTrace)?.failure;
+        testData.failure_type = testCompletionData?.stackTrace.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+      }
+    const uploadData = {
+      event_type: 'TestRunFinished'
+    };
+    uploadData['test_run'] = testData;
+    await helper.uploadEventData(uploadData);
   }
 
   async sendSkippedTestEvent(skippedTest, testFileReport) {
@@ -497,8 +553,11 @@ class TestObservability {
       const eventData = test.envelope[testName].testcase;
       testResults = test.testResults;
       if (!testResults) {
+        process.env.TEST_RESULT_PENDING = true;
         Logger.debug(`Test results could not be retrieved for test: ${testName}. Skipping result processing.`);
+        return;
       } else {
+        process.env.TEST_RESULT_PENDING = false;
         testData.finished_at = testResults.endTimestamp ? new Date(testResults.endTimestamp).toISOString() : new Date(testResults.startTimestamp).toISOString();
         testData.result = testResults.__failedCount > 0 ? 'failed' : 'passed';
         if (testData.result === 'failed' && testResults.__lastError) {
