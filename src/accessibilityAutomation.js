@@ -302,49 +302,45 @@ class AccessibilityAutomation {
   }
 
   async commandWrapper() {
-    try {
-      const nightwatchMain = require.resolve('nightwatch');
-      const nightwatchDir = path.dirname(nightwatchMain);
-     
-      const commandJson = AccessibilityScripts.commandsToWrap;
-      const accessibilityInstance = this;
-      for (const commandKey in commandJson) { 
-        if (commandJson[commandKey].method === 'protocolAction'){
+    const nightwatchMain = require.resolve('nightwatch');
+    const nightwatchDir = path.dirname(nightwatchMain);
+   
+    const commandJson = AccessibilityScripts.commandsToWrap;
+    const accessibilityInstance = this;
+    for (const commandKey in commandJson) { 
+      if (commandJson[commandKey].method === 'protocolAction'){
+        commandJson[commandKey].name.forEach(commandName => {
           try {
-            commandJson[commandKey].name.forEach(commandName => {
-              const commandPath = path.join(nightwatchDir, `${commandJson[commandKey].path}`, `${commandName}.js`);
-              const OriginalClass = require(commandPath);
-              const originalProtocolAction = OriginalClass.prototype.protocolAction;
-              
-              OriginalClass.prototype.protocolAction = async function() {
-                await accessibilityInstance.performScan(browser, commandName);
+            const commandPath = path.join(nightwatchDir, `${commandJson[commandKey].path}`, `${commandName}.js`);
+            const OriginalClass = require(commandPath);
+            const originalProtocolAction = OriginalClass.prototype.protocolAction;
+            
+            OriginalClass.prototype.protocolAction = async function() {
+              await accessibilityInstance.performScan(browser, commandName);
 
-                return originalProtocolAction.apply(this);
-              };
-            });
+              return originalProtocolAction.apply(this);
+            };
           } catch (error) {
-            Logger.debug(`Failed to patch protocolAction for command: ${error.message}`);
+            Logger.debug(`Failed to patch protocolAction for command ${commandName}`);
           }
-        } else {
+        });
+      } else {
+        commandJson[commandKey].name.forEach(commandName => {
           try {
-            commandJson[commandKey].name.forEach(commandName => {
-              const webElementCommandPath = path.join(nightwatchDir, `${commandJson[commandKey].path}`, `${commandName}.js`);
-              const originalCommand = require(webElementCommandPath);
-              const originalCommandFn = originalCommand.command;
+            const webElementCommandPath = path.join(nightwatchDir, `${commandJson[commandKey].path}`, `${commandName}.js`);
+            const originalCommand = require(webElementCommandPath);
+            const originalCommandFn = originalCommand.command;
 
-              originalCommand.command = async function(...args) {
-                await accessibilityInstance.performScan(browser, commandName);
+            originalCommand.command = async function(...args) {
+              await accessibilityInstance.performScan(browser, commandName);
 
-                return originalCommandFn.apply(this, args);
-              };
-            });
+              return originalCommandFn.apply(this, args);
+            };
           } catch (error) {
-            Logger.debug(`Failed to patch command: ${error.message}`);
+            Logger.debug(`Failed to patch command ${commandName}`);
           }
-        }
+        });
       }
-    } catch (error) {
-      Logger.debug(`Command patching failed: ${error.message}`);
     }
   }
 }
