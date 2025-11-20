@@ -21,7 +21,7 @@ class TestMap {
 
   static getUUID(test = null) {
     if (test) {
-      const testIdentifier = typeof test === 'string' ? test : generateTestIdentifier(test);
+      const testIdentifier = typeof test === 'string' ? test : this.generateTestIdentifier(test);
       const testData = sharedTestMap.get(testIdentifier);
 
       return testData ? testData.uuid : null;
