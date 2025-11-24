@@ -94,7 +94,7 @@ module.exports = {
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
         const featureData = gherkinDocument.feature;
         const uniqueId = uuidv4();
-        process.env.TEST_OPS_TEST_UUID = uniqueId;
+        process.env.TEST_RUN_UUID = uniqueId;
 
         Object.values(workerList).forEach((worker) => {
           worker.process.on('message', async (data) => {
@@ -255,26 +255,26 @@ module.exports = {
 
     eventBroadcaster.on('ScreenshotCreated', async (args) => {
       if (!helper.isTestObservabilitySession()) {return}
-      handleScreenshotUpload({args: args, uuid: process.env.TEST_OPS_TEST_UUID});
+      handleScreenshotUpload({args: args, uuid: process.env.TEST_RUN_UUID});
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
       TestMap.storeTestDetails(test);
-      const uuid = TestMap.getUUID(test);
       await accessibilityAutomation.beforeEachExecution(test)
       if (testRunner != "cucumber"){
+        const uuid = TestMap.getUUID(test);
+        process.env.TEST_RUN_UUID = uuid;
         await testObservability.sendTestRunEvent('TestRunStarted', test, uuid)
       }
       
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
-      const uuid = TestMap.getUUID(test);
+      const uuid = process.env.TEST_RUN_UUID || TestMap.getUUID(test);
       await accessibilityAutomation.afterEachExecution(test, uuid);
       if (testRunner != "cucumber"){
         await testObservability.sendTestRunEvent('TestRunFinished', test, uuid)
       }
-      
     });
   },
 
