@@ -76,8 +76,19 @@ exports.isAccessibilitySession = () => {
   return process.env.BROWSERSTACK_ACCESSIBILITY === 'true';
 };
 
+exports.isTestHubBuild = (pluginSettings = {}, isBuildStart = false) => {
+  if(isBuildStart) {
+    return pluginSettings?.test_reporting?.enabled === true ||  pluginSettings?.test_observability?.enabled === true || pluginSettings?.accessibility === true;
+  }
+  else {
+    return this.isTestObservabilitySession() || this.isAccessibilitySession();
+  }
+};
+
 exports.isAccessibilityEnabled = (settings) => {
   if (process.argv.includes('--disable-accessibility')) {return false}
+  
+  if(process.env.BROWSERSTACK_ACCESSIBILITY === 'false') {return false}
 
   return settings['@nightwatch/browserstack']?.accessibility === true;
 };

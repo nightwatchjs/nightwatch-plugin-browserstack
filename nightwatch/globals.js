@@ -328,7 +328,7 @@ module.exports = {
           settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
-        if (helper.isTestObservabilitySession() || pluginSettings?.accessibility === true) {
+        if (helper.isTestHubBuild(pluginSettings,true)) {
           await testObservability.launchTestSession();
         }
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
@@ -454,7 +454,7 @@ module.exports = {
       Logger.error(`Error collecting build data for test orchestration: ${error}`);
     }
 
-    if (helper.isTestObservabilitySession() || helper.isAccessibilitySession()) {
+    if (helper.isTestHubBuild()) {
       process.env.NIGHTWATCH_RERUN_FAILED = nightwatchRerun;
       process.env.NIGHTWATCH_RERUN_REPORT_FILE = nightwatchRerunFile;
       if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS) {
