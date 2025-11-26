@@ -29,6 +29,7 @@ class TestMap {
   }
 
   static getTestDetails(identifier) {
+  return sharedTestMap.has(identifier) ? sharedTestMap.get(identifier) : null;
     if (sharedTestMap.has(identifier)) {
       return sharedTestMap.get(identifier);
     }
