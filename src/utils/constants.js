@@ -18,7 +18,9 @@ exports.EVENTS = {
   SCREENSHOT: 'testObservability:screenshot'
 };
 exports.ACCESSIBILITY_URL= 'https://accessibility.browserstack.com/api';
-
+exports.APP_ALLY_ENDPOINT = 'https://app-accessibility.browserstack.com/automate';
+exports.APP_ALLY_ISSUES_SUMMARY_ENDPOINT ='api/v1/issues-summary';
+exports.APP_ALLY_ISSUES_ENDPOINT = 'api/v1/issues';
 // Maximum size of VCS info which is allowed
 exports.MAX_GIT_META_DATA_SIZE_IN_BYTES = 64 * 1024;
 

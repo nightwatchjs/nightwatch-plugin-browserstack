@@ -16,6 +16,7 @@ const LogPatcher = require('./logPatcher');
 const BSTestOpsPatcher = new LogPatcher({});
 const sessions = {};
 const {execSync} = require('child_process');
+const request = require('@cypress/request');
 
 console = {};
 Object.keys(consoleHolder).forEach(method => {
@@ -72,6 +73,21 @@ exports.getObservabilityKey = (config, bstackOptions={}) => {
   return process.env.BROWSERSTACK_ACCESS_KEY || config?.key || bstackOptions?.accessKey;
 };
 
+exports.isAppAutomate = () => {
+  return process.env.BROWSERSTACK_APP_AUTOMATE === 'true';
+};
+
+exports.checkTestEnvironmentForAppAutomate = (testEnvSettings) => {
+  
+  const firstEnvKey = Object.keys(testEnvSettings)[0];
+  const firstEnv = testEnvSettings[firstEnvKey];
+  if (firstEnv?.desiredCapabilities?.['appium:options']?.app) {
+    return true;
+  }
+
+  return false;
+};
+
 exports.isAccessibilitySession = () => {
   return process.env.BROWSERSTACK_ACCESSIBILITY === 'true';
 };
@@ -83,6 +99,10 @@ exports.isTestHubBuild = (pluginSettings = {}, isBuildStart = false) => {
   else {
     return this.isTestObservabilitySession() || this.isAccessibilitySession();
   }
+};
+
+exports.isAppAccessibilitySession = () => {
+  return process.env.IS_APP_ACCESSIBILITY === 'true';
 };
 
 exports.isAccessibilityEnabled = (settings) => {
@@ -637,7 +657,7 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
 
   if (hostname) {
     if (hostname.includes('browserstack.com') && !hostname.includes('hub-ft')) {
-      if (this.isUndefined(caps.browserName)) {
+      if (this.isAppAutomate()) {
         product = 'app-automate';
       } else {
         product = 'automate';
@@ -1359,4 +1379,94 @@ exports.logBuildError = (error, product = '') => {
     }
   }
 };
+
+exports.formatString = (template, ...values) => {
+  let i = 0;
+  if (template === null) {
+    return '';
+  }
+  return template.replace(/%s/g, () => {
+    const value = values[i++];
+    return value !== null && value !== undefined ? value : '';
+  });
+};
+
+exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now()) => {
+  params.timestamp = Math.round(Date.now() / 1000);
+  Logger.debug(`current timestamp ${params.timestamp}`);
+
+  try {
+    const queryString = new URLSearchParams(params).toString();
+    const fullUrl = `${url}?${queryString}`;
+    
+    const response = await new Promise((resolve, reject) => {
+      request({
+        method: 'GET',
+        url: fullUrl,
+        headers: headers,
+        json: false
+      }, (error, response, body) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+
+    const responseData = JSON.parse(response.body);
+    return {
+      data: responseData,
+      headers: response.headers,
+      message: 'Polling succeeded.'
+    };
+  } catch (error) {
+    if (error.response && error.response.statusCode === 404) {
+      const nextPollTime = parseInt(error.response.headers.next_poll_time, 10) * 1000;
+      Logger.debug(`timeInMillis ${nextPollTime}`);
+
+      if (isNaN(nextPollTime)) {
+        Logger.warn('Invalid or missing `nextPollTime` header. Stopping polling.');
+        return {
+          data: {},
+          headers: error.response.headers,
+          message: 'Invalid nextPollTime header value. Polling stopped.'
+        };
+      }
+
+      const elapsedTime = nextPollTime - Date.now();
+      Logger.debug(
+        `elapsedTime ${elapsedTime} timeInMillis ${nextPollTime} upperLimit ${upperLimit}`
+      );
+
+      // Stop polling if the upper time limit is reached
+      if (nextPollTime > upperLimit) {
+        Logger.warn('Polling stopped due to upper time limit.');
+        return {
+          data: {},
+          headers: error.response.headers,
+          message: 'Polling stopped due to upper time limit.'
+        };
+      }
+
+      Logger.debug(`Polling again in ${elapsedTime}ms with params:`, params);
+
+      // Wait for the specified time and poll again
+      await new Promise((resolve) => setTimeout(resolve, elapsedTime));
+      return exports.pollApi(url, params, headers, upperLimit, startTime);
+    } else if (error.response) {
+      throw {
+        data: {},
+        headers: {},
+        message: error.response.body ? JSON.parse(error.response.body).message : 'Unknown error'
+      };
+    } else {
+      Logger.error(`Unexpected error occurred: ${error}`);
+      return { data: {}, headers: {}, message: 'Unexpected error occurred.' };
+    }
+  }
+};
+
+
+
 

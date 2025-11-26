@@ -300,7 +300,7 @@ module.exports = {
     if (!settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options'] = {};
     }
-   
+    process.env.BROWSERSTACK_APP_AUTOMATE = helper.checkTestEnvironmentForAppAutomate(testEnvSettings);
     // Plugin identifier
     settings.desiredCapabilities['bstack:options']['browserstackSDK'] = `nightwatch-plugin/${helper.getAgentVersion()}`;
 
@@ -484,8 +484,15 @@ module.exports = {
   },
 
   async beforeEach(settings) {
-    browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
-    browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
+    if (helper.isAppAccessibilitySession()){
+      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAppAccessibilityResults(browser) }; // [TODO] these yet to be added in accessibilityAutomation.js 
+      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAppAccessibilityResultsSummary(browser) }; // [TODO] these yet to be added in accessibilityAutomation.js
+    }
+    else{
+      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
+      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
+    }
+    // await accessibilityAutomation.beforeEachExecution(browser);
   },
 
   // This will be run after each test suite is finished
