@@ -9,9 +9,11 @@ const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
 const {API_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
 const OrchestrationUtils = require('./testorchestration/orchestrationUtils');
+const AccessibilityAutomation = require('./accessibilityAutomation');
 const accessibilityScripts = require('./scripts/accessibilityScripts');
 const TestMap = require('./utils/testMap');
 const hooksMap = {};
+const accessibilityAutomation = new AccessibilityAutomation();
 
 class TestObservability {
   configure(settings = {}) {
@@ -92,7 +94,7 @@ class TestObservability {
                    this._parentSettings?.testReportingOptions ||
                    this._parentSettings?.testObservabilityOptions ||
                    {};
-    const accessibility = this._settings.accessibility || false;             
+    const accessibility = helper.isAccessibilityEnabled(this._parentSettings);             
     const accessibilityOptions = accessibility ? this._settings.accessibilityOptions || {} : {};
     this._gitMetadata = await helper.getGitMetaData();
     const fromProduct = {
@@ -490,7 +492,8 @@ class TestObservability {
         [provider]: helper.getIntegrationsObject(testMetaData.sessionCapabilities, testMetaData.sessionId, testMetaData.host, settings?.desiredCapabilities?.['bstack:options']?.osVersion)
       },
       product_map: {
-        accessibility: helper.isAccessibilitySession()
+        observability: helper.isTestObservabilitySession(),
+        accessibility: helper.isAccessibilitySession() && accessibilityAutomation.shouldScanTestForAccessibility() && process.env.VALID_ALLY_PLATFORM
       }
     };
 

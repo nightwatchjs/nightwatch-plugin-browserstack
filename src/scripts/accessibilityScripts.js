@@ -84,19 +84,23 @@ class AccessibilityScripts {
   }
 
   store() {
-    if (!fs.existsSync(this.browserstackFolderPath)){
-      fs.mkdirSync(this.browserstackFolderPath);
-    }
-
-    fs.writeFileSync(this.commandsPath, JSON.stringify({
-      commands: this.commandsToWrap,
-      scripts: {
-        scan: this.performScan,
-        getResults: this.getResults,
-        getResultsSummary: this.getResultsSummary,
-        saveResults: this.saveTestResults
+    try {
+      if (!fs.existsSync(this.browserstackFolderPath)){
+        fs.mkdirSync(this.browserstackFolderPath);
       }
-    }));
+
+      fs.writeFileSync(this.commandsPath, JSON.stringify({
+        commands: this.commandsToWrap,
+        scripts: {
+          scan: this.performScan,
+          getResults: this.getResults,
+          getResultsSummary: this.getResultsSummary,
+          saveResults: this.saveTestResults
+        }
+      }));
+    } catch (error) {
+      Logger.debug(`Failed to store accessibility commands file: ${error.message}`);
+    }
   }
 }
 

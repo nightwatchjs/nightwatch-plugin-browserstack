@@ -259,21 +259,31 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
-      TestMap.storeTestDetails(test);
+      process.env.VALID_ALLY_PLATFORM = accessibilityAutomation.validateA11yCaps(browser)
       await accessibilityAutomation.beforeEachExecution(test)
       if (testRunner != "cucumber"){
-        const uuid = TestMap.getUUID(test);
+        const uuid = TestMap.storeTestDetails(test);
         process.env.TEST_RUN_UUID = uuid;
         await testObservability.sendTestRunEvent('TestRunStarted', test, uuid)
       }
-      
     });
 
     eventBroadcaster.on('TestRunFinished', async (test) => {
       const uuid = process.env.TEST_RUN_UUID || TestMap.getUUID(test);
-      await accessibilityAutomation.afterEachExecution(test, uuid);
-      if (testRunner != "cucumber"){
-        await testObservability.sendTestRunEvent('TestRunFinished', test, uuid)
+      if (TestMap.hasTestFinished(uuid)) {
+        Logger.debug(`Test with UUID ${uuid} already marked as finished, skipping duplicate TestRunFinished event`);
+        return;
+      }
+      try {
+        await accessibilityAutomation.afterEachExecution(test, uuid)
+        if (testRunner != "cucumber"){
+          await testObservability.sendTestRunEvent('TestRunFinished', test, uuid)
+          TestMap.markTestFinished(uuid);
+        }
+        
+      } catch (error) {
+        Logger.error(`Error in TestRunFinished event: ${error.message}`);
+        TestMap.markTestFinished(uuid);
       }
     });
   },
@@ -341,6 +351,7 @@ module.exports = {
     }
       
     try {
+      // In parallel mode, env-specific settings are passed to beforeChildProcess hook instead of before hook,
       if (helper.isAccessibilitySession() && !settings.parallel_mode) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
