@@ -1363,7 +1363,7 @@ exports.logBuildError = (error, product = '') => {
 exports.patchBrowserTerminateCommand = () =>{
 
   const nightwatchDir = path.dirname(require.resolve('nightwatch'));
-  const CommandPath = path.join(nightwatchDir, `testsuite/index.js`);
+  const CommandPath = path.join(nightwatchDir, 'testsuite/index.js');
   const TestSuite = require(CommandPath);
   const originalFn = TestSuite.prototype.terminate;
   TestSuite.prototype.terminate = async function(...args) {
