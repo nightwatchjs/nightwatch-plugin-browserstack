@@ -146,6 +146,7 @@ class TestObservability {
 
     try {
       const response = await makeRequest('POST', 'api/v2/builds', data, config, API_URL);
+      Logger.info('Build creation successful!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
       const responseData = response.data || {};
