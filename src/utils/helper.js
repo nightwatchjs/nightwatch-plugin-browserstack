@@ -1360,3 +1360,28 @@ exports.logBuildError = (error, product = '') => {
   }
 };
 
+exports.patchBrowserTerminateCommand = () =>{
+
+  const nightwatchDir = path.dirname(require.resolve('nightwatch'));
+  const CommandPath = path.join(nightwatchDir, `testsuite/index.js`);
+  const TestSuite = require(CommandPath);
+  const originalFn = TestSuite.prototype.terminate;
+  TestSuite.prototype.terminate = async function(...args) {
+    const maxWaitTime = 30000;
+    const pollInterval = 500;
+    const startTime = Date.now();
+    const AccessibilityAutomation = require('../accessibilityAutomation');
+    while (Date.now() - startTime < maxWaitTime) {
+      const pendingAllyReq = AccessibilityAutomation.pendingAllyReq || 0;
+      
+      if (pendingAllyReq === 0) {
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+    Logger.debug(`Pending A11y Scans at session end: ${AccessibilityAutomation.pendingAllyReq }`);
+
+    return originalFn.apply(this, args);
+  };
+};
+

@@ -356,12 +356,11 @@ module.exports = {
       if (helper.isAccessibilitySession() && !settings.parallel_mode) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
+        helper.patchBrowserTerminateCommand();
       }
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
     }
-      
-    
     // Initialize and configure test orchestration
     try {
       if (helper.isTestObservabilitySession()) {        
@@ -527,6 +526,7 @@ module.exports = {
       if (helper.isAccessibilitySession()) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
+        helper.patchBrowserTerminateCommand();
       }
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
