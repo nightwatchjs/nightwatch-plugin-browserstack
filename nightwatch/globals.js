@@ -20,7 +20,7 @@ const _tests = {};
 const _testCasesData = {};
 let currentTestUUID = '';
 let workerList = {};
-let testRunner = "";
+let testRunner = '';
 
 eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
@@ -259,12 +259,12 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
-      process.env.VALID_ALLY_PLATFORM = accessibilityAutomation.validateA11yCaps(browser)
-      await accessibilityAutomation.beforeEachExecution(test)
-      if (testRunner != "cucumber"){
+      process.env.VALID_ALLY_PLATFORM = accessibilityAutomation.validateA11yCaps(browser);
+      await accessibilityAutomation.beforeEachExecution(test);
+      if (testRunner !== 'cucumber'){
         const uuid = TestMap.storeTestDetails(test);
         process.env.TEST_RUN_UUID = uuid;
-        await testObservability.sendTestRunEvent('TestRunStarted', test, uuid)
+        await testObservability.sendTestRunEvent('TestRunStarted', test, uuid);
       }
     });
 
@@ -272,12 +272,13 @@ module.exports = {
       const uuid = process.env.TEST_RUN_UUID || TestMap.getUUID(test);
       if (TestMap.hasTestFinished(uuid)) {
         Logger.debug(`Test with UUID ${uuid} already marked as finished, skipping duplicate TestRunFinished event`);
+
         return;
       }
       try {
-        await accessibilityAutomation.afterEachExecution(test, uuid)
-        if (testRunner != "cucumber"){
-          await testObservability.sendTestRunEvent('TestRunFinished', test, uuid)
+        await accessibilityAutomation.afterEachExecution(test, uuid);
+        if (testRunner !== 'cucumber'){
+          await testObservability.sendTestRunEvent('TestRunFinished', test, uuid);
           TestMap.markTestFinished(uuid);
         }
         
@@ -338,7 +339,7 @@ module.exports = {
           settings.test_runner.options['require'] = path.resolve(__dirname, 'observabilityLogPatcherHook.js');
         }
         settings.globals['customReporterCallbackTimeout'] = CUSTOM_REPORTER_CALLBACK_TIMEOUT;
-        if (helper.isTestHubBuild(pluginSettings,true)) {
+        if (helper.isTestHubBuild(pluginSettings, true)) {
           await testObservability.launchTestSession();
         }
         if (process.env.BROWSERSTACK_RERUN === 'true' && process.env.BROWSERSTACK_RERUN_TESTS && process.env.BROWSERSTACK_RERUN_TESTS!=='null') {
