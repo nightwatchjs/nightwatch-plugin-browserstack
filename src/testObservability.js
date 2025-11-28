@@ -146,6 +146,7 @@ class TestObservability {
 
     try {
       const response = await makeRequest('POST', 'api/v2/builds', data, config, API_URL);
+      Logger.info('Build creation successful!');
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
       const responseData = response.data || {};
@@ -466,7 +467,7 @@ class TestObservability {
     const testName = test.testcase;
     const settings = test.settings || {};
     const startTimestamp = test.envelope[testName].startTimestamp;
-    let testResults = {};
+    const testResults = {};
     const testBody = this.getTestBody(test.testCaseData);
     const provider = helper.getCloudProvider(testMetaData.host);
     const testData = {
@@ -502,23 +503,23 @@ class TestObservability {
       const eventData = test.envelope[testName].testcase;
       testData.finished_at = eventData.endTimestamp ? new Date(eventData.endTimestamp).toISOString() : new Date(startTimestamp).toISOString();
       testData.result = 'passed';
-        if (eventData && eventData.commands && Array.isArray(eventData.commands)) {
-          const failedCommand = eventData.commands.find(cmd => cmd.status === 'fail');
-          if (failedCommand) {
-            testData.result = 'failed';
-            if (failedCommand.result) {
-              testData.failure = [
-                {
-                  'backtrace': [stripAnsi(failedCommand.result.message || ''), failedCommand.result.stack || '']
-                }
-              ];
-              testData.failure_reason = failedCommand.result.message ? stripAnsi(failedCommand.result.message) : null;
-              if (failedCommand.result.name) {
-                testData.failure_type = failedCommand.result.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
+      if (eventData && eventData.commands && Array.isArray(eventData.commands)) {
+        const failedCommand = eventData.commands.find(cmd => cmd.status === 'fail');
+        if (failedCommand) {
+          testData.result = 'failed';
+          if (failedCommand.result) {
+            testData.failure = [
+              {
+                'backtrace': [stripAnsi(failedCommand.result.message || ''), failedCommand.result.stack || '']
               }
+            ];
+            testData.failure_reason = failedCommand.result.message ? stripAnsi(failedCommand.result.message) : null;
+            if (failedCommand.result.name) {
+              testData.failure_type = failedCommand.result.name.match(/Assert/) ? 'AssertionError' : 'UnhandledError';
             }
           }
-        } 
+        }
+      } 
       await this.processTestRunData (eventData, uuid);
     }
 

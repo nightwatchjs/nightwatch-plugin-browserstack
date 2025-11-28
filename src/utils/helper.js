@@ -93,12 +93,12 @@ exports.isAccessibilitySession = () => {
 };
 
 exports.isTestHubBuild = (pluginSettings = {}, isBuildStart = false) => {
-  if(isBuildStart) {
+  if (isBuildStart) {
     return pluginSettings?.test_reporting?.enabled === true ||  pluginSettings?.test_observability?.enabled === true || pluginSettings?.accessibility === true;
   }
-  else {
-    return this.isTestObservabilitySession() || this.isAccessibilitySession();
-  }
+  
+  return this.isTestObservabilitySession() || this.isAccessibilitySession();
+  
 };
 
 exports.isAppAccessibilitySession = () => {
@@ -108,7 +108,7 @@ exports.isAppAccessibilitySession = () => {
 exports.isAccessibilityEnabled = (settings) => {
   if (process.argv.includes('--disable-accessibility')) {return false}
   
-  if(process.env.BROWSERSTACK_ACCESSIBILITY === 'false') {return false}
+  if (process.env.BROWSERSTACK_ACCESSIBILITY === 'false') {return false}
 
   return settings['@nightwatch/browserstack']?.accessibility === true;
 };
@@ -1378,6 +1378,31 @@ exports.logBuildError = (error, product = '') => {
       }
     }
   }
+};
+
+exports.patchBrowserTerminateCommand = () =>{
+
+  const nightwatchDir = path.dirname(require.resolve('nightwatch'));
+  const CommandPath = path.join(nightwatchDir, 'testsuite/index.js');
+  const TestSuite = require(CommandPath);
+  const originalFn = TestSuite.prototype.terminate;
+  TestSuite.prototype.terminate = async function(...args) {
+    const maxWaitTime = 30000;
+    const pollInterval = 500;
+    const startTime = Date.now();
+    const AccessibilityAutomation = require('../accessibilityAutomation');
+    while (Date.now() - startTime < maxWaitTime) {
+      const pendingAllyReq = AccessibilityAutomation.pendingAllyReq || 0;
+      
+      if (pendingAllyReq === 0) {
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+    Logger.debug(`Pending Accessibility requests at session end: ${AccessibilityAutomation.pendingAllyReq }`);
+
+    return originalFn.apply(this, args);
+  };
 };
 
 exports.formatString = (template, ...values) => {

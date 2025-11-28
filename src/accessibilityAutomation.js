@@ -6,6 +6,7 @@ const util = require('util');
 const AccessibilityScripts = require('./scripts/accessibilityScripts');
 
 class AccessibilityAutomation {
+  static pendingAllyReq = 0;
   configure(settings = {}) {
     this._settings = settings['@nightwatch/browserstack'] || {};
     this._testRunner = settings.test_runner;
@@ -313,15 +314,17 @@ class AccessibilityAutomation {
         Logger.debug(util.inspect(results));
         return results;
       }
-
+      AccessibilityAutomation.pendingAllyReq++;
       const results = await browser.executeAsyncScript(AccessibilityScripts.performScan, { 
         method: commandName || '' 
       });
+      AccessibilityAutomation.pendingAllyReq--;
       Logger.debug(util.inspect(results));
 
       return results;
 
     } catch (err) {
+      AccessibilityAutomation.pendingAllyReq--;
       Logger.error('Accessibility Scan could not be performed: ' + err.message);
       Logger.debug('Stack trace:', err.stack);
 
@@ -394,7 +397,9 @@ class AccessibilityAutomation {
     if (helper.isAppAccessibilitySession()){
         return;
     }
+    AccessibilityAutomation.pendingAllyReq++;
     const results = await browser.executeAsyncScript(AccessibilityScripts.saveTestResults, dataForExtension);
+    AccessibilityAutomation.pendingAllyReq--;
     Logger.debug(util.inspect(results)); 
   }
 

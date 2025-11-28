@@ -2,7 +2,7 @@ const {v4: uuidv4} = require('uuid');
 
 const sharedTestMap = new Map();
 let sharedCurrentTest = null;
-let activeTestRuns = new Map(); 
+const activeTestRuns = new Map(); 
 
 class TestMap {
   
@@ -67,6 +67,7 @@ class TestMap {
 
   static hasTestFinished(uuid) {
     const testRun = activeTestRuns.get(uuid);
+
     return testRun ? testRun.hasFinished : false;
   }
 
