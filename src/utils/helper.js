@@ -1379,7 +1379,7 @@ exports.patchBrowserTerminateCommand = () =>{
       }
       await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
-    Logger.debug(`Pending A11y Scans at session end: ${AccessibilityAutomation.pendingAllyReq }`);
+    Logger.debug(`Pending Accessibility requests at session end: ${AccessibilityAutomation.pendingAllyReq }`);
 
     return originalFn.apply(this, args);
   };
