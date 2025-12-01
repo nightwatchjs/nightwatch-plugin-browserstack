@@ -78,7 +78,7 @@ exports.isAppAutomate = () => {
 };
 
 exports.checkTestEnvironmentForAppAutomate = (testEnvSettings) => {
-  
+
   const firstEnvKey = Object.keys(testEnvSettings)[0];
   const firstEnv = testEnvSettings[firstEnvKey];
   if (firstEnv?.desiredCapabilities?.['appium:options']?.app) {
