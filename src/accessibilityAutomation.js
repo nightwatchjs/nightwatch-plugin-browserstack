@@ -301,7 +301,8 @@ class AccessibilityAutomation {
     Logger.debug('Performing scan before saving results');
     await this.performScan(browser);
     const results = await browser.executeAsyncScript(AccessibilityScripts.saveTestResults, dataForExtension);
-    Logger.debug(util.inspect(results)); 
+    
+    return results;
   }
 
   async commandWrapper() {
