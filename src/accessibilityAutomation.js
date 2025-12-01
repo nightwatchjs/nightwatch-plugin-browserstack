@@ -224,7 +224,9 @@ class AccessibilityAutomation {
             'thBuildUuid': process.env.BROWSERSTACK_TESTHUB_UUID,
             'thJwtToken': process.env.BROWSERSTACK_TESTHUB_JWT
           };
+          AccessibilityAutomation.pendingAllyReq++;
           await this.saveAccessibilityResults(browser, dataForExtension);
+          AccessibilityAutomation.pendingAllyReq--;
           Logger.info('Accessibility testing for this test case has ended.');          
         }
       }
@@ -397,9 +399,7 @@ class AccessibilityAutomation {
     if (helper.isAppAccessibilitySession()){
         return;
     }
-    AccessibilityAutomation.pendingAllyReq++;
     const results = await browser.executeAsyncScript(AccessibilityScripts.saveTestResults, dataForExtension);
-    AccessibilityAutomation.pendingAllyReq--;
     Logger.debug(util.inspect(results)); 
   }
 
