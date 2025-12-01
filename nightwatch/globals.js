@@ -259,7 +259,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
-      process.env.VALID_ALLY_PLATFORM = accessibilityAutomation.validateA11yCaps(browser);
+      process.env.VALID_ALLY_PLATFORM = process.env.BROWSERSTACK_APP_AUTOMATE? accessibilityAutomation.validateAppA11yCaps(test.metadata.sessionCapabilities) : accessibilityAutomation.validateA11yCaps(browser);
       await accessibilityAutomation.beforeEachExecution(test);
       if (testRunner !== 'cucumber'){
         const uuid = TestMap.storeTestDetails(test);
@@ -272,7 +272,6 @@ module.exports = {
       const uuid = process.env.TEST_RUN_UUID || TestMap.getUUID(test);
       if (TestMap.hasTestFinished(uuid)) {
         Logger.debug(`Test with UUID ${uuid} already marked as finished, skipping duplicate TestRunFinished event`);
-
         return;
       }
       try {
@@ -356,7 +355,9 @@ module.exports = {
       if (helper.isAccessibilitySession() && !settings.parallel_mode) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
-        helper.patchBrowserTerminateCommand();
+        if(!process.env.BROWSERSTACK_APP_AUTOMATE){
+          helper.patchBrowserTerminateCommand()
+        };
       }
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
@@ -533,7 +534,9 @@ module.exports = {
       if (helper.isAccessibilitySession()) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
-        helper.patchBrowserTerminateCommand();
+        if(!process.env.BROWSERSTACK_APP_AUTOMATE){
+          helper.patchBrowserTerminateCommand()
+        };
       }
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);

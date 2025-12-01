@@ -165,7 +165,6 @@ class AccessibilityAutomation {
 
   validateAppA11yCaps(capabilities = {}) {
     /* Check if the current driver platform is eligible for AppAccessibility scan */
-    Logger.debug(`capabilities ${JSON.stringify(capabilities)}`);
     if (
         capabilities?.platformName &&
         String(capabilities?.platformName).toLowerCase() === 'android' &&
@@ -286,16 +285,10 @@ class AccessibilityAutomation {
     
     if (!this.isAccessibilityAutomationSession() || !this._isAccessibilitySession) {
       Logger.warn('Not an Accessibility Automation session, cannot perform Accessibility scan.');
-
       return;
     }
 
     if (this.currentTest.shouldScanTestForAccessibility === false) {
-      if(commandName && commandName !== '') {
-        Logger.debug(`Skipping Accessibility scan for command ${commandName} as the test is excluded from accessibility scanning.`);
-      } else {
-        Logger.debug('Skipping Accessibility scan as the test is excluded from accessibility scanning.');
-      }
       return;
     }
 
