@@ -72,6 +72,21 @@ exports.getObservabilityKey = (config, bstackOptions={}) => {
   return process.env.BROWSERSTACK_ACCESS_KEY || config?.key || bstackOptions?.accessKey;
 };
 
+exports.isAppAutomate = () => {
+  return process.env.BROWSERSTACK_APP_AUTOMATE === 'true';
+};
+
+exports.checkTestEnvironmentForAppAutomate = (testEnvSettings) => {
+
+  const firstEnvKey = Object.keys(testEnvSettings)[0];
+  const firstEnv = testEnvSettings[firstEnvKey];
+  if (firstEnv?.desiredCapabilities?.['appium:options']?.app) {
+    return true;
+  }
+
+  return false;
+};
+
 exports.isAccessibilitySession = () => {
   return process.env.BROWSERSTACK_ACCESSIBILITY === 'true';
 };
@@ -637,7 +652,7 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
 
   if (hostname) {
     if (hostname.includes('browserstack.com') && !hostname.includes('hub-ft')) {
-      if (this.isUndefined(caps.browserName)) {
+      if (this.isAppAutomate()) {
         product = 'app-automate';
       } else {
         product = 'automate';

@@ -301,7 +301,7 @@ module.exports = {
     if (!settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options'] = {};
     }
-   
+    process.env.BROWSERSTACK_APP_AUTOMATE = helper.checkTestEnvironmentForAppAutomate(testEnvSettings);
     // Plugin identifier
     settings.desiredCapabilities['bstack:options']['browserstackSDK'] = `nightwatch-plugin/${helper.getAgentVersion()}`;
 
