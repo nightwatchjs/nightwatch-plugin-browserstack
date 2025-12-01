@@ -393,7 +393,8 @@ class AccessibilityAutomation {
         return;
     }
     const results = await browser.executeAsyncScript(AccessibilityScripts.saveTestResults, dataForExtension);
-    Logger.debug(util.inspect(results)); 
+    
+    return results;
   }
 
   async commandWrapper() {
