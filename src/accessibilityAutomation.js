@@ -1,7 +1,7 @@
 const path = require('path');
 const helper = require('./utils/helper');
 const Logger = require('./utils/logger');
-const {APP_ALLY_ENDPOINT,APP_ALLY_ISSUES_SUMMARY_ENDPOINT,APP_ALLY_ISSUES_ENDPOINT} = require('./utils/constants');
+const {APP_ALLY_ENDPOINT, APP_ALLY_ISSUES_SUMMARY_ENDPOINT, APP_ALLY_ISSUES_ENDPOINT} = require('./utils/constants');
 const util = require('util');
 const AccessibilityScripts = require('./scripts/accessibilityScripts');
 
@@ -166,16 +166,18 @@ class AccessibilityAutomation {
   validateAppA11yCaps(capabilities = {}) {
     /* Check if the current driver platform is eligible for AppAccessibility scan */
     if (
-        capabilities?.platformName &&
+      capabilities?.platformName &&
         String(capabilities?.platformName).toLowerCase() === 'android' &&
         capabilities?.platformVersion &&
         parseInt(capabilities?.platformVersion?.toString()) < 11
     ) {
-        Logger.warn(
-            'App Accessibility Automation tests are supported on OS version 11 and above for Android devices.'
-        );
-        return false;
+      Logger.warn(
+        'App Accessibility Automation tests are supported on OS version 11 and above for Android devices.'
+      );
+
+      return false;
     }
+
     return true;
   }
 
@@ -285,6 +287,7 @@ class AccessibilityAutomation {
     
     if (!this.isAccessibilityAutomationSession() || !this._isAccessibilitySession) {
       Logger.warn('Not an Accessibility Automation session, cannot perform Accessibility scan.');
+
       return;
     }
 
@@ -307,6 +310,7 @@ class AccessibilityAutomation {
           {}
         );
         Logger.debug(util.inspect(results));
+
         return results;
       }
       AccessibilityAutomation.pendingAllyReq++;
@@ -333,20 +337,23 @@ class AccessibilityAutomation {
     }
 
     if (!helper.isAppAccessibilitySession()) {
-      Logger.warn('Not an Accessibility Automation session, cannot retrieve Accessibility results summary.')
-        return [];
+      Logger.warn('Not an Accessibility Automation session, cannot retrieve Accessibility results.');
+
+      return [];
     }
 
     try {
-        const apiUrl = `${APP_ALLY_ENDPOINT}/${APP_ALLY_ISSUES_ENDPOINT}`;
-        const apiRespone = await this.getAppA11yResultResponse(apiUrl, browser, browser.sessionId);
-        const result = apiRespone?.data?.data?.issues;
-        Logger.debug(`Polling Result: ${JSON.stringify(result)}`);
-        return result;
+      const apiUrl = `${APP_ALLY_ENDPOINT}/${APP_ALLY_ISSUES_ENDPOINT}`;
+      const apiRespone = await this.getAppA11yResultResponse(apiUrl, browser, browser.sessionId);
+      const result = apiRespone?.data?.data?.issues;
+      Logger.debug(`Polling Result: ${JSON.stringify(result)}`);
+
+      return result;
     } catch (error) {
-        Logger.error('No accessibility summary was found.');
-        Logger.debug(`getAppA11yResults Failed. Error: ${error}`);
-        return [];
+      Logger.error('No accessibility results were found.');
+      Logger.debug(`getAppAccessibilityResults Failed. Error: ${error}`);
+
+      return [];
     }
 
   }
@@ -357,18 +364,22 @@ class AccessibilityAutomation {
     }
 
     if (!helper.isAppAccessibilitySession()) {
-      Logger.warn('Not an Accessibility Automation session, cannot retrieve Accessibility results summary.')
-        return {}
+      Logger.warn('Not an Accessibility Automation session, cannot retrieve Accessibility results summary.');
+
+      return {};
     }
     try {
-        const apiUrl = `${APP_ALLY_ENDPOINT}/${APP_ALLY_ISSUES_SUMMARY_ENDPOINT}`;
-        const apiRespone = await this.getAppA11yResultResponse(apiUrl, browser, browser.sessionId);
-        const result = apiRespone?.data?.data?.summary;
-        Logger.debug(`Polling Result: ${JSON.stringify(result)}`);
-        return result;
-    } catch {
-        Logger.error('No accessibility summary was found.');
-        return {};
+      const apiUrl = `${APP_ALLY_ENDPOINT}/${APP_ALLY_ISSUES_SUMMARY_ENDPOINT}`;
+      const apiRespone = await this.getAppA11yResultResponse(apiUrl, browser, browser.sessionId);
+      const result = apiRespone?.data?.data?.summary;
+      Logger.debug(`Polling Result: ${JSON.stringify(result)}`);
+
+      return result;
+    } catch (error) {
+      Logger.error('No accessibility result summary were found.');
+      Logger.debug(`getAppAccessibilityResultsSummary Failed. Error: ${error}`);
+
+      return {};
     }
   }
 
@@ -377,10 +388,11 @@ class AccessibilityAutomation {
     await this.performScan(browser);
     
     const upperTimeLimit = process.env.BSTACK_A11Y_POLLING_TIMEOUT ? Date.now() + parseInt(process.env.BSTACK_A11Y_POLLING_TIMEOUT) * 1000 : Date.now() + 30000;
-    const params = { test_run_uuid: process.env.TEST_RUN_UUID, session_id: sessionId, timestamp: Date.now() }; // Query params to pass
-    const header = { Authorization: `Bearer ${process.env.BSTACK_A11Y_JWT}` };
+    const params = {test_run_uuid: process.env.TEST_RUN_UUID, session_id: sessionId, timestamp: Date.now()}; // Query params to pass
+    const header = {Authorization: `Bearer ${process.env.BSTACK_A11Y_JWT}`};
     const apiRespone = await helper.pollApi(apiUrl, params, header, upperTimeLimit);
     Logger.debug(`Polling Result: ${JSON.stringify(apiRespone)}`);
+
     return apiRespone;
 
   }
@@ -390,7 +402,7 @@ class AccessibilityAutomation {
     Logger.debug('Performing scan before saving results');
     await this.performScan(browser);
     if (helper.isAppAccessibilitySession()){
-        return;
+      return;
     }
     const results = await browser.executeAsyncScript(AccessibilityScripts.saveTestResults, dataForExtension);
     

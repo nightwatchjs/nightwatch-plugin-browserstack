@@ -1410,8 +1410,10 @@ exports.formatString = (template, ...values) => {
   if (template === null) {
     return '';
   }
+
   return template.replace(/%s/g, () => {
     const value = values[i++];
+
     return value !== null && value !== undefined ? value : '';
   });
 };
@@ -1440,6 +1442,7 @@ exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now(
     });
 
     const responseData = JSON.parse(response.body);
+
     return {
       data: responseData,
       headers: response.headers,
@@ -1452,6 +1455,7 @@ exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now(
 
       if (isNaN(nextPollTime)) {
         Logger.warn('Invalid or missing `nextPollTime` header. Stopping polling.');
+
         return {
           data: {},
           headers: error.response.headers,
@@ -1467,6 +1471,7 @@ exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now(
       // Stop polling if the upper time limit is reached
       if (nextPollTime > upperLimit) {
         Logger.warn('Polling stopped due to upper time limit.');
+
         return {
           data: {},
           headers: error.response.headers,
@@ -1478,6 +1483,7 @@ exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now(
 
       // Wait for the specified time and poll again
       await new Promise((resolve) => setTimeout(resolve, elapsedTime));
+
       return exports.pollApi(url, params, headers, upperLimit, startTime);
     } else if (error.response) {
       throw {
@@ -1487,7 +1493,8 @@ exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now(
       };
     } else {
       Logger.error(`Unexpected error occurred: ${error}`);
-      return { data: {}, headers: {}, message: 'Unexpected error occurred.' };
+
+      return {data: {}, headers: {}, message: 'Unexpected error occurred.'};
     }
   }
 };

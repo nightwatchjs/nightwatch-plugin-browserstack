@@ -272,6 +272,7 @@ module.exports = {
       const uuid = process.env.TEST_RUN_UUID || TestMap.getUUID(test);
       if (TestMap.hasTestFinished(uuid)) {
         Logger.debug(`Test with UUID ${uuid} already marked as finished, skipping duplicate TestRunFinished event`);
+
         return;
       }
       try {
@@ -355,8 +356,8 @@ module.exports = {
       if (helper.isAccessibilitySession() && !settings.parallel_mode) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
-        if(!process.env.BROWSERSTACK_APP_AUTOMATE){
-          helper.patchBrowserTerminateCommand()
+        if (!process.env.BROWSERSTACK_APP_AUTOMATE){
+          helper.patchBrowserTerminateCommand();
         };
       }
     } catch (err){
@@ -486,10 +487,9 @@ module.exports = {
 
   async beforeEach(settings) {
     if (helper.isAppAccessibilitySession()){
-      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAppAccessibilityResults(browser) }; // [TODO] these yet to be added in accessibilityAutomation.js 
-      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAppAccessibilityResultsSummary(browser) }; // [TODO] these yet to be added in accessibilityAutomation.js
-    }
-    else{
+      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAppAccessibilityResults(browser) }; 
+      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAppAccessibilityResultsSummary(browser) }; 
+    } else {
       browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
       browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     }
@@ -534,8 +534,8 @@ module.exports = {
       if (helper.isAccessibilitySession()) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
-        if(!process.env.BROWSERSTACK_APP_AUTOMATE){
-          helper.patchBrowserTerminateCommand()
+        if (!process.env.BROWSERSTACK_APP_AUTOMATE){
+          helper.patchBrowserTerminateCommand();
         };
       }
     } catch (err){
