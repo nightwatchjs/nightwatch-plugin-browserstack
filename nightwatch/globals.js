@@ -259,7 +259,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
-      process.env.VALID_ALLY_PLATFORM = process.env.BROWSERSTACK_APP_AUTOMATE? accessibilityAutomation.validateAppA11yCaps(test.metadata.sessionCapabilities) : accessibilityAutomation.validateA11yCaps(browser);
+      process.env.VALID_ALLY_PLATFORM = process.env.BROWSERSTACK_APP_AUTOMATE ? accessibilityAutomation.validateAppA11yCaps(test.metadata.sessionCapabilities) : accessibilityAutomation.validateA11yCaps(browser);
       await accessibilityAutomation.beforeEachExecution(test);
       if (testRunner !== 'cucumber'){
         const uuid = TestMap.storeTestDetails(test);
