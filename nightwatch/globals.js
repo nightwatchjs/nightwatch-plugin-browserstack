@@ -21,6 +21,7 @@ const _testCasesData = {};
 let currentTestUUID = '';
 let workerList = {};
 let testRunner = '';
+let testEventPromises = [];
 
 eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
@@ -264,7 +265,7 @@ module.exports = {
       if (testRunner !== 'cucumber'){
         const uuid = TestMap.storeTestDetails(test);
         process.env.TEST_RUN_UUID = uuid;
-        await testObservability.sendTestRunEvent('TestRunStarted', test, uuid);
+        testEventPromises.push(testObservability.sendTestRunEvent('TestRunStarted', test, uuid));
       }
     });
 
@@ -278,7 +279,7 @@ module.exports = {
       try {
         await accessibilityAutomation.afterEachExecution(test, uuid);
         if (testRunner !== 'cucumber'){
-          await testObservability.sendTestRunEvent('TestRunFinished', test, uuid);
+          testEventPromises.push(testObservability.sendTestRunEvent('TestRunFinished', test, uuid));
           TestMap.markTestFinished(uuid);
         }
         
@@ -474,6 +475,10 @@ module.exports = {
         await helper.deleteRerunFile();
       }
       try {
+        if (testEventPromises.length > 0) {
+          await Promise.all(testEventPromises);
+          testEventPromises.length = 0; // Clear the array
+        }
         await testObservability.stopBuildUpstream();
         if (process.env.BROWSERSTACK_TESTHUB_UUID) {
           Logger.info(`\nVisit https://automation.browserstack.com/builds/${process.env.BROWSERSTACK_TESTHUB_UUID} to view build report, insights, and many more debugging information all at one place!\n`);
@@ -543,6 +548,13 @@ module.exports = {
     }
     addProductMapAndbuildUuidCapability(settings);
 
+  },
+
+  async afterChildProcess() {
+    if (testEventPromises.length > 0) {
+      await Promise.all(testEventPromises);
+      testEventPromises.length = 0; // Clear the array
+    }
   }
 };
 
