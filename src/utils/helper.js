@@ -929,12 +929,14 @@ exports.expandGlobPattern = (pattern) => {
   Logger.debug(`Expanding glob pattern: ${pattern}`);
   
   try {
-    const files = glob.sync(pattern );
+    const files = glob.sync(pattern);
     
     Logger.debug(`Found ${files.length} files matching pattern: ${pattern}`);
+
     return files;
   } catch (err) {
     Logger.debug(`Error expanding glob pattern: ${err.message}`);
+
     return [];
   }
 };
