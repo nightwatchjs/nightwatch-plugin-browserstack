@@ -1442,31 +1442,20 @@ exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now(
     });
 
     const responseData = JSON.parse(response.body);
-
-    return {
-      data: responseData,
-      headers: response.headers,
-      message: 'Polling succeeded.'
-    };
-  } catch (error) {
-    if (error.response && error.response.statusCode === 404) {
-      const nextPollTime = parseInt(error.response.headers.next_poll_time, 10) * 1000;
-      Logger.debug(`timeInMillis ${nextPollTime}`);
+    
+    if (response.statusCode === 404) {
+      const nextPollTime = parseInt(response.headers?.next_poll_time, 10) * 1000;
+      Logger.debug(`nextPollTime: ${nextPollTime}`);
 
       if (isNaN(nextPollTime)) {
         Logger.warn('Invalid or missing `nextPollTime` header. Stopping polling.');
 
         return {
           data: {},
-          headers: error.response.headers,
+          headers: response.headers || {},
           message: 'Invalid nextPollTime header value. Polling stopped.'
         };
       }
-
-      const elapsedTime = nextPollTime - Date.now();
-      Logger.debug(
-        `elapsedTime ${elapsedTime} timeInMillis ${nextPollTime} upperLimit ${upperLimit}`
-      );
 
       // Stop polling if the upper time limit is reached
       if (nextPollTime > upperLimit) {
@@ -1474,18 +1463,31 @@ exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now(
 
         return {
           data: {},
-          headers: error.response.headers,
+          headers: response.headers || {},
           message: 'Polling stopped due to upper time limit.'
         };
       }
 
-      Logger.debug(`Polling again in ${elapsedTime}ms with params:`, params);
+      const elapsedTime = Math.max(0, nextPollTime - Date.now());
+      Logger.debug(
+        `elapsedTime ${elapsedTime} nextPollTimes ${nextPollTime} upperLimit ${upperLimit}`
+      );
+
+      Logger.debug(`Polling for results again in ${elapsedTime}ms`);
 
       // Wait for the specified time and poll again
       await new Promise((resolve) => setTimeout(resolve, elapsedTime));
 
       return exports.pollApi(url, params, headers, upperLimit, startTime);
-    } else if (error.response) {
+    }
+    
+    return {
+      data: responseData,
+      headers: response.headers,
+      message: 'Polling succeeded.'
+    };
+  } catch (error) {
+    if (error.response) {
       throw {
         data: {},
         headers: {},

@@ -346,7 +346,7 @@ class AccessibilityAutomation {
       const apiUrl = `${APP_ALLY_ENDPOINT}/${APP_ALLY_ISSUES_ENDPOINT}`;
       const apiRespone = await this.getAppA11yResultResponse(apiUrl, browser, browser.sessionId);
       const result = apiRespone?.data?.data?.issues;
-      Logger.debug(`Polling Result: ${JSON.stringify(result)}`);
+      Logger.debug(`Results: ${JSON.stringify(result)}`);
 
       return result;
     } catch (error) {
@@ -372,7 +372,7 @@ class AccessibilityAutomation {
       const apiUrl = `${APP_ALLY_ENDPOINT}/${APP_ALLY_ISSUES_SUMMARY_ENDPOINT}`;
       const apiRespone = await this.getAppA11yResultResponse(apiUrl, browser, browser.sessionId);
       const result = apiRespone?.data?.data?.summary;
-      Logger.debug(`Polling Result: ${JSON.stringify(result)}`);
+      Logger.debug(`Results Summary: ${JSON.stringify(result)}`);
 
       return result;
     } catch (error) {
@@ -391,7 +391,7 @@ class AccessibilityAutomation {
     const params = {test_run_uuid: process.env.TEST_RUN_UUID, session_id: sessionId, timestamp: Date.now()}; // Query params to pass
     const header = {Authorization: `Bearer ${process.env.BSTACK_A11Y_JWT}`};
     const apiRespone = await helper.pollApi(apiUrl, params, header, upperTimeLimit);
-    Logger.debug(`Polling Result: ${JSON.stringify(apiRespone)}`);
+    Logger.debug(`Polling Result: ${JSON.stringify(apiRespone.message)}`);
 
     return apiRespone;
 
