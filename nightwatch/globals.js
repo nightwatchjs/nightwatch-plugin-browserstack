@@ -541,6 +541,8 @@ module.exports = {
   },
 
   async afterChildProcess() {
+
+    await helper.shutDownRequestHandler();
     if (testEventPromises.length > 0) {
       await Promise.all(testEventPromises);
       testEventPromises.length = 0; // Clear the array
