@@ -68,7 +68,7 @@ class LogPatcher extends Transport {
       process.on('message', (data) => {
         if (data.uuid !== undefined){
           _uuid = data.uuid;
-          process.env.TEST_OPS_TEST_UUID = _uuid;
+          process.env.TEST_RUN_UUID = _uuid;
         }
       });
       process.on('disconnect', async () => {

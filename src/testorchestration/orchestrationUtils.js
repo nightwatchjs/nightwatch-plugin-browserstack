@@ -145,7 +145,7 @@ class OrchestrationUtils {
    * Check if the abort build file exists
    */
   static checkAbortBuildFileExists() {
-    const buildUuid = process.env.BS_TESTOPS_BUILD_HASHED_ID;
+    const buildUuid = process.env.BROWSERSTACK_TESTHUB_UUID;
     const filePath = path.join(tmpdir(), `abort_build_${buildUuid}`);
 
     return fs.existsSync(filePath);
@@ -155,7 +155,7 @@ class OrchestrationUtils {
    * Write failure to file
    */
   static writeFailureToFile(testName) {
-    const buildUuid = process.env.BS_TESTOPS_BUILD_HASHED_ID;
+    const buildUuid = process.env.BROWSERSTACK_TESTHUB_UUID;
     const failedTestsFile = path.join(tmpdir(), `failed_tests_${buildUuid}.txt`);
     
     fs.appendFileSync(failedTestsFile, `${testName}\n`);
@@ -433,7 +433,7 @@ class OrchestrationUtils {
    * Collects build data by making a call to the collect-build-data endpoint
    */
   async collectBuildData(config) {
-    const buildUuid = process.env.BS_TESTOPS_BUILD_HASHED_ID;
+    const buildUuid = process.env.BROWSERSTACK_TESTHUB_UUID;
     this.logger.debug(`[collectBuildData] Collecting build data for build UUID: ${buildUuid}`);
 
     try {

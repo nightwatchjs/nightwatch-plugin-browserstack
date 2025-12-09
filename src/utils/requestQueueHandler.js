@@ -93,7 +93,7 @@ class RequestQueueHandler {
   async batchAndPostEvents (eventUrl, kind, data) {
     const config = {
       headers: {
-        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
         'Content-Type': 'application/json',
         'X-BSTACK-TESTOPS': 'true'
       }
@@ -101,7 +101,7 @@ class RequestQueueHandler {
   
     try {
       const response = await makeRequest('POST', eventUrl, data, config);
-      if (response.data.error) {
+      if (response.data && response.data.error) {
         throw ({message: response.data.error});
       } else {
         this.pending_test_uploads = Math.max(0, this.pending_test_uploads - data.length);

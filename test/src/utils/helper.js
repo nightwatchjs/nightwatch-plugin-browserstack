@@ -326,21 +326,30 @@ describe('isBrowserstackInfra', () => {
     isBrowserstackInfra = require('../../../src/utils/helper').isBrowserstackInfra;
   });
 
-  it('returns false for undefined', async () => {
-    delete process.env.BROWSERSTACK_INFRA;
-    expect(isBrowserstackInfra()).to.be.false;
-  });
-
-  it('returns true if env variable is set to true', async () => {
-    process.env.BROWSERSTACK_INFRA = true;
+  it('returns true for undefined settings', async () => {
     expect(isBrowserstackInfra()).to.be.true;
-    delete process.env.BROWSERSTACK_INFRA;
   });
 
-  it('returns false if env variable is set to false', async () => {
-    process.env.BROWSERSTACK_INFRA = false;
-    expect(isBrowserstackInfra()).to.be.false;
-    delete process.env.BROWSERSTACK_INFRA;
+  it('returns true for empty settings', async () => {
+    expect(isBrowserstackInfra({})).to.be.true;
+  });
+
+  it('returns true if webdriver.host contains browserstack', async () => {
+    const settings = {
+      webdriver: {
+        host: 'hub-cloud.browserstack.com'
+      }
+    };
+    expect(isBrowserstackInfra(settings)).to.be.true;
+  });
+
+  it('returns false if webdriver.host does not contain browserstack', async () => {
+    const settings = {
+      webdriver: {
+        host: 'localhost'
+      }
+    };
+    expect(isBrowserstackInfra(settings)).to.be.false;
   });
 
 });

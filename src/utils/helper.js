@@ -72,8 +72,40 @@ exports.getObservabilityKey = (config, bstackOptions={}) => {
   return process.env.BROWSERSTACK_ACCESS_KEY || config?.key || bstackOptions?.accessKey;
 };
 
+exports.isAppAutomate = () => {
+  return process.env.BROWSERSTACK_APP_AUTOMATE === 'true';
+};
+
+exports.checkTestEnvironmentForAppAutomate = (testEnvSettings) => {
+
+  const firstEnvKey = Object.keys(testEnvSettings)[0];
+  const firstEnv = testEnvSettings[firstEnvKey];
+  if (firstEnv?.desiredCapabilities?.['appium:options']?.app) {
+    return true;
+  }
+
+  return false;
+};
+
 exports.isAccessibilitySession = () => {
   return process.env.BROWSERSTACK_ACCESSIBILITY === 'true';
+};
+
+exports.isTestHubBuild = (pluginSettings = {}, isBuildStart = false) => {
+  if (isBuildStart) {
+    return pluginSettings?.test_reporting?.enabled === true ||  pluginSettings?.test_observability?.enabled === true || pluginSettings?.accessibility === true;
+  }
+  
+  return this.isTestObservabilitySession() || this.isAccessibilitySession();
+  
+};
+
+exports.isAccessibilityEnabled = (settings) => {
+  if (process.argv.includes('--disable-accessibility')) {return false}
+  
+  if (process.env.BROWSERSTACK_ACCESSIBILITY === 'false') {return false}
+
+  return settings['@nightwatch/browserstack']?.accessibility === true;
 };
 
 exports.getProjectName = (options, bstackOptions={}, fromProduct={}) => {
@@ -376,8 +408,10 @@ exports.getHostInfo = () => {
   };
 };
 
-exports.isBrowserstackInfra = () => {
-  return process.env.BROWSERSTACK_INFRA === 'true';
+exports.isBrowserstackInfra = (settings) => {
+  const isBrowserstackInfra = settings && settings.webdriver && settings.webdriver.host && settings.webdriver.host.indexOf('browserstack') === -1 ? false : true;
+
+  return isBrowserstackInfra;
 };
 
 const findGitConfig = async (filePath) => {
@@ -505,12 +539,12 @@ exports.uploadEventData = async (eventData) => {
     ['HookRunFinished']: 'Hook_End_Upload'
   }[eventData.event_type];
 
-  if (process.env.BS_TESTOPS_JWT && process.env.BS_TESTOPS_JWT !== 'null') {
+  if (process.env.BROWSERSTACK_TESTHUB_JWT && process.env.BROWSERSTACK_TESTHUB_JWT !== 'null') {
     requestQueueHandler.pending_test_uploads += 1;
   }
 
   if (process.env.BS_TESTOPS_BUILD_COMPLETED === 'true') {
-    if (process.env.BS_TESTOPS_JWT === 'null') {
+    if (process.env.BROWSERSTACK_TESTHUB_JWT === 'null') {
       Logger.info(`EXCEPTION IN ${log_tag} REQUEST TO TEST REPORTING AND ANALYTICS : missing authentication token`);
       requestQueueHandler.pending_test_uploads = Math.max(0, requestQueueHandler.pending_test_uploads-1);
 
@@ -537,7 +571,7 @@ exports.uploadEventData = async (eventData) => {
 
     const config = {
       headers: {
-        'Authorization': `Bearer ${process.env.BS_TESTOPS_JWT}`,
+        'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
         'Content-Type': 'application/json',
         'X-BSTACK-TESTOPS': 'true'
       }
@@ -618,7 +652,7 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
 
   if (hostname) {
     if (hostname.includes('browserstack.com') && !hostname.includes('hub-ft')) {
-      if (this.isUndefined(caps.browserName)) {
+      if (this.isAppAutomate()) {
         product = 'app-automate';
       } else {
         product = 'automate';
@@ -631,13 +665,14 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
   return product;
 };
 
-exports.getIntegrationsObject = (capabilities, sessionId, hostname) => {
+exports.getIntegrationsObject = (capabilities, sessionId, hostname, platform_version) => {
   return {
     capabilities: capabilities,
     session_id: sessionId,
     browser: capabilities.browserName,
     browser_version: capabilities.browserVersion,
     platform: capabilities.platformName,
+    platform_version: capabilities.platformVersion || platform_version,
     product: this.getObservabilityLinkedProductName(capabilities, hostname)
   };
 };
@@ -1302,3 +1337,66 @@ exports.getGitMetadataForAiSelection = (folders = []) => {
   
   return formattedResults;
 };
+
+exports.jsonifyAccessibilityArray = (dataArray, keyName, valueName) => {
+  const result = {};
+  dataArray.forEach((element) => {
+    result[element[keyName]] = element[valueName];
+  });
+
+  return result;
+};
+
+exports.logBuildError = (error, product = '') => {
+  if (!error || !error.errors) {
+    Logger.error(`${product.toUpperCase()} Build creation failed ${error}`);
+
+    return;
+  }
+
+  for (const errorJson of error.errors) {
+    const errorType = errorJson.key;
+    const errorMessage = errorJson.message;
+    if (errorMessage) {
+      switch (errorType) {
+        case 'ERROR_INVALID_CREDENTIALS':
+          Logger.error(errorMessage);
+          break;
+        case 'ERROR_ACCESS_DENIED':
+          Logger.info(errorMessage);
+          break;
+        case 'ERROR_SDK_DEPRECATED':
+          Logger.error(errorMessage);
+          break;
+        default:
+          Logger.error(errorMessage);
+      }
+    }
+  }
+};
+
+exports.patchBrowserTerminateCommand = () =>{
+
+  const nightwatchDir = path.dirname(require.resolve('nightwatch'));
+  const CommandPath = path.join(nightwatchDir, 'testsuite/index.js');
+  const TestSuite = require(CommandPath);
+  const originalFn = TestSuite.prototype.terminate;
+  TestSuite.prototype.terminate = async function(...args) {
+    const maxWaitTime = 30000;
+    const pollInterval = 500;
+    const startTime = Date.now();
+    const AccessibilityAutomation = require('../accessibilityAutomation');
+    while (Date.now() - startTime < maxWaitTime) {
+      const pendingAllyReq = AccessibilityAutomation.pendingAllyReq || 0;
+      
+      if (pendingAllyReq === 0) {
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+    Logger.debug(`Pending Accessibility requests at session end: ${AccessibilityAutomation.pendingAllyReq }`);
+
+    return originalFn.apply(this, args);
+  };
+};
+
