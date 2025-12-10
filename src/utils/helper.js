@@ -2,6 +2,7 @@ const os = require('os');
 const fs = require('fs');
 const fsPromises = fs.promises;
 const path = require('path');
+const glob = require('glob');
 const {promisify} = require('util');
 const gitRepoInfo = require('git-repo-info');
 const gitconfig = require('gitconfiglocal');
@@ -888,84 +889,7 @@ exports.truncateString = (field, truncateSizeInBytes) => {
 
 // Helper function to check if a pattern contains glob characters
 exports.isGlobPattern = (pattern) => {
-  return pattern.includes('*') || pattern.includes('?') || pattern.includes('[');
-};
-
-// Helper function to recursively find files matching a pattern
-exports.findFilesRecursively = (dir, pattern) => {
-  const files = [];
-  try {
-    if (!fs.existsSync(dir)) {
-      return files;
-    }
-    
-    const entries = fs.readdirSync(dir, {withFileTypes: true});
-    
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      
-      if (entry.isDirectory()) {
-        // Recursively search subdirectories
-        files.push(...exports.findFilesRecursively(fullPath, pattern));
-      } else if (entry.isFile()) {
-        const relativePath = path.relative(process.cwd(), fullPath);
-        
-        // Enhanced pattern matching for glob patterns
-        if (exports.matchesGlobPattern(relativePath, pattern)) {
-          files.push(relativePath);
-        }
-      }
-    }
-  } catch (err) {
-    Logger.debug(`Error reading directory ${dir}: ${err.message}`);
-  }
-  
-  return files;
-};
-
-// Helper function to match a file path against a glob pattern
-exports.matchesGlobPattern = (filePath, pattern) => {
-  // Normalize paths to use forward slashes
-  const normalizedPath = filePath.replace(/\\/g, '/');
-  const normalizedPattern = pattern.replace(/\\/g, '/');
-  
-  // Convert glob pattern to regex step by step
-  let regexPattern = normalizedPattern;
-  
-  // First, handle ** patterns (must be done before single *)
-  // ** should match zero or more directories
-  regexPattern = regexPattern.replace(/\*\*/g, '§DOUBLESTAR§');
-  
-  // Escape regex special characters except the placeholders
-  regexPattern = regexPattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  
-  // Now handle single * and ? patterns
-  regexPattern = regexPattern.replace(/\*/g, '[^/]*'); // * matches anything except path separators
-  regexPattern = regexPattern.replace(/\?/g, '[^/]'); // ? matches single character except path separator
-  
-  // Finally, replace ** placeholder with regex for any path (including zero directories)
-  regexPattern = regexPattern.replace(/§DOUBLESTAR§/g, '.*?');
-  
-  // Special case: if pattern ends with /**/* we need to handle direct files in the base directory
-  // Convert patterns like "dir/**/*" to also match "dir/*"
-  if (normalizedPattern.includes('/**/')) {
-    const baseRegex = regexPattern;
-    const alternativeRegex = regexPattern.replace(/\/\.\*\?\//g, '/');
-    regexPattern = `(?:${baseRegex}|${alternativeRegex})`;
-  }
-  
-  // Ensure pattern matches from start to end
-  regexPattern = '^' + regexPattern + '$';
-  
-  try {
-    const regex = new RegExp(regexPattern);
-
-    return regex.test(normalizedPath);
-  } catch (err) {
-    Logger.debug(`Error in glob pattern matching: ${err.message}`);
-
-    return false;
-  }
+  return glob.hasMagic(pattern);
 };
 
 // Helper function to resolve and collect test files from a path/pattern
@@ -1039,36 +963,17 @@ exports.findTestFilesInDirectory = (dir) => {
 exports.expandGlobPattern = (pattern) => {
   Logger.debug(`Expanding glob pattern: ${pattern}`);
   
-  // Extract the base directory from the pattern
-  const parts = pattern.split(/[/\\]/);
-  let baseDir = '.';
-  let patternStart = 0;
-  
-  // Find the first part that contains glob characters
-  for (let i = 0; i < parts.length; i++) {
-    if (exports.isGlobPattern(parts[i])) {
-      patternStart = i;
-      break;
-    }
-    if (i === 0 && parts[i] !== '.') {
-      baseDir = parts[i];
-    } else if (i > 0) {
-      baseDir = path.join(baseDir, parts[i]);
-    }
+  try {
+    const files = glob.sync(pattern);
+    
+    Logger.debug(`Found ${files.length} files matching pattern: ${pattern}`);
+
+    return files;
+  } catch (err) {
+    Logger.debug(`Error expanding glob pattern: ${err.message}`);
+
+    return [];
   }
-  
-  // If baseDir doesn't exist, try current directory
-  if (!fs.existsSync(baseDir)) {
-    Logger.debug(`Base directory ${baseDir} doesn't exist, using current directory`);
-    baseDir = '.';
-  }
-  
-  Logger.debug(`Base directory: ${baseDir}, Pattern: ${pattern}`);
-  
-  const files = exports.findFilesRecursively(baseDir, pattern);
-  Logger.debug(`Found ${files.length} files matching pattern: ${pattern}`);
-  
-  return files;
 };
 
 /**
