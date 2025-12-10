@@ -1,6 +1,6 @@
 {
   "name": "@nightwatch/browserstack",
-  "version": "3.6.2",
+  "version": "3.7.1",
   "description": "Nightwatch plugin for integration with browserstack.",
   "main": "index.js",
   "scripts": {
@@ -45,7 +45,8 @@
     "@cypress/request": "^3.0.1",
     "strip-ansi": "^6.0.1",
     "winston-transport": "^4.5.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "glob": "^7.2.0"
   },
   "devDependencies": {
     "chai": "^4.3.7",
