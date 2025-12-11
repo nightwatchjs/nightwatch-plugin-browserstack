@@ -4,7 +4,7 @@ Follow these steps when releasing the Nightwatch Browserstack plugin:
 
 1. **Merge the corresponding pull request (PR)** using squash and merge.
 2. **Clone a fresh copy of the repository locally** to avoid publishing uncommitted files.
-3. Run `npm install` (or `npmi`) to install dependencies.
+3. Run `npm install` (or `npm i`) to install dependencies.
 4. Run `npm audit fix` to automatically resolve fixable vulnerabilities.  
    _Note: This only changes `package-lock.json`. It is safer than using `--force`, which may change package versions unexpectedly._
 5. **Commit and push** any changes resulting from `npm audit fix`.
