@@ -17,6 +17,7 @@ const LogPatcher = require('./logPatcher');
 const BSTestOpsPatcher = new LogPatcher({});
 const sessions = {};
 const {execSync} = require('child_process');
+const request = require('@cypress/request');
 
 console = {};
 Object.keys(consoleHolder).forEach(method => {
@@ -99,6 +100,10 @@ exports.isTestHubBuild = (pluginSettings = {}, isBuildStart = false) => {
   
   return this.isTestObservabilitySession() || this.isAccessibilitySession();
   
+};
+
+exports.isAppAccessibilitySession = () => {
+  return process.env.IS_APP_ACCESSIBILITY === 'true';
 };
 
 exports.isAccessibilityEnabled = (settings) => {
@@ -1304,4 +1309,103 @@ exports.patchBrowserTerminateCommand = () =>{
     return originalFn.apply(this, args);
   };
 };
+
+exports.formatString = (template, ...values) => {
+  let i = 0;
+  if (template === null) {
+    return '';
+  }
+
+  return template.replace(/%s/g, () => {
+    const value = values[i++];
+
+    return value !== null && value !== undefined ? value : '';
+  });
+};
+
+exports.pollApi = async (url, params, headers, upperLimit, startTime = Date.now()) => {
+  params.timestamp = Math.round(Date.now() / 1000);
+  Logger.debug(`current timestamp ${params.timestamp}`);
+
+  try {
+    const queryString = new URLSearchParams(params).toString();
+    const fullUrl = `${url}?${queryString}`;
+    
+    const response = await new Promise((resolve, reject) => {
+      request({
+        method: 'GET',
+        url: fullUrl,
+        headers: headers,
+        json: false
+      }, (error, response, body) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      });
+    });
+
+    const responseData = JSON.parse(response.body);
+    
+    if (response.statusCode === 404) {
+      const nextPollTime = parseInt(response.headers?.next_poll_time, 10) * 1000;
+      Logger.debug(`nextPollTime: ${nextPollTime}`);
+
+      if (isNaN(nextPollTime)) {
+        Logger.warn('Invalid or missing `nextPollTime` header. Stopping polling.');
+
+        return {
+          data: {},
+          headers: response.headers || {},
+          message: 'Invalid nextPollTime header value. Polling stopped.'
+        };
+      }
+
+      // Stop polling if the upper time limit is reached
+      if (nextPollTime > upperLimit) {
+        Logger.warn('Polling stopped due to upper time limit.');
+
+        return {
+          data: {},
+          headers: response.headers || {},
+          message: 'Polling stopped due to upper time limit.'
+        };
+      }
+
+      const elapsedTime = Math.max(0, nextPollTime - Date.now());
+      Logger.debug(
+        `elapsedTime ${elapsedTime} nextPollTimes ${nextPollTime} upperLimit ${upperLimit}`
+      );
+
+      Logger.debug(`Polling for results again in ${elapsedTime}ms`);
+
+      // Wait for the specified time and poll again
+      await new Promise((resolve) => setTimeout(resolve, elapsedTime));
+
+      return exports.pollApi(url, params, headers, upperLimit, startTime);
+    }
+    
+    return {
+      data: responseData,
+      headers: response.headers,
+      message: 'Polling succeeded.'
+    };
+  } catch (error) {
+    if (error.response) {
+      throw {
+        data: {},
+        headers: {},
+        message: error.response.body ? JSON.parse(error.response.body).message : 'Unknown error'
+      };
+    } else {
+      Logger.error(`Unexpected error occurred: ${error}`);
+
+      return {data: {}, headers: {}, message: 'Unexpected error occurred.'};
+    }
+  }
+};
+
+
+
 

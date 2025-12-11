@@ -260,7 +260,7 @@ module.exports = {
     });
 
     eventBroadcaster.on('TestRunStarted', async (test) => {
-      process.env.VALID_ALLY_PLATFORM = accessibilityAutomation.validateA11yCaps(browser);
+      process.env.VALID_ALLY_PLATFORM = process.env.BROWSERSTACK_APP_AUTOMATE ? accessibilityAutomation.validateAppA11yCaps(test.metadata.sessionCapabilities) : accessibilityAutomation.validateA11yCaps(browser);
       await accessibilityAutomation.beforeEachExecution(test);
       if (testRunner !== 'cucumber'){
         const uuid = TestMap.storeTestDetails(test);
@@ -357,7 +357,9 @@ module.exports = {
       if (helper.isAccessibilitySession() && !settings.parallel_mode) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
-        helper.patchBrowserTerminateCommand();
+        if (!process.env.BROWSERSTACK_APP_AUTOMATE){
+          helper.patchBrowserTerminateCommand();
+        };
       }
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);
@@ -489,8 +491,14 @@ module.exports = {
   },
 
   async beforeEach(settings) {
-    browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
-    browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
+    if (helper.isAppAccessibilitySession()){
+      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAppAccessibilityResults(browser) }; 
+      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAppAccessibilityResultsSummary(browser) }; 
+    } else {
+      browser.getAccessibilityResults = () =>  { return accessibilityAutomation.getAccessibilityResults() };
+      browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
+    }
+    // await accessibilityAutomation.beforeEachExecution(browser);
   },
 
   // This will be run after each test suite is finished
@@ -531,7 +539,9 @@ module.exports = {
       if (helper.isAccessibilitySession()) {
         accessibilityAutomation.setAccessibilityCapabilities(settings);
         accessibilityAutomation.commandWrapper();
-        helper.patchBrowserTerminateCommand();
+        if (!process.env.BROWSERSTACK_APP_AUTOMATE){
+          helper.patchBrowserTerminateCommand();
+        };
       }
     } catch (err){
       Logger.debug(`Exception while setting Accessibility Automation capabilities. Error ${err}`);

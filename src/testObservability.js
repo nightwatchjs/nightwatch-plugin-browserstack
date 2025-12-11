@@ -235,6 +235,7 @@ class TestObservability {
         accessibilityScripts.store();
       }
     }
+    process.env.IS_APP_ACCESSIBILITY = accessibilityAutomation.isAccessibilityAutomationSession() && helper.isAppAutomate();
 
   }
 
