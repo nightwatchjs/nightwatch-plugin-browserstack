@@ -24,11 +24,12 @@ Follow these steps when releasing the Nightwatch Browserstack plugin:
     ```sh
     npm login
     ```
-    _Requires an npm account with permission for this package (typically by joining the Nightwatch organization on npm). For accounts with 2FA, a mobile verification code will be requested._
+    _Requires an npm account._
 12. **Publish the package to npm:**  
     ```sh
     npm publish
     ```
+    _Requires an npm account with permission for this package (typically by joining the Nightwatch organization on npm). For accounts with 2FA, a mobile verification code will be requested._
 13. **Create a release on GitHub:**  
     - Select the new tag.
     - Generate release notes.
