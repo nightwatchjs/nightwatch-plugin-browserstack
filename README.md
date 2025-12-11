@@ -55,11 +55,11 @@ Follow these steps when releasing the Nightwatch Browserstack plugin:
    _Release commit names should match the version number, e.g., `3.7.0`._
 9. Add a tag:  
    ```sh
-   git tag 3.7.0
+   git tag v3.7.0
    ```
 10. Push commits **and tags**:  
     ```sh
-    git push --tags
+    git push origin main --tags
     ```
 11. **Publish the package:**  
     ```sh
