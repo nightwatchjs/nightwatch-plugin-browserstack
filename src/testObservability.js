@@ -135,9 +135,9 @@ class TestObservability {
     };
 
     if (testPlanId) {
-      data.testManagementOptions = {
-        testPlanId
-      };
+      data["test_management"] = {
+        "test_plan_id": testPlanId
+      }
     }
 
     const config = {
