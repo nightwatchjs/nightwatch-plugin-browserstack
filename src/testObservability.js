@@ -94,6 +94,7 @@ class TestObservability {
                    this._parentSettings?.testReportingOptions ||
                    this._parentSettings?.testObservabilityOptions ||
                    {};
+    const testPlanId = helper.getTestPlanId(this._bstackOptions);
     const accessibility = helper.isAccessibilityEnabled(this._parentSettings);             
     const accessibilityOptions = accessibility ? this._settings.accessibilityOptions || {} : {};
     this._gitMetadata = await helper.getGitMetaData();
@@ -132,6 +133,12 @@ class TestObservability {
       config: {},
       test_orchestration: this.getTestOrchestrationBuildStartData(this._parentSettings)
     };
+
+    if (testPlanId) {
+      data.testManagementOptions = {
+        testPlanId
+      };
+    }
 
     const config = {
       auth: {
