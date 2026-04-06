@@ -10,6 +10,7 @@ const AccessibilityAutomation = require('../src/accessibilityAutomation');
 const eventHelper = require('../src/utils/eventHelper');
 const OrchestrationUtils = require('../src/testorchestration/orchestrationUtils');
 const TestMap = require('../src/utils/testMap');
+const CustomTagManager = require('../src/utils/customTagManager');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
@@ -499,6 +500,10 @@ module.exports = {
       browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     }
     // await accessibilityAutomation.beforeEachExecution(browser);
+
+    browser.setCustomTag = (keyName, keyValue, buildLevelCustomTag) => {
+      CustomTagManager.setCustomTag(keyName, keyValue, buildLevelCustomTag || false, process.env.TEST_RUN_UUID);
+    };
   },
 
   // This will be run after each test suite is finished
