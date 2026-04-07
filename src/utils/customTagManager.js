@@ -101,7 +101,9 @@ exports.setCustomTag = function(keyName, keyValue, buildLevelCustomTag, testUUID
  * Returns the custom metadata object for a specific test UUID.
  */
 exports.getTestLevelCustomMetadata = function(uuid) {
-  return testLevelTags.get(uuid) || {};
+  const tags = testLevelTags.get(uuid);
+
+  return tags ? JSON.parse(JSON.stringify(tags)) : {};
 };
 
 /**
@@ -123,7 +125,7 @@ exports.drainPendingTestTags = function(uuid) {
  * Returns the build-level custom metadata object.
  */
 exports.getBuildLevelCustomMetadata = function() {
-  return {...buildLevelTags};
+  return JSON.parse(JSON.stringify(buildLevelTags));
 };
 
 /**

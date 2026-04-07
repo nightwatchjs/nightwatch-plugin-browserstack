@@ -502,7 +502,8 @@ module.exports = {
         // Aggregate build-level custom tags from worker processes
         try {
           const tmpDir = os.tmpdir();
-          const tagFiles = fs.readdirSync(tmpDir).filter(f => f.startsWith('bstack_build_tags_') && f.endsWith('.json'));
+          const runId = process.env.BROWSERSTACK_TESTHUB_UUID || process.pid;
+          const tagFiles = fs.readdirSync(tmpDir).filter(f => f.startsWith(`bstack_build_tags_${runId}_`) && f.endsWith('.json'));
           for (const tagFile of tagFiles) {
             const filePath = path.join(tmpDir, tagFile);
             try {
@@ -607,7 +608,8 @@ module.exports = {
         }
         // Also write to temp file for standard Nightwatch parallel where
         // we don't have a direct IPC listener in the parent
-        const tagFile = path.join(os.tmpdir(), `bstack_build_tags_${process.pid}.json`);
+        const runId = process.env.BROWSERSTACK_TESTHUB_UUID || process.pid;
+        const tagFile = path.join(os.tmpdir(), `bstack_build_tags_${runId}_${process.pid}.json`);
         fs.writeFileSync(tagFile, JSON.stringify(buildTags));
       }
     } catch (err) {
