@@ -26,7 +26,7 @@ let pendingTestTags = {};
  */
 function splitValues(input) {
   const result = [];
-  const regex = /"([^"]*)"|[^,]+/g;
+  const regex = /\s*"([^"]*)"\s*|[^,]+/g;
   let match;
   while ((match = regex.exec(input)) !== null) {
     const value = match[1] !== undefined ? match[1] : match[0].trim();
@@ -99,9 +99,17 @@ exports.setCustomTag = function(keyName, keyValue, buildLevelCustomTag, testUUID
 
 /**
  * Returns the custom metadata object for a specific test UUID.
- * Also drains any pendingTestTags into this UUID's entry.
  */
 exports.getTestLevelCustomMetadata = function(uuid) {
+  return testLevelTags.get(uuid) || {};
+};
+
+/**
+ * Drains pendingTestTags into the specified UUID's entry.
+ * Must be called synchronously when the UUID is known and before any async
+ * processing, to avoid races with the next test buffering into pendingTestTags.
+ */
+exports.drainPendingTestTags = function(uuid) {
   if (uuid && Object.keys(pendingTestTags).length > 0) {
     if (!testLevelTags.has(uuid)) {
       testLevelTags.set(uuid, {});
@@ -109,8 +117,6 @@ exports.getTestLevelCustomMetadata = function(uuid) {
     mergeAll(testLevelTags.get(uuid), pendingTestTags);
     pendingTestTags = {};
   }
-
-  return testLevelTags.get(uuid) || {};
 };
 
 /**
@@ -125,6 +131,21 @@ exports.getBuildLevelCustomMetadata = function() {
  */
 exports.clearTestLevelCustomMetadata = function(uuid) {
   testLevelTags.delete(uuid);
+};
+
+/**
+ * Merges external build-level tags into the local buildLevelTags.
+ * Used to aggregate tags received from worker processes via IPC.
+ */
+exports.mergeBuildLevelTags = function(tags) {
+  if (!tags || typeof tags !== 'object') {
+    return;
+  }
+  for (const [keyName, entry] of Object.entries(tags)) {
+    if (entry && Array.isArray(entry.values)) {
+      mergeInto(buildLevelTags, keyName, entry.values);
+    }
+  }
 };
 
 // Exported for testing
