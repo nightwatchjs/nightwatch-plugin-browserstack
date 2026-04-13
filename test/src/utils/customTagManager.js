@@ -63,7 +63,7 @@ describe('CustomTagManager', () => {
       expect(tagFiles[0]).to.include(runId);
 
       // Files from a different run should NOT be matched
-      const otherRunFile = path.join(tmpDir, `bstack_build_tags_other-run_99999.json`);
+      const otherRunFile = path.join(tmpDir, 'bstack_build_tags_other-run_99999.json');
       fs.writeFileSync(otherRunFile, JSON.stringify({}));
 
       const matchedFiles = fs.readdirSync(tmpDir).filter(f => f.startsWith(`bstack_build_tags_${runId}_`) && f.endsWith('.json'));

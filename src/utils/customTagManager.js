@@ -154,4 +154,4 @@ exports.mergeBuildLevelTags = function(tags) {
 exports._splitValues = splitValues;
 exports._testLevelTags = testLevelTags;
 exports._buildLevelTags = buildLevelTags;
-exports._getPendingTestTags = function() { return pendingTestTags; };
+exports._getPendingTestTags = function() { return pendingTestTags };
