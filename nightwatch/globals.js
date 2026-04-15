@@ -6,10 +6,13 @@ const helper = require('../src/utils/helper');
 const Logger = require('../src/utils/logger');
 const {v4: uuidv4} = require('uuid');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const AccessibilityAutomation = require('../src/accessibilityAutomation');
 const eventHelper = require('../src/utils/eventHelper');
 const OrchestrationUtils = require('../src/testorchestration/orchestrationUtils');
 const TestMap = require('../src/utils/testMap');
+const CustomTagManager = require('../src/utils/customTagManager');
 const localTunnel = new LocalTunnel();
 const testObservability = new TestObservability();
 const accessibilityAutomation = new AccessibilityAutomation();
@@ -99,6 +102,14 @@ module.exports = {
 
         Object.values(workerList).forEach((worker) => {
           worker.process.on('message', async (data) => {
+            if (data.BUILD_LEVEL_CUSTOM_TAGS) {
+              try {
+                const tags = JSON.parse(data.BUILD_LEVEL_CUSTOM_TAGS);
+                CustomTagManager.mergeBuildLevelTags(tags);
+              } catch (err) {
+                Logger.debug(`Error merging build-level tags from worker: ${err}`);
+              }
+            }
             if (data.POST_SESSION_EVENT) {
               helper.storeSessionsData(data);
             }
@@ -151,6 +162,7 @@ module.exports = {
         if (testMetaData) {
           delete _tests[testCaseId];
           testMetaData.finishedAt = new Date().toISOString();
+          CustomTagManager.drainPendingTestTags(testMetaData.uuid);
           await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
         }
       } catch (error) {
@@ -279,8 +291,15 @@ module.exports = {
       try {
         await accessibilityAutomation.afterEachExecution(test, uuid);
         if (testRunner !== 'cucumber'){
+          // Drain pending tags synchronously before the async sendTestRunEvent,
+          // to avoid races where the next test's tags leak into pendingTestTags
+          // and get drained into the wrong UUID.
+          CustomTagManager.drainPendingTestTags(uuid);
           testEventPromises.push(testObservability.sendTestRunEvent('TestRunFinished', test, uuid));
           TestMap.markTestFinished(uuid);
+          // Clear UUID so the next test's setCustomTag calls buffer to pendingTestTags
+          // (test body runs before TestRunStarted assigns the new UUID)
+          delete process.env.TEST_RUN_UUID;
         }
         
       } catch (error) {
@@ -479,6 +498,26 @@ module.exports = {
           await Promise.all(testEventPromises);
           testEventPromises.length = 0; // Clear the array
         }
+
+        // Aggregate build-level custom tags from worker processes
+        try {
+          const tmpDir = os.tmpdir();
+          const runId = process.env.BROWSERSTACK_TESTHUB_UUID || process.pid;
+          const tagFiles = fs.readdirSync(tmpDir).filter(f => f.startsWith(`bstack_build_tags_${runId}_`) && f.endsWith('.json'));
+          for (const tagFile of tagFiles) {
+            const filePath = path.join(tmpDir, tagFile);
+            try {
+              const tags = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+              CustomTagManager.mergeBuildLevelTags(tags);
+              fs.unlinkSync(filePath);
+            } catch (err) {
+              Logger.debug(`Error reading build-level tags file ${tagFile}: ${err}`);
+            }
+          }
+        } catch (err) {
+          Logger.debug(`Error aggregating build-level tags from workers: ${err}`);
+        }
+
         await testObservability.stopBuildUpstream();
         if (process.env.BROWSERSTACK_TESTHUB_UUID) {
           Logger.info(`\nVisit https://automation.browserstack.com/builds/${process.env.BROWSERSTACK_TESTHUB_UUID} to view build report, insights, and many more debugging information all at one place!\n`);
@@ -499,6 +538,13 @@ module.exports = {
       browser.getAccessibilityResultsSummary = () => { return accessibilityAutomation.getAccessibilityResultsSummary() };
     }
     // await accessibilityAutomation.beforeEachExecution(browser);
+
+    // Clear stale UUID so tags go to pendingTestTags until TestRunStarted assigns the new UUID
+    delete process.env.TEST_RUN_UUID;
+
+    browser.setCustomTag = (keyName, keyValue, buildLevelCustomTag) => {
+      CustomTagManager.setCustomTag(keyName, keyValue, buildLevelCustomTag || false, process.env.TEST_RUN_UUID);
+    };
   },
 
   // This will be run after each test suite is finished
@@ -551,6 +597,24 @@ module.exports = {
   },
 
   async afterChildProcess() {
+
+    // Send build-level custom tags from worker to parent process
+    try {
+      const buildTags = CustomTagManager.getBuildLevelCustomMetadata();
+      if (buildTags && Object.keys(buildTags).length > 0) {
+        if (process.send) {
+          // Cucumber parallel: send via IPC directly
+          process.send({BUILD_LEVEL_CUSTOM_TAGS: JSON.stringify(buildTags)});
+        }
+        // Also write to temp file for standard Nightwatch parallel where
+        // we don't have a direct IPC listener in the parent
+        const runId = process.env.BROWSERSTACK_TESTHUB_UUID || process.pid;
+        const tagFile = path.join(os.tmpdir(), `bstack_build_tags_${runId}_${process.pid}.json`);
+        fs.writeFileSync(tagFile, JSON.stringify(buildTags));
+      }
+    } catch (err) {
+      Logger.debug(`Error sending build-level tags from worker: ${err}`);
+    }
 
     await helper.shutDownRequestHandler();
     if (testEventPromises.length > 0) {
