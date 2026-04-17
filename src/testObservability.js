@@ -36,15 +36,15 @@ class TestObservability {
       process.env.BROWSERSTACK_TEST_REPORTING = 'false';
     }
 
-    // Check for test_observability or test_reporting configuration  
+    // Check for test_observability or test_reporting configuration
     const observabilityConfig = this._settings.test_observability || this._settings.test_reporting;
     const testReportingOptions = this._settings.testReportingOptions || this._settings.testObservabilityOptions;
-    
+
     if (!helper.isUndefined(observabilityConfig) && !helper.isUndefined(observabilityConfig.enabled)) {
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = observabilityConfig.enabled;
       process.env.BROWSERSTACK_TEST_REPORTING = observabilityConfig.enabled;
     }
-    
+
     if (process.argv.includes('--disable-test-observability') || process.argv.includes('--disable-test-reporting')) {
       process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
       process.env.BROWSERSTACK_TEST_REPORTING = 'false';
@@ -71,7 +71,7 @@ class TestObservability {
       CrashReporter.setCredentialsForCrashReportUpload(this._user, this._key);
       CrashReporter.setConfigDetails(settings);
     }
-    
+
     // Also check for top-level testReportingOptions or testObservabilityOptions
     if (settings.testReportingOptions || settings.testObservabilityOptions) {
       const topLevelOptions = settings.testReportingOptions || settings.testObservabilityOptions;
@@ -88,14 +88,15 @@ class TestObservability {
 
   async launchTestSession() {
     // Support both old and new configuration options at different levels
-    const testReportingOptions = this._settings.test_observability || 
-                   this._settings.test_reporting || 
-                   this._settings.testReportingOptions || 
-                   this._settings.testObservabilityOptions || 
+    const testReportingOptions = this._settings.test_observability ||
+                   this._settings.test_reporting ||
+                   this._settings.testReportingOptions ||
+                   this._settings.testObservabilityOptions ||
                    this._parentSettings?.testReportingOptions ||
                    this._parentSettings?.testObservabilityOptions ||
                    {};
-    const accessibility = helper.isAccessibilityEnabled(this._parentSettings);             
+    const testPlanId = helper.getTestPlanId(this._bstackOptions);
+    const accessibility = helper.isAccessibilityEnabled(this._parentSettings);
     const accessibilityOptions = accessibility ? this._settings.accessibilityOptions || {} : {};
     this._gitMetadata = await helper.getGitMetaData();
     const fromProduct = {
@@ -134,6 +135,12 @@ class TestObservability {
       test_orchestration: this.getTestOrchestrationBuildStartData(this._parentSettings)
     };
 
+    if (testPlanId) {
+      data["test_management"] = {
+        "test_plan_id": testPlanId
+      }
+    }
+
     const config = {
       auth: {
         username: this._user,
@@ -148,6 +155,7 @@ class TestObservability {
     try {
       const response = await makeRequest('POST', 'api/v2/builds', data, config, API_URL);
       Logger.info('Build creation successful!');
+      Logger.info(`Test plan id sent to build start: ${testPlanId}`);
       process.env.BS_TESTOPS_BUILD_COMPLETED = true;
 
       const responseData = response.data || {};
@@ -171,11 +179,11 @@ class TestObservability {
   }
   getTestOrchestrationBuildStartData(settings) {
     const orchestrationUtils = OrchestrationUtils.getInstance(settings);
- 
+
     return orchestrationUtils.getBuildStartData();
   }
 
-  processLaunchBuildResponse(responseData, settings) {  
+  processLaunchBuildResponse(responseData, settings) {
     if (helper.isTestObservabilitySession()) {
       this.processTestObservabilityResponse(responseData);
     }
@@ -243,12 +251,12 @@ class TestObservability {
   handleErrorForObservability(error) {
     process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
     process.env.BROWSERSTACK_TEST_REPORTING = 'false';
-    helper.logBuildError(error, 'Test Reporting and Analytics'); 
+    helper.logBuildError(error, 'Test Reporting and Analytics');
   }
 
   handleErrorForAccessibility(error) {
     process.env.BROWSERSTACK_ACCESSIBILITY = 'false';
-    helper.logBuildError(error, 'Accessibility'); 
+    helper.logBuildError(error, 'Accessibility');
   }
 
   async stopBuildUpstream () {
@@ -396,7 +404,7 @@ class TestObservability {
       }
     }
   }
-  
+
   async sendSkippedTestEvent(skippedTest, testFileReport) {
     const testData = {
       uuid: uuidv4(),
@@ -480,7 +488,7 @@ class TestObservability {
       type: 'test',
       name: testName,
       body: {
-        lang: 'javascript', 
+        lang: 'javascript',
         code: testBody ? testBody.toString() : null
       },
       scope: `${testMetaData.name} - ${testName}`,
@@ -524,7 +532,7 @@ class TestObservability {
             }
           }
         }
-      } 
+      }
       await this.processTestRunData (eventData, uuid);
     }
 
@@ -726,7 +734,7 @@ class TestObservability {
           testData.failure = hook.failure_data;
           testData.failure_reason = (hook.failure_data instanceof Array) ? hook.failure_data[0]?.backtrace.join('\n') : '';
           testData.failure_type = hook.failure_type;
-          
+
           return testData;
         }
       }
@@ -773,7 +781,7 @@ class TestObservability {
     const startedAt = new Date().toISOString();
     const result = 'pending';
     const hookTagsList = hookDetails.tagExpression ? hookDetails.tagExpression.split(' ').filter(val => val.includes('@')) : null;
-    
+
     const hookEventData = {
       uuid: hookData.id,
       type: 'hook',
@@ -865,7 +873,7 @@ class TestObservability {
 
   getProductMapForBuildStartCall(settings) {
     const product = helper.getObservabilityLinkedProductName(settings.desiredCapabilities, settings?.selenium?.host);
-    
+
     const buildProductMap = {
       automate: product === 'automate',
       app_automate: product === 'app-automate',
@@ -881,6 +889,6 @@ class TestObservability {
   getTestBody(testCaseData) {
     return testCaseData?.context.__module[testCaseData.testName] || null;
   }
-} 
+}
 
 module.exports = TestObservability;

@@ -14,6 +14,7 @@ const {RERUN_FILE, DEFAULT_WAIT_TIMEOUT_FOR_PENDING_UPLOADS, DEFAULT_WAIT_INTERV
 const requestQueueHandler = require('./requestQueueHandler');
 const Logger = require('./logger');
 const LogPatcher = require('./logPatcher');
+const TEST_MANAGEMENT_TEST_PLAN_ID_ARG = 'browserstack.testManagementOptions.testPlanId';
 const BSTestOpsPatcher = new LogPatcher({});
 const sessions = {};
 const {execSync} = require('child_process');
@@ -72,6 +73,77 @@ exports.getObservabilityUser = (config, bstackOptions={}) => {
 
 exports.getObservabilityKey = (config, bstackOptions={}) => {
   return process.env.BROWSERSTACK_ACCESS_KEY || config?.key || bstackOptions?.accessKey;
+};
+
+const normalizeTestPlanId = (testPlanId) => {
+  if (typeof testPlanId !== 'string') {
+    return undefined;
+  }
+
+  const normalizedTestPlanId = testPlanId.trim();
+
+  return normalizedTestPlanId.length > 0 ? normalizedTestPlanId : undefined;
+};
+
+const readTestPlanIdFromCliArgs = (argv = process.argv) => {
+  const cliFlag = `--${TEST_MANAGEMENT_TEST_PLAN_ID_ARG}`;
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const currentArg = argv[index];
+
+    if (currentArg === cliFlag) {
+      const nextArg = argv[index + 1];
+
+      if (!nextArg || nextArg.startsWith('--')) {
+        return undefined;
+      }
+
+      return nextArg;
+    }
+
+    if (currentArg.startsWith(`${cliFlag}=`)) {
+      return currentArg.slice(cliFlag.length + 1) || undefined;
+    }
+  }
+
+  return undefined;
+};
+
+const readTestPlanIdFromConfig = (bstackOptions = {}) => {
+  const nestedConfigTestPlanId = normalizeTestPlanId(
+    bstackOptions?.testManagementOptions?.testPlanId
+  );
+
+  if (nestedConfigTestPlanId) {
+    return nestedConfigTestPlanId;
+  }
+
+  return normalizeTestPlanId(bstackOptions?.testPlanId);
+};
+
+/**
+ * Resolve the test plan id from supported Nightwatch client-side inputs.
+ *
+ * Priority order is CLI arguments, then environment variables, and finally
+ * BrowserStack config capabilities.
+ *
+ * @param {Record<string, unknown>} [bstackOptions={}] BrowserStack capability options.
+ * @param {string[]} [argv=process.argv] CLI arguments to inspect.
+ * @param {NodeJS.ProcessEnv} [env=process.env] Environment variables to inspect.
+ * @returns {string|undefined} The resolved test plan id, if present.
+ */
+exports.getTestPlanId = (bstackOptions = {}, argv = process.argv, env = process.env) => {
+  const cliTestPlanId = normalizeTestPlanId(readTestPlanIdFromCliArgs(argv));
+  if (cliTestPlanId) {
+    return cliTestPlanId;
+  }
+
+  const envTestPlanId = normalizeTestPlanId(env.BROWSERSTACK_TEST_PLAN_ID);
+  if (envTestPlanId) {
+    return envTestPlanId;
+  }
+
+  return readTestPlanIdFromConfig(bstackOptions);
 };
 
 exports.isAppAutomate = () => {
