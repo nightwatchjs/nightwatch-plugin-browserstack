@@ -109,30 +109,30 @@ const readTestPlanIdFromCliArgs = (argv = process.argv) => {
   return undefined;
 };
 
-const readTestPlanIdFromConfig = (bstackOptions = {}) => {
+const readTestPlanIdFromConfig = (settings = {}) => {
   const nestedConfigTestPlanId = normalizeTestPlanId(
-    bstackOptions?.testManagementOptions?.testPlanId
+    settings?.testManagementOptions?.testPlanId
   );
 
   if (nestedConfigTestPlanId) {
     return nestedConfigTestPlanId;
   }
 
-  return normalizeTestPlanId(bstackOptions?.testPlanId);
+  return normalizeTestPlanId(settings?.testPlanId);
 };
 
 /**
  * Resolve the test plan id from supported Nightwatch client-side inputs.
  *
  * Priority order is CLI arguments, then environment variables, and finally
- * BrowserStack config capabilities.
+ * the @nightwatch/browserstack plugin settings from nightwatch.conf.js.
  *
- * @param {Record<string, unknown>} [bstackOptions={}] BrowserStack capability options.
+ * @param {Record<string, unknown>} [settings={}] Plugin settings block.
  * @param {string[]} [argv=process.argv] CLI arguments to inspect.
  * @param {NodeJS.ProcessEnv} [env=process.env] Environment variables to inspect.
  * @returns {string|undefined} The resolved test plan id, if present.
  */
-exports.getTestPlanId = (bstackOptions = {}, argv = process.argv, env = process.env) => {
+exports.getTestPlanId = (settings = {}, argv = process.argv, env = process.env) => {
   const cliTestPlanId = normalizeTestPlanId(readTestPlanIdFromCliArgs(argv));
   if (cliTestPlanId) {
     return cliTestPlanId;
@@ -143,7 +143,7 @@ exports.getTestPlanId = (bstackOptions = {}, argv = process.argv, env = process.
     return envTestPlanId;
   }
 
-  return readTestPlanIdFromConfig(bstackOptions);
+  return readTestPlanIdFromConfig(settings);
 };
 
 exports.isAppAutomate = () => {
