@@ -94,7 +94,7 @@ class TestObservability {
                    this._parentSettings?.testReportingOptions ||
                    this._parentSettings?.testObservabilityOptions ||
                    {};
-    const testPlanId = helper.getTestPlanId(this._bstackOptions);
+    const testPlanId = helper.getTestPlanId(this._settings);
     const accessibility = helper.isAccessibilityEnabled(this._parentSettings);
     const accessibilityOptions = accessibility ? this._settings.accessibilityOptions || {} : {};
     this._gitMetadata = await helper.getGitMetaData();
