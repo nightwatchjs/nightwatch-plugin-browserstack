@@ -12,6 +12,7 @@ const OrchestrationUtils = require('./testorchestration/orchestrationUtils');
 const AccessibilityAutomation = require('./accessibilityAutomation');
 const accessibilityScripts = require('./scripts/accessibilityScripts');
 const TestMap = require('./utils/testMap');
+const CustomTagManager = require('./utils/customTagManager');
 const hooksMap = {};
 const accessibilityAutomation = new AccessibilityAutomation();
 
@@ -273,6 +274,10 @@ class TestObservability {
     const data = {
       'finished_at': new Date().toISOString()
     };
+    const buildCustomMetadata = CustomTagManager.getBuildLevelCustomMetadata();
+    if (buildCustomMetadata && Object.keys(buildCustomMetadata).length > 0) {
+      data.custom_metadata = buildCustomMetadata;
+    }
     const config = {
       headers: {
         'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
@@ -531,6 +536,15 @@ class TestObservability {
       await this.processTestRunData (eventData, uuid);
     }
 
+    const customMetadata = CustomTagManager.getTestLevelCustomMetadata(uuid);
+    if (customMetadata && Object.keys(customMetadata).length > 0) {
+      testData.custom_metadata = customMetadata;
+    }
+
+    if (eventType === 'TestRunFinished') {
+      CustomTagManager.clearTestLevelCustomMetadata(uuid);
+    }
+
     const uploadData = {
       event_type: eventType,
       test_run: testData
@@ -691,6 +705,15 @@ class TestObservability {
         testData.hooks = hooksList;
         this.updateTestStatus(args, testData);
       }
+    }
+
+    const cucumberCustomMetadata = CustomTagManager.getTestLevelCustomMetadata(uuid);
+    if (cucumberCustomMetadata && Object.keys(cucumberCustomMetadata).length > 0) {
+      testData.custom_metadata = cucumberCustomMetadata;
+    }
+
+    if (eventType === 'TestRunFinished') {
+      CustomTagManager.clearTestLevelCustomMetadata(uuid);
     }
 
     const uploadData = {
