@@ -277,6 +277,14 @@ module.exports = {
       if (testRunner !== 'cucumber'){
         const uuid = TestMap.storeTestDetails(test);
         process.env.TEST_RUN_UUID = uuid;
+        // Capture the live session id at TestRunStarted (when browser.end()
+        // hasn't run yet). TestRunFinished's async handler can race with
+        // afterEach: by the time it executes, browser.sessionId may already
+        // be null. The snapshot guarantees the finish event is tagged with
+        // the session that actually ran the test.
+        if (typeof browser !== 'undefined' && browser.sessionId) {
+          TestMap.setSessionSnapshot(uuid, browser.sessionId, browser.capabilities);
+        }
         testEventPromises.push(testObservability.sendTestRunEvent('TestRunStarted', test, uuid));
       }
     });
@@ -289,6 +297,31 @@ module.exports = {
         return;
       }
       try {
+        // Mark the live BrowserStack session with pass/fail BEFORE the user's
+        // afterEach runs. Nightwatch's built-in transport only marks the LAST
+        // session of a suite via `sendReasonToBrowserstack`, so when a test
+        // calls `browser.end()` in afterEach, all earlier sessions stay
+        // unmarked ("done") on the Automate dashboard. We use the same
+        // browserstack_executor action the user would call manually.
+        if (typeof browser !== 'undefined' && browser.sessionId) {
+          try {
+            const testName = test?.testcase;
+            const eventData = (testName && test?.envelope?.[testName]?.testcase) || null;
+            const failedCommand = eventData?.commands && Array.isArray(eventData.commands)
+              ? eventData.commands.find(cmd => cmd.status === 'fail')
+              : null;
+            const status = failedCommand ? 'failed' : 'passed';
+            let reason = '';
+            if (failedCommand && failedCommand.result) {
+              reason = (failedCommand.result.message || failedCommand.result.stack || 'Test failed').toString().slice(0, 280);
+            }
+            const payload = JSON.stringify({status, reason});
+            await browser.execute(`browserstack_executor: {"action": "setSessionStatus", "arguments": ${payload}}`);
+          } catch (statusErr) {
+            Logger.debug(`Could not set BrowserStack session status: ${statusErr.message || statusErr}`);
+          }
+        }
+
         await accessibilityAutomation.afterEachExecution(test, uuid);
         if (testRunner !== 'cucumber'){
           // Drain pending tags synchronously before the async sendTestRunEvent,
@@ -301,7 +334,7 @@ module.exports = {
           // (test body runs before TestRunStarted assigns the new UUID)
           delete process.env.TEST_RUN_UUID;
         }
-        
+
       } catch (error) {
         Logger.error(`Error in TestRunFinished event: ${error.message}`);
         TestMap.markTestFinished(uuid);

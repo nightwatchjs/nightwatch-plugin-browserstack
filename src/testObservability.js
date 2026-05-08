@@ -169,6 +169,9 @@ class TestObservability {
     } catch (error) {
       if (error.response) {
         Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.response.status} ${error.response.statusText} ${JSON.stringify(error.response.data)}`);
+      } else if (error && typeof error === 'object' && !error.message) {
+        // makeRequest rejects with response.body (a plain object) on non-2xx — surface its contents.
+        Logger.error(`EXCEPTION IN BUILD START EVENT : ${JSON.stringify(error)}`);
       } else {
         Logger.error(`EXCEPTION IN BUILD START EVENT : ${error.message || error}`);
       }
@@ -483,6 +486,23 @@ class TestObservability {
     const testResults = {};
     const testBody = this.getTestBody(test.testCaseData);
     const provider = helper.getCloudProvider(testMetaData.host);
+    // testMetaData.sessionId / sessionCapabilities are populated only once per test
+    // suite (via reporter.setSessionInfo() in startTestSuite()). When tests use
+    // browser.end() in afterEach, every subsequent test runs against a NEW
+    // BrowserStack session whose id is NOT reflected back into the reporter's
+    // metadata. Resolve the right session id with this priority:
+    //   1. Snapshot taken at TestRunStarted (always set, captured before any
+    //      afterEach runs — this is the session the test actually ran in).
+    //   2. Live `browser.sessionId` (correct if the async handler beats
+    //      afterEach's browser.end()).
+    //   3. metadata.sessionId fallback (only correct for the very first test
+    //      in the suite).
+    const snapshot = TestMap.getSessionSnapshot(uuid);
+    const liveSessionId = snapshot?.sessionId
+      || ((typeof browser !== 'undefined' && browser.sessionId) ? browser.sessionId : testMetaData.sessionId);
+    const liveSessionCapabilities = (snapshot?.sessionCapabilities && Object.keys(snapshot.sessionCapabilities).length > 0)
+      ? snapshot.sessionCapabilities
+      : ((typeof browser !== 'undefined' && browser.capabilities && Object.keys(browser.capabilities || {}).length > 0) ? browser.capabilities : testMetaData.sessionCapabilities);
     const testData = {
       uuid: uuid,
       type: 'test',
@@ -504,7 +524,7 @@ class TestObservability {
       result: 'pending',
       framework: 'nightwatch',
       integrations: {
-        [provider]: helper.getIntegrationsObject(testMetaData.sessionCapabilities, testMetaData.sessionId, testMetaData.host, settings?.desiredCapabilities?.['bstack:options']?.osVersion)
+        [provider]: helper.getIntegrationsObject(liveSessionCapabilities, liveSessionId, testMetaData.host, settings?.desiredCapabilities?.['bstack:options']?.osVersion)
       },
       product_map: {
         observability: helper.isTestObservabilitySession(),
