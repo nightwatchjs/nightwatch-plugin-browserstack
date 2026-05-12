@@ -118,6 +118,13 @@ describe('TestObservability - sendTestRunEvent (suppressNotFoundErrors)', functi
 
     assert.strictEqual(this.uploaded.test_run.result, 'failed');
     assert.strictEqual(this.uploaded.test_run.failure_type, 'AssertionError');
+    // Lock the wire-shape that the original bug malformed (failure_reason:null,
+    // backtrace:["",""]). The patch must propagate the real failure detail.
+    assert.strictEqual(this.uploaded.test_run.failure_reason, 'Expected title to contain "Google"');
+    assert.deepStrictEqual(
+      this.uploaded.test_run.failure[0].backtrace,
+      ['Expected title to contain "Google"', 'AssertionError']
+    );
   });
 
   it('still marks the test failed when a non-suppressed command failed alongside a suppressed one', async () => {
@@ -145,7 +152,13 @@ describe('TestObservability - sendTestRunEvent (suppressNotFoundErrors)', functi
     );
 
     assert.strictEqual(this.uploaded.test_run.result, 'failed');
-    // failedCommand must skip the suppressed one and pick the real one.
+    // failedCommand must skip the suppressed one and pick the real one — confirm
+    // by asserting the failure_reason references the mandatory selector, not the
+    // suppressed optional one.
     assert.strictEqual(this.uploaded.test_run.failure_type, 'UnhandledError');
+    assert.ok(
+      this.uploaded.test_run.failure_reason.includes('#mandatory'),
+      `expected failure_reason to reference the real failure, got: ${this.uploaded.test_run.failure_reason}`
+    );
   });
 });
