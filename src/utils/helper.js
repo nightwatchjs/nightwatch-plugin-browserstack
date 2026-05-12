@@ -62,6 +62,21 @@ exports.isUndefined = value => (value === undefined || value === null);
 
 exports.isObject = value => (!this.isUndefined(value) && value.constructor === Object);
 
+// A Nightwatch command is recorded with status:'fail' even when the caller
+// explicitly opted into "not found is fine" via `suppressNotFoundErrors:true`.
+// Those commands carry no failure semantics for the test and must not flip
+// test/session status. `args[0]` is the command options object — Nightwatch
+// serializes it to a JSON string in some reporter paths, so accept both shapes.
+exports.isSuppressedFailure = (cmd) => {
+  if (!cmd || cmd.status !== 'fail' || !Array.isArray(cmd.args) || cmd.args.length === 0) {return false}
+  const first = cmd.args[0];
+  let opts = first;
+  if (typeof first === 'string') {
+    try {opts = JSON.parse(first)} catch (e) {return false}
+  }
+  return !!(opts && typeof opts === 'object' && opts.suppressNotFoundErrors === true);
+};
+
 exports.isTestObservabilitySession = () => {
   return process.env.BROWSERSTACK_TEST_OBSERVABILITY === 'true' || 
          process.env.BROWSERSTACK_TEST_REPORTING === 'true';
