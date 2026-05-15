@@ -537,8 +537,12 @@ class TestObservability {
       testData.finished_at = eventData.endTimestamp ? new Date(eventData.endTimestamp).toISOString() : new Date(startTimestamp).toISOString();
       testData.result = 'passed';
       if (eventData && eventData.commands && Array.isArray(eventData.commands)) {
-        const failedCommand = eventData.commands.find(cmd => cmd.status === 'fail');
-        if (failedCommand) {
+        const failedCommand = eventData.commands.find(cmd => cmd.status === 'fail' && !helper.isSuppressedFailure(cmd));
+        // Envelope-level rollup: when Nightwatch itself reports the testcase
+        // as passed (no failed assertions / errors), trust the rollup over a
+        // stray command-level fail status that did not propagate.
+        const envelopePassed = (eventData.status === 'pass') && ((eventData.failed || 0) === 0) && ((eventData.errors || 0) === 0);
+        if (failedCommand && !envelopePassed) {
           testData.result = 'failed';
           if (failedCommand.result) {
             testData.failure = [

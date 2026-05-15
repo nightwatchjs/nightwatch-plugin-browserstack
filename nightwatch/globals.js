@@ -307,12 +307,22 @@ module.exports = {
           try {
             const testName = test?.testcase;
             const eventData = (testName && test?.envelope?.[testName]?.testcase) || null;
+            // Skip commands the caller opted out of via suppressNotFoundErrors:true
+            // and trust Nightwatch's envelope-level rollup over a stray command-level
+            // fail status. Same defect shape as testObservability.js sendTestRunEvent.
+            // When eventData itself is missing (session aborted before TestRunStarted
+            // populated the envelope), failedCommand stays null and status defaults
+            // to 'passed' — matches the pre-fix behaviour for that edge case.
             const failedCommand = eventData?.commands && Array.isArray(eventData.commands)
-              ? eventData.commands.find(cmd => cmd.status === 'fail')
+              ? eventData.commands.find(cmd => cmd.status === 'fail' && !helper.isSuppressedFailure(cmd))
               : null;
-            const status = failedCommand ? 'failed' : 'passed';
+            const envelopePassed = !!eventData
+              && (eventData.status === 'pass')
+              && ((eventData.failed || 0) === 0)
+              && ((eventData.errors || 0) === 0);
+            const status = (failedCommand && !envelopePassed) ? 'failed' : 'passed';
             let reason = '';
-            if (failedCommand && failedCommand.result) {
+            if (status === 'failed' && failedCommand && failedCommand.result) {
               reason = (failedCommand.result.message || failedCommand.result.stack || 'Test failed').toString().slice(0, 280);
             }
             const payload = JSON.stringify({status, reason});

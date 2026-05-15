@@ -353,3 +353,69 @@ describe('isBrowserstackInfra', () => {
   });
 
 });
+
+describe('isSuppressedFailure', () => {
+  // Shared primitive used by both src/testObservability.js (sendTestRunEvent)
+  // and nightwatch/globals.js (setSessionStatus). Covers both call sites by
+  // reference — any regression here breaks both surfaces equivalently.
+  let isSuppressedFailure;
+  before(() => {
+    isSuppressedFailure = require('../../../src/utils/helper').isSuppressedFailure;
+  });
+
+  it('returns false for null / undefined commands', () => {
+    expect(isSuppressedFailure(null)).to.be.false;
+    expect(isSuppressedFailure(undefined)).to.be.false;
+  });
+
+  it('returns false for commands that did not fail', () => {
+    expect(isSuppressedFailure({status: 'pass', args: [{suppressNotFoundErrors: true}]})).to.be.false;
+  });
+
+  it('returns false when args is missing or empty', () => {
+    expect(isSuppressedFailure({status: 'fail'})).to.be.false;
+    expect(isSuppressedFailure({status: 'fail', args: []})).to.be.false;
+  });
+
+  it('returns false when args is not an array', () => {
+    expect(isSuppressedFailure({status: 'fail', args: {suppressNotFoundErrors: true}})).to.be.false;
+    expect(isSuppressedFailure({status: 'fail', args: 'not-an-array'})).to.be.false;
+  });
+
+  it('returns false when args[0] is a primitive', () => {
+    expect(isSuppressedFailure({status: 'fail', args: [null]})).to.be.false;
+    expect(isSuppressedFailure({status: 'fail', args: [42]})).to.be.false;
+    expect(isSuppressedFailure({status: 'fail', args: [true]})).to.be.false;
+  });
+
+  it('returns true when args[0] is an object with suppressNotFoundErrors:true', () => {
+    expect(isSuppressedFailure({
+      status: 'fail',
+      args: [{selector: '#x', suppressNotFoundErrors: true, timeout: 2000}, null]
+    })).to.be.true;
+  });
+
+  it('returns true when args[0] is a JSON string carrying suppressNotFoundErrors:true', () => {
+    expect(isSuppressedFailure({
+      status: 'fail',
+      args: ['{"selector":"#x","suppressNotFoundErrors":true,"timeout":2000}', null]
+    })).to.be.true;
+  });
+
+  it('returns false when args[0] is a malformed JSON string (safe default)', () => {
+    // Unparseable strings default to "not suppressed" — i.e., the test stays
+    // failed. That's the safer direction, matches the rest of the guard's
+    // bias to under-suppress rather than over-suppress.
+    expect(isSuppressedFailure({status: 'fail', args: ['{this is not json']})).to.be.false;
+  });
+
+  it('returns false when args[0] is an object without suppressNotFoundErrors', () => {
+    expect(isSuppressedFailure({status: 'fail', args: [{selector: '#x', timeout: 2000}]})).to.be.false;
+  });
+
+  it('returns false when suppressNotFoundErrors is falsy', () => {
+    expect(isSuppressedFailure({status: 'fail', args: [{suppressNotFoundErrors: false}]})).to.be.false;
+    expect(isSuppressedFailure({status: 'fail', args: [{suppressNotFoundErrors: 'true'}]})).to.be.false;
+  });
+
+});
