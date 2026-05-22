@@ -42,6 +42,26 @@ exports.debug = (text) => {
   }
 };
 
+// Load Testing Service (LTS) gating helpers — mirror of bstack_utils/helper.py
+// is_load_testing_session() / get_lts_session_id() in browserstack-python-sdk
+// (branch LTS-tra-python-support). LTS pod-iterations export
+// BROWSERSTACK_LTS_SESSION_ID before invoking the test runner; presence of
+// that env var is the single source of truth for "this run is an LTS pod
+// iteration". Optional BROWSERSTACK_LTS=true|1 lets the runner opt-in
+// without supplying a session id (useful for local repro).
+exports.isLoadTestingSession = () => {
+  if (process.env.BROWSERSTACK_LTS_SESSION_ID) {
+    return true;
+  }
+  const flag = process.env.BROWSERSTACK_LTS;
+
+  return flag === 'true' || flag === '1';
+};
+
+exports.getLtsSessionId = () => {
+  return process.env.BROWSERSTACK_LTS_SESSION_ID || '';
+};
+
 exports.generateLocalIdentifier = () => {
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
     month: 'short',
@@ -742,6 +762,17 @@ exports.getUserName = (settings, nwConfig) => {
 };
 
 exports.getCloudProvider = (hostname) => {
+  // LTS BLU runner pods route through a local Selenium hub (localhost:4444)
+  // so the hostname check below resolves to 'unknown_grid' — TestHub's o11y
+  // classifier then lands the row with origin=UnknownGrid and
+  // session_hashed_id=NULL even though build.source contains LTS. Force
+  // 'browserstack' under LTS so events flow through the
+  // integrations.browserstack.* path. Mirror of py-sdk 3af3bba6
+  // (LTS pytest: override AutomationSession.provider to 'browserstack'
+  // so TestHub records origin=LoadTesting).
+  if (this.isLoadTestingSession()) {
+    return 'browserstack';
+  }
   if (hostname && hostname.includes('browserstack')) {
     return 'browserstack';
   }
@@ -768,14 +799,23 @@ exports.getObservabilityLinkedProductName = (caps, hostname) => {
 };
 
 exports.getIntegrationsObject = (capabilities, sessionId, hostname, platform_version) => {
+  // LTS: override session_id with the pod-iteration LTS env id and force
+  // product='loadTesting' so TestHub o11y classifier resolves
+  // test_run.origin=LoadTesting. Mirrors py-sdk 0efca1ae (session_id
+  // override at event-emission layer) + a245a814 (product=loadTesting
+  // tag on AutomationSession). Non-LTS Nightwatch runs see zero
+  // behavior change.
+  const ltsActive = this.isLoadTestingSession();
+  const ltsSessionId = ltsActive ? this.getLtsSessionId() : '';
+
   return {
     capabilities: capabilities,
-    session_id: sessionId,
+    session_id: (ltsActive && ltsSessionId) ? ltsSessionId : sessionId,
     browser: capabilities.browserName,
     browser_version: capabilities.browserVersion,
     platform: capabilities.platformName,
     platform_version: capabilities.platformVersion || platform_version,
-    product: this.getObservabilityLinkedProductName(capabilities, hostname)
+    product: ltsActive ? 'loadTesting' : this.getObservabilityLinkedProductName(capabilities, hostname)
   };
 };
 

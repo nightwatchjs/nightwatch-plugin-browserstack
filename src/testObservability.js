@@ -897,14 +897,21 @@ class TestObservability {
 
   getProductMapForBuildStartCall(settings) {
     const product = helper.getObservabilityLinkedProductName(settings.desiredCapabilities, settings?.selenium?.host);
+    // LTS runs explicitly disable Automate (browserstackAutomation: false)
+    // and route to the LTS internal hub instead of the Automate cloud hub.
+    // Keeping automate=true here causes builds to land in TestHub with
+    // source=TO,AUT,LTS instead of the expected TO,LTS that production
+    // (binary-CLI-managed) LTS builds carry. Mirror of py-sdk ea53d914.
+    const lts = helper.isLoadTestingSession();
 
     const buildProductMap = {
-      automate: product === 'automate',
+      automate: lts ? false : product === 'automate',
       app_automate: product === 'app-automate',
       observability: helper.isTestObservabilitySession(),
       accessibility: helper.isAccessibilityEnabled(settings),
       turboscale: product === 'turboscale',
-      percy: false
+      percy: false,
+      lts
     };
 
     return buildProductMap;
