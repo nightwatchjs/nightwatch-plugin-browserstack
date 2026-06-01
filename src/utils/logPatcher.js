@@ -4,6 +4,7 @@ const CrashReporter = require('./crashReporter');
 const TestObservability = require('../testObservability');
 const helper = require('./helper');
 const eventHelper = require('./eventHelper');
+const logSequence = require('./logSequence');
 const testObservability = new TestObservability();
 
 let testLogs = [];
@@ -44,6 +45,7 @@ class LogPatcher extends Transport {
       const pid = process.pid;
       const loggingData = {
         timestamp: new Date().toISOString(),
+        sequence: logSequence.next(),
         level: level.toUpperCase(),
         message: `"${message.join(', ')}"`,
         kind: 'TEST_LOG',

@@ -13,6 +13,7 @@ const AccessibilityAutomation = require('./accessibilityAutomation');
 const accessibilityScripts = require('./scripts/accessibilityScripts');
 const TestMap = require('./utils/testMap');
 const CustomTagManager = require('./utils/customTagManager');
+const logSequence = require('./utils/logSequence');
 const hooksMap = {};
 const accessibilityAutomation = new AccessibilityAutomation();
 
@@ -446,6 +447,7 @@ class TestObservability {
           test_run_uuid: testUuid,
           kind: 'TEST_SCREENSHOT',
           timestamp: new Date(timestamp).toISOString(),
+          sequence: logSequence.next(),
           message: screenshot
         }
       ]
@@ -460,7 +462,8 @@ class TestObservability {
         logs: [
           {
             test_run_uuid: test_run_uuid,
-            timestamp: httpResponse[0],
+            timestamp: httpRequest[0],
+            sequence: logSequence.next(),
             kind: 'HTTP',
             http_response: {
               path: stripAnsi(httpRequest[1] || '').replace(/&#39;/g, '\'').trim().split(' ')[2],
