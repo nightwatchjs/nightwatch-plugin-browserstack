@@ -28,8 +28,9 @@ let testEventPromises = [];
 
 eventHelper.eventEmitter.on(EVENTS.LOG_INIT, (loggingData) => {
   const testCaseStartedId = loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-  const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-  currentTestUUID = _tests[testCaseId]?.uuid;
+  // _tests is keyed by the unique per-attempt testCaseStartedId so reruns and
+  // retries of the same scenario do not clobber each other's uuid.
+  currentTestUUID = _tests[testCaseStartedId]?.uuid;
 });
 
 eventHelper.eventEmitter.on(EVENTS.LOG, (loggingData) => {
@@ -115,8 +116,7 @@ module.exports = {
             }
             if (data.eventType === EVENTS.LOG_INIT) {
               const testCaseStartedId = data.loggingData.message.replace('TEST-OBSERVABILITY-PID-TESTCASE-MAPPING-', '').slice(1, -1);
-              const testCaseId = _testCasesData[testCaseStartedId]?.testCaseId;
-              const uuid = _tests[testCaseId]?.uuid;
+              const uuid = _tests[testCaseStartedId]?.uuid;
               await worker.process.send({testCaseStartedId, uuid});
             }
           });
@@ -139,7 +139,10 @@ module.exports = {
             description: featureData.description
           };
         }
-        _tests[testCaseId] = testMetaData;
+        // Key by the unique per-attempt id (envelope.id === testCaseStartedId)
+        // instead of the non-unique testCaseId, so a rerun/retry/parallel second
+        // attempt of the same scenario does not overwrite the first one's entry.
+        _tests[args.envelope.id] = testMetaData;
         await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunStarted', testMetaData, args);
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -153,18 +156,33 @@ module.exports = {
       }
       try {
         const reportData = args.report;
-        const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+        const uniqueId = args.envelope.testCaseStartedId;
+        const testCaseId = _testCasesData[uniqueId].testCaseId;
 
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
-        const testMetaData = _tests[testCaseId];
-        if (testMetaData) {
-          delete _tests[testCaseId];
-          testMetaData.finishedAt = new Date().toISOString();
-          CustomTagManager.drainPendingTestTags(testMetaData.uuid);
-          await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
+        // Look up by the unique per-attempt id. If the entry is missing (a duplicate
+        // or out-of-order finish, or a start that was never recorded) reconstruct a
+        // minimal payload so a terminal finish is still emitted and the run can never
+        // be left open to be flipped to a timeout by the reaper.
+        let testMetaData = _tests[uniqueId];
+        if (!testMetaData) {
+          testMetaData = {
+            uuid: uuidv4(),
+            startedAt: new Date().toISOString(),
+            scenario: {name: pickleData?.name},
+            feature: (gherkinDocument && gherkinDocument.feature) ? {
+              path: gherkinDocument.uri,
+              name: gherkinDocument.feature.name,
+              description: gherkinDocument.feature.description
+            } : undefined
+          };
         }
+        delete _tests[uniqueId];
+        testMetaData.finishedAt = new Date().toISOString();
+        CustomTagManager.drainPendingTestTags(testMetaData.uuid);
+        await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
         Logger.error(`Something went wrong in processing report file for test reporting and analytics - ${error.message} with stacktrace ${error.stack}`);
@@ -177,17 +195,18 @@ module.exports = {
       }
       try {
         const reportData = args.report;
-        const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+        const uniqueId = args.envelope.testCaseStartedId;
+        const testCaseId = _testCasesData[uniqueId].testCaseId;
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepStarted[args.envelope.testCaseStartedId].testStepId;
-        await testObservability.sendHook(args, 'HookRunStarted', testSteps, testStepId, _tests[testCaseId]);
+        await testObservability.sendHook(args, 'HookRunStarted', testSteps, testStepId, _tests[uniqueId]);
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
-        if (pickleStepId && _tests[testCaseId]?.['testStepId'] !== testStepId) {
-          _tests[testCaseId]['testStepId'] = testStepId;
+        if (pickleStepId && _tests[uniqueId]?.['testStepId'] !== testStepId) {
+          _tests[uniqueId]['testStepId'] = testStepId;
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
-          const testMetaData = _tests[testCaseId] || {steps: []};
+          const testMetaData = _tests[uniqueId] || {steps: []};
           if (testMetaData && !testMetaData.steps) {
             testMetaData.steps = [];
           }
@@ -196,7 +215,7 @@ module.exports = {
             text: pickleStepData.text,
             started_at: new Date().toISOString()
           });
-          _tests[testCaseId] = testMetaData;
+          _tests[uniqueId] = testMetaData;
         }
       } catch (error) {
         CrashReporter.uploadCrashReport(error.message, error.stack);
@@ -211,13 +230,14 @@ module.exports = {
       try {
         const reportData = args.report;
         helper.storeSessionsData(args);
-        const testCaseId = _testCasesData[args.envelope.testCaseStartedId].testCaseId;
+        const uniqueId = args.envelope.testCaseStartedId;
+        const testCaseId = _testCasesData[uniqueId].testCaseId;
         const testStepFinished = reportData.testStepFinished[args.envelope.testCaseStartedId];
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const testSteps = reportData.testCases.find((testCase) => testCase.id === testCaseId).testSteps;
         const testStepId = reportData.testStepFinished[args.envelope.testCaseStartedId].testStepId;
-        await testObservability.sendHook(args, 'HookRunFinished', testSteps, testStepId, _tests[testCaseId]);
+        await testObservability.sendHook(args, 'HookRunFinished', testSteps, testStepId, _tests[uniqueId]);
         const pickleStepId = testSteps.find((testStep) => testStep.id === testStepId).pickleStepId;
         let failure;
         let failureType;
@@ -226,9 +246,9 @@ module.exports = {
           failureType = (testStepFinished.testStepResult?.exception === undefined) ? 'UnhandledError' : testStepFinished.testStepResult?.message;
         }
 
-        if (pickleStepId && _tests[testCaseId]['testStepId']) {
+        if (pickleStepId && _tests[uniqueId]['testStepId']) {
           const pickleStepData = pickleData.steps.find((pickle) => pickle.id === pickleStepId);
-          const testMetaData = _tests[testCaseId] || {steps: []};
+          const testMetaData = _tests[uniqueId] || {steps: []};
           if (!testMetaData.steps) {
             testMetaData.steps = [{
               id: pickleStepData.id,
@@ -250,8 +270,8 @@ module.exports = {
               }
             });
           }
-          _tests[testCaseId] = testMetaData;
-          delete _tests[testCaseId]['testStepId'];
+          _tests[uniqueId] = testMetaData;
+          delete _tests[uniqueId]['testStepId'];
           if (testStepFinished.httpOutput && testStepFinished.httpOutput.length > 0) {
             for (const [index, output] of testStepFinished.httpOutput.entries()) {
               if (index % 2 === 0) {
@@ -561,6 +581,10 @@ module.exports = {
           Logger.debug(`Error aggregating build-level tags from workers: ${err}`);
         }
 
+        // Sweep any still-open scenarios/hooks/native runs to terminal finishes
+        // BEFORE the queue is drained and the build is stopped, so they flush in
+        // this run instead of being left open for the reaper to time out.
+        await performTeardownSweep();
         await testObservability.stopBuildUpstream();
         if (process.env.BROWSERSTACK_TESTHUB_UUID) {
           Logger.info(`\nVisit https://automation.browserstack.com/builds/${process.env.BROWSERSTACK_TESTHUB_UUID} to view build report, insights, and many more debugging information all at one place!\n`);
@@ -659,6 +683,9 @@ module.exports = {
       Logger.debug(`Error sending build-level tags from worker: ${err}`);
     }
 
+    // Sweep still-open entities to terminal finishes before the worker drains
+    // its request queue, so synthetic finishes are flushed for this worker.
+    await performTeardownSweep();
     await helper.shutDownRequestHandler();
     if (testEventPromises.length > 0) {
       await Promise.all(testEventPromises);
@@ -666,6 +693,47 @@ module.exports = {
     }
   }
 };
+
+const performTeardownSweep = async () => {
+  try {
+    // Cucumber: a scenario still present in _tests never received its
+    // TestCaseFinished. Emit a terminal finish, then drop the entry (idempotent).
+    for (const uniqueId of Object.keys(_tests)) {
+      const testMetaData = _tests[uniqueId];
+      delete _tests[uniqueId];
+      try {
+        await testObservability.sendSyntheticTestRunFinishedForCucumber(testMetaData);
+      } catch (err) {
+        Logger.debug(`Error sweeping open scenario ${uniqueId}: ${err && err.message}`);
+      }
+    }
+
+    // Cucumber: hooks that started but never finished.
+    try {
+      await testObservability.sweepOpenHooks();
+    } catch (err) {
+      Logger.debug(`Error sweeping open hooks: ${err && err.message}`);
+    }
+
+    // Native: test runs still marked unfinished in the TestMap.
+    try {
+      const openRuns = TestMap.getOpenRuns();
+      for (const run of openRuns) {
+        try {
+          await testObservability.sendSyntheticTestRunFinished(run.uuid, run);
+        } catch (err) {
+          Logger.debug(`Error sweeping open run ${run.uuid}: ${err && err.message}`);
+        }
+        TestMap.markTestFinished(run.uuid);
+      }
+    } catch (err) {
+      Logger.debug(`Error sweeping open native runs: ${err && err.message}`);
+    }
+  } catch (error) {
+    CrashReporter.uploadCrashReport(error.message, error.stack);
+  }
+};
+module.exports.performTeardownSweep = performTeardownSweep;
 
 const cucumberPatcher = () => {
   try {

@@ -68,11 +68,35 @@ class TestMap {
     if (test) {
       const testIdentifier = typeof test === 'string' ? test : this.generateTestIdentifier(test);
       const testData = sharedTestMap.get(testIdentifier);
-
-      return testData ? testData.currentUuid : null;
+      if (testData) {
+        return testData.currentUuid;
+      }
     }
     
-    return null;
+    // Fall back to the most recently started run that has not finished yet, so a
+    // finish event whose identifier cannot be resolved still lands on an open run
+    // instead of being dropped (which would otherwise leave that run to be reaped).
+    let fallbackUuid = null;
+    for (const [uuid, run] of activeTestRuns) {
+      if (!run.hasFinished) {
+        fallbackUuid = uuid;
+      }
+    }
+
+    return fallbackUuid;
+  }
+
+  // Returns every run that started but was never marked finished, joined with its
+  // stored metadata, so the teardown sweep can emit a terminal finish for each.
+  static getOpenRuns() {
+    const openRuns = [];
+    for (const [uuid, run] of activeTestRuns) {
+      if (!run.hasFinished) {
+        openRuns.push({uuid, ...run});
+      }
+    }
+
+    return openRuns;
   }
 
   static markTestFinished(uuid) {
