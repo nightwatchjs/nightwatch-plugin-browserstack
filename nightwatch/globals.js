@@ -21,6 +21,11 @@ const nightwatchRerun = process.env.NIGHTWATCH_RERUN_FAILED;
 const nightwatchRerunFile = process.env.NIGHTWATCH_RERUN_REPORT_FILE;
 const _tests = {};
 const _testCasesData = {};
+// Per-attempt testCaseStartedId of every TestCaseFinished already handled, so a
+// duplicate/out-of-order finish for the same attempt is a no-op instead of
+// re-emitting a phantom TestRunFinished. Bounded by attempt count per worker
+// process (same bound as _testCasesData), so it cannot grow unbounded.
+const _finishedTestCaseIds = new Set();
 let currentTestUUID = '';
 let workerList = {};
 let testRunner = '';
@@ -157,29 +162,29 @@ module.exports = {
       try {
         const reportData = args.report;
         const uniqueId = args.envelope.testCaseStartedId;
-        const testCaseId = _testCasesData[uniqueId].testCaseId;
+        // A duplicate/out-of-order finish for an attempt we have already finished
+        // is a no-op: re-emitting would mint a phantom TestRunFinished for a run the
+        // backend never saw started.
+        if (_finishedTestCaseIds.has(uniqueId)) {
+          return;
+        }
+        const testCaseId = _testCasesData[uniqueId]?.testCaseId;
+        const testMetaData = _tests[uniqueId];
+        // A finish whose start was never recorded has no stored metadata to finish
+        // and no real backend run to terminate; no-op here. The teardown sweep is the
+        // single owner of true orphans (it holds the real stored uuid for any entry
+        // that started but never finished).
+        if (!testCaseId || !testMetaData) {
+          _finishedTestCaseIds.add(uniqueId);
+
+          return;
+        }
 
         const pickleId = reportData.testCases.find((testCase) => testCase.id === testCaseId).pickleId;
         const pickleData = reportData.pickle.find((pickle) => pickle.id === pickleId);
         const gherkinDocument = reportData?.gherkinDocument.find((document) => document.uri === pickleData.uri);
-        // Look up by the unique per-attempt id. If the entry is missing (a duplicate
-        // or out-of-order finish, or a start that was never recorded) reconstruct a
-        // minimal payload so a terminal finish is still emitted and the run can never
-        // be left open to be flipped to a timeout by the reaper.
-        let testMetaData = _tests[uniqueId];
-        if (!testMetaData) {
-          testMetaData = {
-            uuid: uuidv4(),
-            startedAt: new Date().toISOString(),
-            scenario: {name: pickleData?.name},
-            feature: (gherkinDocument && gherkinDocument.feature) ? {
-              path: gherkinDocument.uri,
-              name: gherkinDocument.feature.name,
-              description: gherkinDocument.feature.description
-            } : undefined
-          };
-        }
         delete _tests[uniqueId];
+        _finishedTestCaseIds.add(uniqueId);
         testMetaData.finishedAt = new Date().toISOString();
         CustomTagManager.drainPendingTestTags(testMetaData.uuid);
         await testObservability.sendTestRunEventForCucumber(reportData, gherkinDocument, pickleData, 'TestRunFinished', testMetaData, args);
@@ -733,6 +738,9 @@ const performTeardownSweep = async () => {
     CrashReporter.uploadCrashReport(error.message, error.stack);
   }
 };
+// Attached as a named export (rather than folded into the module.exports object
+// literal above) so unit tests can drive the sweep directly without relocating the
+// const, which is referenced by the teardown closures earlier in the literal.
 module.exports.performTeardownSweep = performTeardownSweep;
 
 const cucumberPatcher = () => {

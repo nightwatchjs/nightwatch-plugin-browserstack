@@ -941,7 +941,7 @@ class TestObservability {
       type: 'test',
       name: testName || 'unknown',
       body: {
-        lang: 'javascript',
+        lang: 'nightwatch',
         code: null
       },
       scope: identifier,
@@ -967,9 +967,13 @@ class TestObservability {
         if (hookEventData.finished_at) {
           continue;
         }
-        hookEventData.result = 'failed';
-        hookEventData.finished_at = new Date().toISOString();
-        await helper.uploadEventData({event_type: 'HookRunFinished', hook_run: hookEventData});
+        try {
+          hookEventData.result = 'failed';
+          hookEventData.finished_at = new Date().toISOString();
+          await helper.uploadEventData({event_type: 'HookRunFinished', hook_run: hookEventData});
+        } catch (err) {
+          Logger.debug(`Error sweeping open hook ${hookEventData.uuid}: ${err && err.message}`);
+        }
       }
     }
   }

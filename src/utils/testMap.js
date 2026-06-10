@@ -76,6 +76,11 @@ class TestMap {
     // Fall back to the most recently started run that has not finished yet, so a
     // finish event whose identifier cannot be resolved still lands on an open run
     // instead of being dropped (which would otherwise leave that run to be reaped).
+    // Assumes a single open run per worker process: Nightwatch parallelism is across
+    // processes (each gets its own TestMap), and within a process tests run serially,
+    // so at most one run is open at a time. If in-process parallel tests are ever
+    // added, this "most recent open run" pick would need a real identifier match to
+    // avoid bleeding a finish onto the wrong concurrent run.
     let fallbackUuid = null;
     for (const [uuid, run] of activeTestRuns) {
       if (!run.hasFinished) {

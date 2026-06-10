@@ -91,6 +91,50 @@ describe('globals - cucumber rerun correlation and teardown sweep', function () 
     assert.deepStrictEqual(finishUuids, startUuids, 'both started uuids are finished');
   });
 
+  it('a duplicate TestCaseFinished for the same attempt emits exactly one TestRunFinished and no phantom uuid', async function () {
+    const globals = loadGlobals();
+    const broadcaster = makeBroadcaster();
+    globals.registerEventHandlers(broadcaster);
+    const report = buildReport();
+
+    await broadcaster.handlers['TestCaseStarted']({envelope: {id: 'tcs-1', testCaseId: 'tc-1'}, report});
+    const startCall = cucumberCalls.find((c) => c.eventType === 'TestRunStarted');
+    const startedUuid = startCall.uuid;
+
+    await broadcaster.handlers['TestCaseFinished']({envelope: {testCaseStartedId: 'tcs-1'}, report});
+    // Second finish for the SAME attempt: the entry is already gone, so the old
+    // reconstruct branch would have minted a fresh uuid and emitted a phantom
+    // TestRunFinished. It must now be a clean no-op.
+    await broadcaster.handlers['TestCaseFinished']({envelope: {testCaseStartedId: 'tcs-1'}, report});
+
+    const finished = cucumberCalls.filter((c) => c.eventType === 'TestRunFinished');
+    assert.strictEqual(finished.length, 1, 'only one TestRunFinished for the attempt');
+    assert.strictEqual(finished[0].uuid, startedUuid, 'finish carries the started uuid, not a fresh phantom one');
+  });
+
+  it('a TestCaseFinished whose start was never recorded neither throws nor emits, and the sweep still finishes a stored-but-unfinished entry', async function () {
+    const globals = loadGlobals();
+    const broadcaster = makeBroadcaster();
+    globals.registerEventHandlers(broadcaster);
+    const report = buildReport();
+
+    // No TestCaseStarted for tcs-1: a finish arrives for an attempt we never saw start.
+    await broadcaster.handlers['TestCaseFinished']({envelope: {testCaseStartedId: 'tcs-1'}, report});
+
+    const finished = cucumberCalls.filter((c) => c.eventType === 'TestRunFinished');
+    assert.strictEqual(finished.length, 0, 'an unknown finish emits nothing (no phantom run)');
+    assert.strictEqual(uploads.length, 0, 'and uploads nothing');
+
+    // A genuine orphan (started, never finished) is still owned by the sweep, which
+    // holds the real stored uuid.
+    await broadcaster.handlers['TestCaseStarted']({envelope: {id: 'tcs-2', testCaseId: 'tc-1'}, report});
+    const openUuid = cucumberCalls.find((c) => c.eventType === 'TestRunStarted').uuid;
+
+    await globals.performTeardownSweep();
+    const swept = uploads.filter((u) => u.event_type === 'TestRunFinished' && u.test_run && u.test_run.uuid === openUuid);
+    assert.strictEqual(swept.length, 1, 'the sweep finishes the stored-but-unfinished entry with its real uuid');
+  });
+
   it('sweep emits a terminal failed TestRunFinished for a scenario left open in _tests, idempotently', async function () {
     const globals = loadGlobals();
     const broadcaster = makeBroadcaster();
