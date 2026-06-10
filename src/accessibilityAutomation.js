@@ -475,8 +475,15 @@ class AccessibilityAutomation {
   }
 
   shouldPatchExecuteScript(script) {
-    if (!script || typeof script !== 'string') {
+    if (!script) {
       return true;
+    }
+
+    // A non-string script (a function passed to .execute()/.executeAsyncScript())
+    // is always a user script — the plugin's own scan scripts are always strings
+    // carrying the browserstack_executor token. Scan it.
+    if (typeof script !== 'string') {
+      return false;
     }
 
     return (
