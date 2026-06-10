@@ -437,9 +437,26 @@ class AccessibilityAutomation {
           try {
             const webElementCommandPath = path.join(nightwatchDir, `${commandJson[commandKey].path}`, `${commandName}.js`);
             const originalCommand = require(webElementCommandPath);
-            const originalCommandFn = originalCommand.command;
 
-            originalCommand.command = async function(...args) {
+            // Nightwatch commands are exported in two shapes: web-element commands
+            // export a plain object with an own `command` function, while client-commands,
+            // protocol and document commands (e.g. executeScript) export a class with
+            // `command` on the prototype. Patch wherever the command function actually lives.
+            const commandTarget = typeof originalCommand.command === 'function'
+              ? originalCommand
+              : (originalCommand.prototype && typeof originalCommand.prototype.command === 'function'
+                ? originalCommand.prototype
+                : null);
+
+            if (!commandTarget) {
+              Logger.debug(`Failed to patch command ${commandName}: no command function found`);
+
+              return;
+            }
+
+            const originalCommandFn = commandTarget.command;
+
+            commandTarget.command = async function(...args) {
               if (
                 !commandName.includes('execute') ||
                 !accessibilityInstance.shouldPatchExecuteScript(args.length ? args[0] : null)
