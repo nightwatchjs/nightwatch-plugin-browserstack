@@ -871,15 +871,109 @@ class TestObservability {
     };
   }
 
-  // BEFORE_ALL and AFTER_ALL are not implemented for TO
+  // Classify the cucumber hook so an emitted hook never carries a null hook_type.
+  // A hook found alongside scenario steps is a per-scenario hook (BEFORE_EACH /
+  // AFTER_EACH depending on whether any scenario step preceded it). A hook not
+  // found among the scenario steps is a suite-level hook, classified as
+  // BEFORE_ALL / AFTER_ALL by the same step-seen heuristic.
   getCucumberHookType(testSteps, hookData) {
     let isStep = false;
-    for (const step of testSteps) {
+    for (const step of testSteps || []) {
       if (step.pickleStepId) {
         isStep = true;
       }
-      if (hookData.id === step.id) {
+      if (hookData && hookData.id === step.id) {
         return (isStep) ? 'AFTER_EACH' : 'BEFORE_EACH';
+      }
+    }
+
+    return isStep ? 'AFTER_ALL' : 'BEFORE_ALL';
+  }
+
+  // Emit a terminal TestRunFinished for a cucumber scenario left open at teardown.
+  // Builds a minimal payload from the stored metadata and marks it failed so the
+  // backend treats the run as terminal and clears the running state.
+  async sendSyntheticTestRunFinishedForCucumber(testMetaData) {
+    const {feature, scenario, steps, uuid, startedAt} = testMetaData || {};
+    if (!uuid) {
+      return;
+    }
+    const featurePath = feature && feature.path;
+    const testData = {
+      uuid: uuid,
+      started_at: startedAt,
+      finished_at: new Date().toISOString(),
+      type: 'test',
+      body: {
+        lang: 'nightwatch',
+        code: null
+      },
+      name: scenario && scenario.name,
+      scope: scenario && scenario.name,
+      scopes: [feature && feature.name ? feature.name : ''],
+      identifier: scenario && scenario.name,
+      file_name: featurePath ? path.relative(process.cwd(), featurePath) : undefined,
+      location: featurePath ? path.relative(process.cwd(), featurePath) : undefined,
+      framework: 'nightwatch',
+      result: 'failed',
+      meta: {
+        feature: feature,
+        scenario: scenario,
+        steps: steps
+      }
+    };
+    await helper.uploadEventData({event_type: 'TestRunFinished', test_run: testData});
+  }
+
+  // Emit a terminal TestRunFinished for a native (non-cucumber) run left open at
+  // teardown, built from the TestMap run info and marked failed so the backend
+  // clears the running state instead of letting the reaper time it out.
+  async sendSyntheticTestRunFinished(uuid, runInfo = {}) {
+    if (!uuid) {
+      return;
+    }
+    const identifier = runInfo.identifier || '';
+    const separatorIndex = identifier.indexOf('::');
+    const moduleName = separatorIndex === -1 ? identifier : identifier.slice(0, separatorIndex);
+    const testName = separatorIndex === -1 ? identifier : identifier.slice(separatorIndex + 2);
+    const testData = {
+      uuid: uuid,
+      type: 'test',
+      name: testName || 'unknown',
+      body: {
+        lang: 'nightwatch',
+        code: null
+      },
+      scope: identifier,
+      scopes: [moduleName || ''],
+      started_at: runInfo.startedAt,
+      finished_at: new Date().toISOString(),
+      result: 'failed',
+      framework: 'nightwatch'
+    };
+    await helper.uploadEventData({event_type: 'TestRunFinished', test_run: testData});
+  }
+
+  // Emit a terminal HookRunFinished for every hook that started but never finished
+  // (no finished_at). Idempotent: a finished hook is skipped, so re-running the
+  // sweep never double-finishes a hook.
+  async sweepOpenHooks() {
+    for (const testCaseStartedId of Object.keys(hooksMap)) {
+      const hookList = hooksMap[testCaseStartedId];
+      if (!(hookList instanceof Array)) {
+        continue;
+      }
+      for (const hookEventData of hookList) {
+        if (hookEventData.finished_at) {
+          continue;
+        }
+        try {
+          hookEventData.result = 'failed';
+          hookEventData.finished_at = new Date().toISOString();
+          await helper.uploadEventData({event_type: 'HookRunFinished', hook_run: hookEventData});
+        } catch (err) {
+          Logger.debug(`Error sweeping open hook ${hookEventData.uuid}: ${err && err.message}`);
+        }
       }
     }
   }
