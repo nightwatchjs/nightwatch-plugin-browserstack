@@ -535,6 +535,12 @@ class TestObservability {
     if (eventType === 'TestRunFinished') {
       const eventData = test.envelope[testName].testcase;
       testData.finished_at = eventData.endTimestamp ? new Date(eventData.endTimestamp).toISOString() : new Date(startTimestamp).toISOString();
+      // LTS-only: main-path Nightwatch TestRunFinished doesn't carry duration_in_ms
+      // (cucumber/hook/skipped paths do). Compute from timestamps so BTCER duration
+      // populates for LTS builds. Non-LTS emits unchanged.
+      if (helper.isLoadTestingSession()) {
+        testData.duration_in_ms = new Date(testData.finished_at).getTime() - new Date(testData.started_at).getTime();
+      }
       testData.result = 'passed';
       if (eventData && eventData.commands && Array.isArray(eventData.commands)) {
         const failedCommand = eventData.commands.find(cmd => cmd.status === 'fail' && !helper.isSuppressedFailure(cmd));

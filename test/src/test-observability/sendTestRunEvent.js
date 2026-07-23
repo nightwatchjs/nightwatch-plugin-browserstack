@@ -161,4 +161,31 @@ describe('TestObservability - sendTestRunEvent (suppressNotFoundErrors)', functi
       `expected failure_reason to reference the real failure, got: ${this.uploaded.test_run.failure_reason}`
     );
   });
+
+  // LTS regression: main-path Nightwatch TestRunFinished never carried
+  // duration_in_ms, leaving BTCER.duration NULL on load-testing builds and
+  // zeroing every duration-derived Tests-tab metric (min/avg/p50/p95/max).
+  // The fix computes duration from the envelope timestamps only when
+  // helper.isLoadTestingSession() is true. Non-LTS runs remain unchanged.
+  it('populates duration_in_ms from timestamps on LTS runs', async () => {
+    this.sandbox.stub(helper, 'isLoadTestingSession').returns(true);
+    const commands = [{name: 'url', args: ['https://example.com'], status: 'pass'}];
+
+    await this.testObservability.sendTestRunEvent('TestRunFinished', buildTest(commands), 'uuid-lts-1');
+
+    // Fixture: startTimestamp=1700000000000, endTimestamp=1700000001000 → 1000 ms.
+    assert.strictEqual(this.uploaded.test_run.duration_in_ms, 1000);
+  });
+
+  it('leaves duration_in_ms unset on non-LTS runs', async () => {
+    this.sandbox.stub(helper, 'isLoadTestingSession').returns(false);
+    const commands = [{name: 'url', args: ['https://example.com'], status: 'pass'}];
+
+    await this.testObservability.sendTestRunEvent('TestRunFinished', buildTest(commands), 'uuid-lts-2');
+
+    assert.ok(
+      !('duration_in_ms' in this.uploaded.test_run),
+      'expected no duration_in_ms on non-LTS runs (contract preserved)'
+    );
+  });
 });
