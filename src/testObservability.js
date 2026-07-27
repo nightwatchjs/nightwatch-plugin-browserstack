@@ -540,6 +540,13 @@ class TestObservability {
       // populates for LTS builds. Non-LTS emits unchanged.
       if (helper.isLoadTestingSession()) {
         testData.duration_in_ms = new Date(testData.finished_at).getTime() - new Date(testData.started_at).getTime();
+        // LTS-only: attach per-step data collected by bstackStep() (injected by
+        // the LCNC compiler into the compiled spec). Empty/absent → skip so
+        // non-instrumented specs stay backward-compatible.
+        const steps = globalThis.__bstack_steps;
+        if (Array.isArray(steps) && steps.length) {
+          testData.meta = {...(testData.meta || {}), steps};
+        }
       }
       testData.result = 'passed';
       if (eventData && eventData.commands && Array.isArray(eventData.commands)) {
