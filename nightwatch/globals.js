@@ -305,7 +305,9 @@ module.exports = {
         // LTS-only: reset the per-test step buffer that bstackStep() (injected
         // by the LCNC compiler into the compiled spec) writes into. Read back
         // in testObservability.sendTestRunEvent at TestRunFinished.
-        if (helper.isLoadTestingSession()) {globalThis.__bstack_steps = [];}
+        if (helper.isLoadTestingSession()) {
+          global.__bstack_steps = [];
+        }
         // Capture the live session id at TestRunStarted (when browser.end()
         // hasn't run yet). TestRunFinished's async handler can race with
         // afterEach: by the time it executes, browser.sessionId may already

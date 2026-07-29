@@ -543,7 +543,7 @@ class TestObservability {
         // LTS-only: attach per-step data collected by bstackStep() (injected by
         // the LCNC compiler into the compiled spec). Empty/absent → skip so
         // non-instrumented specs stay backward-compatible.
-        const steps = globalThis.__bstack_steps;
+        const steps = global.__bstack_steps;
         if (Array.isArray(steps) && steps.length) {
           testData.meta = {...(testData.meta || {}), steps};
         }
