@@ -161,4 +161,78 @@ describe('TestObservability - sendTestRunEvent (suppressNotFoundErrors)', functi
       `expected failure_reason to reference the real failure, got: ${this.uploaded.test_run.failure_reason}`
     );
   });
+
+  // LTS regression: main-path Nightwatch TestRunFinished never carried
+  // duration_in_ms, leaving BTCER.duration NULL on load-testing builds and
+  // zeroing every duration-derived Tests-tab metric (min/avg/p50/p95/max).
+  // The fix computes duration from the envelope timestamps only when
+  // helper.isLoadTestingSession() is true. Non-LTS runs remain unchanged.
+  it('populates duration_in_ms from timestamps on LTS runs', async () => {
+    this.sandbox.stub(helper, 'isLoadTestingSession').returns(true);
+    const commands = [{name: 'url', args: ['https://example.com'], status: 'pass'}];
+
+    await this.testObservability.sendTestRunEvent('TestRunFinished', buildTest(commands), 'uuid-lts-1');
+
+    // Fixture: startTimestamp=1700000000000, endTimestamp=1700000001000 → 1000 ms.
+    assert.strictEqual(this.uploaded.test_run.duration_in_ms, 1000);
+  });
+
+  it('leaves duration_in_ms unset on non-LTS runs', async () => {
+    this.sandbox.stub(helper, 'isLoadTestingSession').returns(false);
+    const commands = [{name: 'url', args: ['https://example.com'], status: 'pass'}];
+
+    await this.testObservability.sendTestRunEvent('TestRunFinished', buildTest(commands), 'uuid-lts-2');
+
+    assert.ok(
+      !('duration_in_ms' in this.uploaded.test_run),
+      'expected no duration_in_ms on non-LTS runs (contract preserved)'
+    );
+  });
+
+  // LTS step-level insights: the LCNC compiler wraps each recorded step in a
+  // bstackStep() helper that pushes {id, text, duration, ...} to
+  // global.__bstack_steps. sendTestRunEvent must attach that array to
+  // testData.meta.steps at TestRunFinished (only when isLoadTestingSession()
+  // is true) so the Testhub MV mv_btcer_step_metrics_v5 fans it out into the
+  // btcer_step_metrics_v5 table that Step Insights aggregates on.
+  it('attaches global.__bstack_steps to meta.steps on LTS runs', async () => {
+    this.sandbox.stub(helper, 'isLoadTestingSession').returns(true);
+    const steps = [
+      {id: 'a', text: 'Open page', keyword: '', duration: 800, started_at: '2026-07-27T16:00:00.000', finished_at: '2026-07-27T16:00:00.800', result: 'passed', failure: null},
+      {id: 'b', text: 'Click X',   keyword: '', duration: 120, started_at: '2026-07-27T16:00:00.800', finished_at: '2026-07-27T16:00:00.920', result: 'passed', failure: null}
+    ];
+    global.__bstack_steps = steps;
+    const commands = [{name: 'url', args: ['https://example.com'], status: 'pass'}];
+
+    try {
+      await this.testObservability.sendTestRunEvent('TestRunFinished', buildTest(commands), 'uuid-lts-steps-1');
+      assert.deepStrictEqual(this.uploaded.test_run.meta && this.uploaded.test_run.meta.steps, steps);
+    } finally {
+      delete global.__bstack_steps;
+    }
+  });
+
+  it('omits meta.steps on non-LTS runs even when the buffer is populated', async () => {
+    this.sandbox.stub(helper, 'isLoadTestingSession').returns(false);
+    global.__bstack_steps = [{id: 'a', text: 'Open page', duration: 800, result: 'passed'}];
+    const commands = [{name: 'url', args: ['https://example.com'], status: 'pass'}];
+
+    try {
+      await this.testObservability.sendTestRunEvent('TestRunFinished', buildTest(commands), 'uuid-lts-steps-2');
+      const meta = this.uploaded.test_run.meta;
+      assert.ok(!meta || !('steps' in meta), 'expected no meta.steps on non-LTS runs (contract preserved)');
+    } finally {
+      delete global.__bstack_steps;
+    }
+  });
+
+  it('leaves meta.steps unset on LTS runs when the buffer is empty or missing', async () => {
+    this.sandbox.stub(helper, 'isLoadTestingSession').returns(true);
+    delete global.__bstack_steps;
+    const commands = [{name: 'url', args: ['https://example.com'], status: 'pass'}];
+
+    await this.testObservability.sendTestRunEvent('TestRunFinished', buildTest(commands), 'uuid-lts-steps-3');
+    const meta = this.uploaded.test_run.meta;
+    assert.ok(!meta || !('steps' in meta), 'expected no meta.steps when nothing was recorded');
+  });
 });
