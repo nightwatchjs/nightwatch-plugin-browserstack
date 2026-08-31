@@ -528,7 +528,8 @@ class TestObservability {
       },
       product_map: {
         observability: helper.isTestObservabilitySession(),
-        accessibility: helper.isAccessibilitySession() && accessibilityAutomation.shouldScanTestForAccessibility(test) && process.env.VALID_ALLY_PLATFORM
+        accessibility: helper.isAccessibilitySession() && accessibilityAutomation.shouldScanTestForAccessibility(test) && process.env.VALID_ALLY_PLATFORM,
+        lts: helper.isLoadTestingSession()
       }
     };
 
