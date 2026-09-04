@@ -460,7 +460,10 @@ class TestObservability {
         logs: [
           {
             test_run_uuid: test_run_uuid,
-            timestamp: httpResponse[0],
+            // Stamp at request-issue time: a slow request would otherwise sort after
+            // logs emitted while it was still in flight. duration_ms below still
+            // spans request -> response.
+            timestamp: httpRequest[0],
             kind: 'HTTP',
             http_response: {
               path: stripAnsi(httpRequest[1] || '').replace(/&#39;/g, '\'').trim().split(' ')[2],
