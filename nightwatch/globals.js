@@ -776,6 +776,8 @@ const cucumberPatcher = () => {
   }
 };
 
+let missingTestHubBuildWarned = false;
+
 const addProductMapAndbuildUuidCapability = (settings) => {
   try {
     if (!settings?.desiredCapabilities) {
@@ -793,12 +795,23 @@ const addProductMapAndbuildUuidCapability = (settings) => {
       percy: false
     };
 
+    const testhubBuildUuid = process.env.BROWSERSTACK_TESTHUB_UUID || '';
+
+    // An empty uuid on a run that intended a TestHub build leaves every session
+    // unlinkable, and used to be entirely silent.
+    const testHubBuildIntended = buildProductMap.observability || buildProductMap.accessibility ||
+      process.env.BROWSERSTACK_TESTHUB_BUILD_ATTEMPTED === 'true';
+    if (!testhubBuildUuid && testHubBuildIntended && !missingTestHubBuildWarned) {
+      missingTestHubBuildWarned = true;
+      Logger.warn('No TestHub build was created for this run, so its sessions cannot be linked to test reporting or accessibility data.');
+    }
+
     if (settings.desiredCapabilities['bstack:options']) {
       settings.desiredCapabilities['bstack:options']['buildProductMap'] = buildProductMap;
-      settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = process.env.BROWSERSTACK_TESTHUB_UUID ? process.env.BROWSERSTACK_TESTHUB_UUID : '' ;
+      settings.desiredCapabilities['bstack:options']['testhubBuildUuid'] = testhubBuildUuid;
     } else {
       settings.desiredCapabilities['browserstack.buildProductMap'] = buildProductMap;
-      settings.desiredCapabilities['browserstack.testhubBuildUuid'] = process.env.BROWSERSTACK_TESTHUB_UUID ? process.env.BROWSERSTACK_TESTHUB_UUID : '' ;
+      settings.desiredCapabilities['browserstack.testhubBuildUuid'] = testhubBuildUuid;
     }
   } catch (error) {
     Logger.debug(`Error while sending productmap and build capabilities ${error}`);

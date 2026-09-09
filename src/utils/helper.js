@@ -106,6 +106,36 @@ exports.isSuppressedFailure = (cmd) => {
   return !!(opts && typeof opts === 'object' && opts.suppressNotFoundErrors === true);
 };
 
+const BOOLEAN_SETTING_TRUE = ['true', '1', 'yes', 'on'];
+const BOOLEAN_SETTING_FALSE = ['false', '0', 'no', 'off', ''];
+
+// Config reaches the plugin from nightwatch.conf.js, YAML and env-derived wrappers, so a
+// flag arrives as a boolean, a string or a number. Every site must resolve it identically:
+// a strict `=== true` at one site and truthiness at another is what let a run report
+// reporting as enabled while never creating a build. undefined = setting absent.
+exports.parseBooleanSetting = (value) => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    const normalised = value.trim().toLowerCase();
+    if (BOOLEAN_SETTING_TRUE.includes(normalised)) {
+      return true;
+    }
+    if (BOOLEAN_SETTING_FALSE.includes(normalised)) {
+      return false;
+    }
+  }
+
+  return Boolean(value);
+};
+
 exports.isTestObservabilitySession = () => {
   return process.env.BROWSERSTACK_TEST_OBSERVABILITY === 'true' || 
          process.env.BROWSERSTACK_TEST_REPORTING === 'true';
@@ -211,11 +241,14 @@ exports.isAccessibilitySession = () => {
 
 exports.isTestHubBuild = (pluginSettings = {}, isBuildStart = false) => {
   if (isBuildStart) {
-    return pluginSettings?.test_reporting?.enabled === true ||  pluginSettings?.test_observability?.enabled === true || pluginSettings?.accessibility === true;
+    // Resolved from the same normalised state the rest of the plugin reads, so build
+    // creation cannot be skipped for a run that reports the product as enabled.
+    return this.isTestObservabilitySession() ||
+      this.parseBooleanSetting(pluginSettings?.accessibility) === true;
   }
-  
+
   return this.isTestObservabilitySession() || this.isAccessibilitySession();
-  
+
 };
 
 exports.isAppAccessibilitySession = () => {
