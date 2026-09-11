@@ -28,12 +28,12 @@ class TestObservability {
     }
 
     // Check for top-level testObservability or testReporting flags
-    if (settings.testObservability === true || settings.testReporting === true) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'true';
-      process.env.BROWSERSTACK_TEST_REPORTING = 'true';
-    } else if (settings.testObservability === false || settings.testReporting === false) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = 'false';
-      process.env.BROWSERSTACK_TEST_REPORTING = 'false';
+    const topLevelFlag = helper.parseBooleanSetting(
+      helper.isUndefined(settings.testObservability) ? settings.testReporting : settings.testObservability
+    );
+    if (!helper.isUndefined(topLevelFlag)) {
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = String(topLevelFlag);
+      process.env.BROWSERSTACK_TEST_REPORTING = String(topLevelFlag);
     }
 
     // Check for test_observability or test_reporting configuration
@@ -41,8 +41,12 @@ class TestObservability {
     const testReportingOptions = this._settings.testReportingOptions || this._settings.testObservabilityOptions;
 
     if (!helper.isUndefined(observabilityConfig) && !helper.isUndefined(observabilityConfig.enabled)) {
-      process.env.BROWSERSTACK_TEST_OBSERVABILITY = observabilityConfig.enabled;
-      process.env.BROWSERSTACK_TEST_REPORTING = observabilityConfig.enabled;
+      const enabled = helper.parseBooleanSetting(observabilityConfig.enabled);
+      if (typeof observabilityConfig.enabled !== 'boolean') {
+        Logger.warn(`Interpreting test_observability.enabled=${JSON.stringify(observabilityConfig.enabled)} as ${enabled}. Set a boolean to remove the ambiguity.`);
+      }
+      process.env.BROWSERSTACK_TEST_OBSERVABILITY = String(enabled);
+      process.env.BROWSERSTACK_TEST_REPORTING = String(enabled);
     }
 
     if (process.argv.includes('--disable-test-observability') || process.argv.includes('--disable-test-reporting')) {
@@ -87,6 +91,10 @@ class TestObservability {
   }
 
   async launchTestSession() {
+    // Records that a build was intended, so a run that ends without a uuid can say so
+    // even though the failure path turns the product flags back off.
+    process.env.BROWSERSTACK_TESTHUB_BUILD_ATTEMPTED = 'true';
+
     // Support both old and new configuration options at different levels
     const testReportingOptions = this._settings.test_observability ||
                    this._settings.test_reporting ||
@@ -100,7 +108,8 @@ class TestObservability {
     const accessibilityOptions = accessibility ? this._settings.accessibilityOptions || {} : {};
     this._gitMetadata = await helper.getGitMetaData();
     const fromProduct = {
-      test_observability: this._settings.test_observability?.enabled || this._settings.test_reporting?.enabled || false,
+      test_observability: helper.parseBooleanSetting(
+        this._settings.test_observability?.enabled ?? this._settings.test_reporting?.enabled) ?? false,
       accessibility: accessibility
     };
     const data = {
