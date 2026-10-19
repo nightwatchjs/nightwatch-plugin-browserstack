@@ -7,7 +7,7 @@ const helper = require('./utils/helper');
 const {makeRequest} = require('./utils/requestHelper');
 const CrashReporter = require('./utils/crashReporter');
 const Logger = require('./utils/logger');
-const {API_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
+const {API_URL, BATCH_EVENT_URL, TAKE_SCREENSHOT_REGEX} = require('./utils/constants');
 const OrchestrationUtils = require('./testorchestration/orchestrationUtils');
 const AccessibilityAutomation = require('./accessibilityAutomation');
 const accessibilityScripts = require('./scripts/accessibilityScripts');
@@ -15,6 +15,30 @@ const TestMap = require('./utils/testMap');
 const CustomTagManager = require('./utils/customTagManager');
 const hooksMap = {};
 const accessibilityAutomation = new AccessibilityAutomation();
+
+// LTS: the result of a test the runner cut mid-run. TestHub maps `result` by exact match,
+// and on its fast path one unknown spelling drops every co-polled event of the tenant.
+const LTS_INTERRUPTED_RESULT = 'interrupted';
+// TestHub drops a meta whose JSON is longer than 131072 chars whole; keep headroom below it.
+const LTS_META_MAX_CHARS = 131072 - 4096;
+
+// The earliest steps whose {steps} JSON fits LTS_META_MAX_CHARS, as a new array (the snapshot).
+const stepsThatFit = (steps) => {
+  const kept = [];
+  if (!Array.isArray(steps)) {
+    return kept;
+  }
+  let size = JSON.stringify({steps: []}).length;
+  for (const step of steps) {
+    size += (JSON.stringify(step) ?? 'null').length + (kept.length ? 1 : 0);
+    if (size > LTS_META_MAX_CHARS) {
+      break;
+    }
+    kept.push(step);
+  }
+
+  return kept;
+};
 
 class TestObservability {
   configure(settings = {}) {
@@ -271,7 +295,7 @@ class TestObservability {
     helper.logBuildError(error, 'Accessibility');
   }
 
-  async stopBuildUpstream () {
+  async stopBuildUpstream (timeout) {
     if (!process.env.BS_TESTOPS_BUILD_COMPLETED) {
       return;
     }
@@ -297,8 +321,11 @@ class TestObservability {
         'X-BSTACK-TESTOPS': 'true'
       }
     };
+    if (timeout) {
+      config.timeout = timeout;
+    }
     await helper.uploadPending();
-    await helper.shutDownRequestHandler();
+    await helper.shutDownRequestHandler(timeout);
     try {
       const response = await makeRequest('PUT', `api/v1/builds/${process.env.BROWSERSTACK_TESTHUB_UUID}/stop`, data, config, API_URL, false);
       if (response.data?.error) {
@@ -541,6 +568,10 @@ class TestObservability {
         lts: helper.isLoadTestingSession()
       }
     };
+
+    if (eventType === 'TestRunStarted' && helper.isLoadTestingSession()) {
+      TestMap.setStartedPayload(uuid, {...testData});
+    }
 
     if (eventType === 'TestRunFinished') {
       const eventData = test.envelope[testName].testcase;
@@ -991,6 +1022,45 @@ class TestObservability {
       framework: 'nightwatch'
     };
     await helper.uploadEventData({event_type: 'TestRunFinished', test_run: testData});
+  }
+
+  // LTS: the TestRunFinished for a run the runner cut mid-test, built from that run's
+  // TestRunStarted payload so the row keeps its identity and test_hash, with the LCNC steps
+  // completed before the cut. No reason string is attached.
+  buildInterruptedTestRun(startedPayload, finishedAt) {
+    const testRun = {
+      ...startedPayload,
+      result: LTS_INTERRUPTED_RESULT,
+      finished_at: finishedAt,
+      duration_in_ms: new Date(finishedAt).getTime() - new Date(startedPayload.started_at).getTime()
+    };
+    const steps = stepsThatFit(global.__bstack_steps);
+    if (steps.length) {
+      testRun.meta = {steps};
+    }
+
+    return testRun;
+  }
+
+  // LTS: the interrupted finishes go in their own request after the queue drain, so a
+  // whole-request failure (401, 413, 5xx, a timeout) of one cannot take the other's events with it.
+  async sendInterruptedTestRuns(testRuns, timeout) {
+    if (!testRuns.length) {
+      return;
+    }
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
+        'Content-Type': 'application/json',
+        'X-BSTACK-TESTOPS': 'true'
+      },
+      timeout
+    };
+    try {
+      await makeRequest('POST', BATCH_EVENT_URL, testRuns.map((test_run) => ({event_type: 'TestRunFinished', test_run})), config);
+    } catch (error) {
+      Logger.error(`EXCEPTION IN LTS interrupted TestRunFinished REQUEST TO TEST REPORTING AND ANALYTICS : ${error.message || error}`);
+    }
   }
 
   // Emit a terminal HookRunFinished for every hook that started but never finished

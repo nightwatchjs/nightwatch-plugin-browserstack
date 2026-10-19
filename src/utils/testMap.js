@@ -64,6 +64,13 @@ class TestMap {
     return {sessionId: run.sessionId, sessionCapabilities: run.sessionCapabilities};
   }
 
+  // LTS: the run's TestRunStarted payload, so a finish built for it at a runner cut carries
+  // the same identity fields, and so the same test_hash, as the row it closes. getOpenRuns returns it.
+  static setStartedPayload(uuid, payload) {
+    if (!uuid || !activeTestRuns.has(uuid)) {return}
+    activeTestRuns.get(uuid).startedPayload = payload;
+  }
+
   static getUUID(test = null) {
     if (test) {
       const testIdentifier = typeof test === 'string' ? test : this.generateTestIdentifier(test);
