@@ -37,7 +37,9 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse
   const acceptedStatusCodes = [200, 201, 202];
 
   return new Promise((resolve, reject) => {
-    request(options, function callback(error, response, body) {
+    let timer;
+    const req = request(options, function callback(error, response, body) {
+      clearTimeout(timer);
       if (error) {
         reject(error);
       } else if (!acceptedStatusCodes.includes(response.statusCode)) {
@@ -55,5 +57,13 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse
         });
       }
     });
+    // The request library's own `timeout` bounds only the connect and the gaps between bytes;
+    // this bounds the whole call (LTS stop path).
+    if (config.timeout) {
+      timer = setTimeout(() => {
+        req.abort();
+        reject(new Error(`Request timed out after ${config.timeout}ms`));
+      }, config.timeout);
+    }
   });
 };

@@ -52,12 +52,12 @@ class RequestQueueHandler {
     
   }
 
-  async shutdown () {
+  async shutdown (timeout) {
     this.removeEventBatchPolling('REMOVING');
     while (this.queue.length > 0) {
       const data = this.queue.slice(0, BATCH_SIZE);
       this.queue.splice(0, BATCH_SIZE);
-      await this.batchAndPostEvents(this.eventUrl, 'Shutdown-Queue', data);
+      await this.batchAndPostEvents(this.eventUrl, 'Shutdown-Queue', data, timeout);
     }
   }
 
@@ -90,7 +90,7 @@ class RequestQueueHandler {
     return this.queue.length >= BATCH_SIZE;
   }
 
-  async batchAndPostEvents (eventUrl, kind, data) {
+  async batchAndPostEvents (eventUrl, kind, data, timeout) {
     const config = {
       headers: {
         'Authorization': `Bearer ${process.env.BROWSERSTACK_TESTHUB_JWT}`,
@@ -98,7 +98,10 @@ class RequestQueueHandler {
         'X-BSTACK-TESTOPS': 'true'
       }
     };
-  
+    if (timeout) {
+      config.timeout = timeout;
+    }
+
     try {
       const response = await makeRequest('POST', eventUrl, data, config);
       if (response.data && response.data.error) {
