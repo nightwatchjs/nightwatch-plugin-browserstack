@@ -580,6 +580,22 @@ class TestObservability {
           }
         }
       }
+      // LTS-only: a step recorded by bstackStep() is the authoritative failure.
+      // The LCNC helper throws its own Error, which Nightwatch keeps out of the
+      // command list, so the first failed command is often an internal probe
+      // (e.g. an executeAsyncScript that hit "script timeout") whose result has
+      // no message or stack. That shipped `backtrace: ['', '']` and TRA had
+      // nothing to cluster; with no failed command at all it reported 'passed'.
+      if (helper.isLoadTestingSession()) {
+        const failedStep = helper.getLastFailedLtsStep(global.__bstack_steps);
+        if (failedStep) {
+          const message = stripAnsi(String(failedStep.failure));
+          testData.result = 'failed';
+          testData.failure = [{'backtrace': [message]}];
+          testData.failure_reason = message;
+          testData.failure_type = /Assert/.test(message) ? 'AssertionError' : 'UnhandledError';
+        }
+      }
       await this.processTestRunData (eventData, uuid);
     }
 
