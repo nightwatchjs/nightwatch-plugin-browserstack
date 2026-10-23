@@ -419,3 +419,31 @@ describe('isSuppressedFailure', () => {
   });
 
 });
+
+describe('getLastFailedLtsStep', () => {
+  let getLastFailedLtsStep;
+  before(() => {
+    getLastFailedLtsStep = require('../../../src/utils/helper').getLastFailedLtsStep;
+  });
+
+  it('returns null for a missing or non-array buffer', () => {
+    expect(getLastFailedLtsStep(undefined)).to.be.null;
+    expect(getLastFailedLtsStep(null)).to.be.null;
+    expect(getLastFailedLtsStep({})).to.be.null;
+  });
+
+  it('returns null when no step failed', () => {
+    expect(getLastFailedLtsStep([{id: 'a', result: 'passed', failure: null}])).to.be.null;
+  });
+
+  it('returns the last failed step that carries a message', () => {
+    const parent = {id: 'p', result: 'failed', failure: 'outer'};
+    const child = {id: 'c', result: 'failed', failure: 'No selector matched after 30000ms.'};
+    expect(getLastFailedLtsStep([{id: 'a', result: 'passed'}, parent, child])).to.equal(child);
+  });
+
+  it('skips a failed step with an empty or non-string failure', () => {
+    const real = {id: 'b', result: 'failed', failure: 'real cause'};
+    expect(getLastFailedLtsStep([real, {id: 'c', result: 'failed', failure: '  '}, {id: 'd', result: 'failed', failure: null}])).to.equal(real);
+  });
+});

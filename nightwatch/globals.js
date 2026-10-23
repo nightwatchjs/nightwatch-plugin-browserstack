@@ -334,7 +334,12 @@ module.exports = {
         // calls `browser.end()` in afterEach, all earlier sessions stay
         // unmarked ("done") on the Automate dashboard. We use the same
         // browserstack_executor action the user would call manually.
-        if (typeof browser !== 'undefined' && browser.sessionId) {
+        // LTS runs on its own grid (browserstackAutomation=false), where the
+        // executor string is not intercepted: Chrome evaluates it as JS and
+        // fails with "Unexpected token ':'", which then lands in the run's
+        // failure evidence as a script error. The LTS runner owns session
+        // status there, so skip the call.
+        if (typeof browser !== 'undefined' && browser.sessionId && !helper.isLoadTestingSession()) {
           try {
             const testName = test?.testcase;
             const eventData = (testName && test?.envelope?.[testName]?.testcase) || null;

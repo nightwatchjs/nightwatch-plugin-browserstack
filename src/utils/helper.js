@@ -62,6 +62,22 @@ exports.getLtsSessionId = () => {
   return process.env.BROWSERSTACK_LTS_SESSION_ID || '';
 };
 
+// The last step bstackStep() recorded as failed with a non-empty failure
+// message, or null. Steps are pushed in execution order, so the last failed
+// one is the step that ended the test (a parent wrapping a failed child is
+// pushed first, so the child's more specific message wins).
+exports.getLastFailedLtsStep = (steps) => {
+  if (!Array.isArray(steps)) {return null}
+  for (let i = steps.length - 1; i >= 0; i -= 1) {
+    const step = steps[i];
+    if (step && step.result === 'failed' && typeof step.failure === 'string' && step.failure.trim()) {
+      return step;
+    }
+  }
+
+  return null;
+};
+
 exports.generateLocalIdentifier = () => {
   const formattedDate = new Intl.DateTimeFormat('en-GB', {
     month: 'short',

@@ -235,4 +235,70 @@ describe('TestObservability - sendTestRunEvent (suppressNotFoundErrors)', functi
     const meta = this.uploaded.test_run.meta;
     assert.ok(!meta || !('steps' in meta), 'expected no meta.steps when nothing was recorded');
   });
+
+  // LTAR-420: the LCNC helper throws its own Error, which Nightwatch keeps out
+  // of the command list, so the first failed command was an internal selector
+  // probe (executeAsyncScript "script timeout") whose result has no message or
+  // stack. TestRunFinished shipped backtrace ['', ''] and TRA could not cluster
+  // the failure. The failed bstackStep() is now the authoritative failure.
+  describe('LTS failed step', () => {
+    const selectorMessage = '[Step 14: Click on "disc Brake Pad" link [click, stepId=f4a69331]] No selector matched after 30000ms.';
+    const steps = [
+      {id: 'a', text: 'Step 13', result: 'passed', failure: null},
+      {id: 'b', text: 'Step 14', result: 'failed', failure: selectorMessage}
+    ];
+    const timedOutProbe = {name: 'executeAsyncScript', args: [], status: 'fail', result: {status: -1, value: null}};
+
+    afterEach(() => {
+      delete global.__bstack_steps;
+    });
+
+    it('uses the failed step message when the failed command carries none', async () => {
+      this.sandbox.stub(helper, 'isLoadTestingSession').returns(true);
+      global.__bstack_steps = steps;
+
+      await this.testObservability.sendTestRunEvent('TestRunFinished',
+        buildTest([timedOutProbe], {status: 'fail', failed: 0, errors: 1}), 'uuid-lts-fail-1');
+
+      const run = this.uploaded.test_run;
+      assert.strictEqual(run.result, 'failed');
+      assert.deepStrictEqual(run.failure, [{backtrace: [selectorMessage]}]);
+      assert.strictEqual(run.failure_reason, selectorMessage);
+      assert.strictEqual(run.failure_type, 'UnhandledError');
+    });
+
+    it('reports failed (not passed) when no Nightwatch command failed', async () => {
+      this.sandbox.stub(helper, 'isLoadTestingSession').returns(true);
+      global.__bstack_steps = steps;
+
+      await this.testObservability.sendTestRunEvent('TestRunFinished',
+        buildTest([{name: 'url', args: ['https://example.com'], status: 'pass'}], {status: 'fail', failed: 0, errors: 1}), 'uuid-lts-fail-2');
+
+      assert.strictEqual(this.uploaded.test_run.result, 'failed');
+      assert.strictEqual(this.uploaded.test_run.failure_reason, selectorMessage);
+    });
+
+    it('keeps the command-derived failure on LTS runs with no failed step', async () => {
+      this.sandbox.stub(helper, 'isLoadTestingSession').returns(true);
+      global.__bstack_steps = [steps[0]];
+      const failedAssert = {name: 'assert.visible', args: [], status: 'fail', result: {message: 'Element was not visible', stack: 'at x', name: 'NightwatchAssertError'}};
+
+      await this.testObservability.sendTestRunEvent('TestRunFinished',
+        buildTest([failedAssert], {status: 'fail', failed: 1, errors: 0}), 'uuid-lts-fail-3');
+
+      assert.strictEqual(this.uploaded.test_run.failure_reason, 'Element was not visible');
+      assert.strictEqual(this.uploaded.test_run.failure_type, 'AssertionError');
+    });
+
+    it('ignores the step buffer on non-LTS runs', async () => {
+      this.sandbox.stub(helper, 'isLoadTestingSession').returns(false);
+      global.__bstack_steps = steps;
+
+      await this.testObservability.sendTestRunEvent('TestRunFinished',
+        buildTest([{name: 'url', args: ['https://example.com'], status: 'pass'}]), 'uuid-lts-fail-4');
+
+      assert.strictEqual(this.uploaded.test_run.result, 'passed');
+      assert.ok(!('failure' in this.uploaded.test_run));
+    });
+  });
 });
