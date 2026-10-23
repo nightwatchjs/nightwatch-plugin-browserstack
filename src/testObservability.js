@@ -323,6 +323,7 @@ class TestObservability {
     };
     if (timeout) {
       config.timeout = timeout;
+      config.totalTimeout = timeout;
     }
     await helper.uploadPending();
     await helper.shutDownRequestHandler(timeout);
@@ -1054,7 +1055,8 @@ class TestObservability {
         'Content-Type': 'application/json',
         'X-BSTACK-TESTOPS': 'true'
       },
-      timeout
+      timeout,
+      totalTimeout: timeout
     };
     try {
       await makeRequest('POST', BATCH_EVENT_URL, testRuns.map((test_run) => ({event_type: 'TestRunFinished', test_run})), config);

@@ -100,6 +100,7 @@ class RequestQueueHandler {
     };
     if (timeout) {
       config.timeout = timeout;
+      config.totalTimeout = timeout;
     }
 
     try {

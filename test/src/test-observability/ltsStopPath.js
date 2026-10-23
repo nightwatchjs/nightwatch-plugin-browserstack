@@ -209,6 +209,7 @@ describe('TestObservability - LT interrupted POST and bounded build stop', funct
     assert.deepStrictEqual(body, runs.map((test_run) => ({event_type: 'TestRunFinished', test_run})));
     assert.strictEqual(config.headers.Authorization, 'Bearer jwt-test');
     assert.strictEqual(config.timeout, 2000);
+    assert.strictEqual(config.totalTimeout, 2000);
   });
 
   it('sends nothing when there is no interrupted finish', async function () {
@@ -234,6 +235,7 @@ describe('TestObservability - LT interrupted POST and bounded build stop', funct
     assert.strictEqual(method, 'PUT');
     assert.strictEqual(url, 'api/v1/builds/build-1/stop');
     assert.strictEqual(config.timeout, 2000);
+    assert.strictEqual(config.totalTimeout, 2000);
   });
 
   it('stops the build exactly as today when no timeout is given', async function () {
@@ -244,6 +246,7 @@ describe('TestObservability - LT interrupted POST and bounded build stop', funct
 
     assert.strictEqual(shutdownStub.firstCall.args[0], undefined);
     assert.ok(!('timeout' in makeRequestStub.firstCall.args[3]), 'PUT config unchanged for the non-LT path');
+    assert.ok(!('totalTimeout' in makeRequestStub.firstCall.args[3]), 'no total timeout on the non-LT PUT');
   });
 });
 

@@ -57,13 +57,13 @@ exports.makeRequest = (type, url, data, config, requestUrl=API_URL, jsonResponse
         });
       }
     });
-    // The request library's own `timeout` bounds only the connect and the gaps between bytes;
-    // this bounds the whole call (LTS stop path).
-    if (config.timeout) {
+    // `totalTimeout` bounds the whole call and only the LTS stop path sets it; `timeout` keeps
+    // the request library's connect/idle meaning for every other caller.
+    if (config.totalTimeout) {
       timer = setTimeout(() => {
         req.abort();
-        reject(new Error(`Request timed out after ${config.timeout}ms`));
-      }, config.timeout);
+        reject(new Error(`Request timed out after ${config.totalTimeout}ms`));
+      }, config.totalTimeout);
     }
   });
 };
