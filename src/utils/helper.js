@@ -62,6 +62,13 @@ exports.getLtsSessionId = () => {
   return process.env.BROWSERSTACK_LTS_SESSION_ID || '';
 };
 
+// The LT SIGTERM stop path needs an LT session with a TestHub build and the runner's
+// PID-file env, which the runner sets only where it forwards the signal. Never with BrowserStack
+// Local: its own SIGTERM handler exits at once.
+exports.shouldInstallLtsStopPath = (localTunnelRunning) => this.isLoadTestingSession() &&
+  !!process.env.BROWSERSTACK_TESTHUB_UUID && !!process.env.BROWSERSTACK_TESTHUB_JWT &&
+  !!process.env.BROWSERSTACK_LTS_SDK_PID_FILE && !localTunnelRunning;
+
 // The last step bstackStep() recorded as failed with a non-empty failure
 // message, or null. Steps are pushed in execution order, so the last failed
 // one is the step that ended the test (a parent wrapping a failed child is
@@ -911,8 +918,8 @@ exports.uploadPending = async (
   return this.uploadPending(waitTimeout - waitInterval);
 };
 
-exports.shutDownRequestHandler = async () => {
-  await requestQueueHandler.shutdown();
+exports.shutDownRequestHandler = async (timeout) => {
+  await requestQueueHandler.shutdown(timeout);
 };
 
 exports.getScenarioExamples = (gherkinDocument, scenario) => {
