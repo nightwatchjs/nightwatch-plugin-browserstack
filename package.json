@@ -1,6 +1,6 @@
 {
   "name": "@nightwatch/browserstack",
-  "version": "3.11.5",
+  "version": "3.11.6",
   "description": "Nightwatch plugin for integration with browserstack.",
   "main": "index.js",
   "scripts": {
