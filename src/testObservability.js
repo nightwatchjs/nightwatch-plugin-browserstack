@@ -887,6 +887,7 @@ class TestObservability {
         code: null
       },
       tags: hookTagsList,
+      test_run_id: testMetaData?.uuid,
       scope: testMetaData?.feature?.name,
       scopes: [testMetaData?.feature?.name || ''],
       file_name: relativeFilePath,
